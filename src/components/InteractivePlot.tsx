@@ -9,6 +9,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import { useLab } from '../store/LabContext';
 
 export interface PlotSeries {
   id: string;
@@ -54,12 +55,12 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
   showVisibilityControls = true,
   yDomainOverride,
 }) => {
+  const { darkMode } = useLab();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [hiddenIds, setHiddenIds] = useState<Record<string, boolean>>({});
   const [interactionMode, setInteractionMode] = useState<'select-zoom' | 'pan'>('select-zoom');
-  // Normalized x viewport [0..1] and y zoom factor
   const [xRange, setXRange] = useState<[number, number]>([0, 1]);
   const [yScaleFactor, setYScaleFactor] = useState<number>(1);
   const [yPanOffset, setYPanOffset] = useState<number>(0);
@@ -124,10 +125,10 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
     if (!ctx) return;
     ctx.scale(dpr, dpr);
 
-    const isDark = document.documentElement.classList.contains('dark');
-    const bg = isDark ? '#0b0f17' : '#f8fafc';
-    const gridColor = isDark ? 'rgba(148, 163, 184, 0.13)' : 'rgba(100, 116, 139, 0.16)';
-    const axisText = isDark ? '#94a3b8' : '#475569';
+    const isDark = darkMode;
+    const bg = isDark ? '#080d18' : '#ffffff';
+    const gridColor = isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(100, 116, 139, 0.18)';
+    const axisText = isDark ? '#94a3b8' : '#334155';
 
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
@@ -150,7 +151,6 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
     const xMin = xData[startIdx] ?? startIdx;
     const xMax = xData[endIdx] ?? endIdx;
 
-    // Compute Y bounds
     let yMin = Infinity;
     let yMax = -Infinity;
     if (yDomainOverride) {
@@ -183,7 +183,6 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
     const effYMin = yCenter - yHalf;
     const effYMax = yCenter + yHalf;
 
-    // Draw coordinate grid
     ctx.strokeStyle = gridColor;
     ctx.lineWidth = 1;
     ctx.font = '10px "IBM Plex Mono", monospace';
@@ -222,7 +221,6 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
       ctx.fillText(val.toFixed(val > 50 ? 0 : 2), px, padTop + plotH + 6);
     }
 
-    // Axis titles
     ctx.fillStyle = axisText;
     ctx.textAlign = 'right';
     ctx.fillText(xLabel, padLeft + plotW, height - 12);
@@ -234,16 +232,14 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
     ctx.fillText(yLabel, 0, 0);
     ctx.restore();
 
-    // Clip to plot area
     ctx.save();
     ctx.beginPath();
     ctx.rect(padLeft, padTop, plotW, plotH);
     ctx.clip();
 
-    // Zero baseline if inside range
     if (effYMin < 0 && effYMax > 0) {
       const zeroY = padTop + ((effYMax - 0) / (effYMax - effYMin)) * plotH;
-      ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.28)' : 'rgba(71, 85, 105, 0.28)';
+      ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(71, 85, 105, 0.32)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(padLeft, zeroY);
@@ -251,11 +247,10 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
       ctx.stroke();
     }
 
-    // Draw series
     const spanIdx = Math.max(1, endIdx - startIdx);
     for (const s of activeSeries) {
       ctx.strokeStyle = s.color;
-      ctx.lineWidth = s.lineWidth ?? 1.85;
+      ctx.lineWidth = s.lineWidth ?? 1.95;
       ctx.setLineDash(s.dashed ? [5, 4] : []);
       ctx.beginPath();
 
@@ -269,7 +264,6 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
           ctx.moveTo(px, py);
           started = true;
         } else if (s.stepped) {
-          const prevPx = padLeft + ((i - 1 - startIdx) / spanIdx) * plotW;
           const prevPy =
             padTop + ((effYMax - s.data[i - 1]) / Math.max(1e-9, effYMax - effYMin)) * plotH;
           ctx.lineTo(px, prevPy);
@@ -282,35 +276,32 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
     }
     ctx.setLineDash([]);
 
-    // Draw peak markers if provided
     for (const pk of peaks) {
       if (pk.x >= xMin && pk.x <= xMax) {
         const px = padLeft + ((pk.x - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
         const py = padTop + ((effYMax - pk.y) / Math.max(1e-9, effYMax - effYMin)) * plotH;
-        ctx.fillStyle = '#f59e0b';
+        ctx.fillStyle = isDark ? '#f59e0b' : '#d97706';
         ctx.beginPath();
         ctx.arc(px, py, 4, 0, 2 * Math.PI);
         ctx.fill();
-        ctx.font = '10px "IBM Plex Mono", monospace';
+        ctx.font = '600 10px "IBM Plex Mono", monospace';
         ctx.textAlign = 'center';
         ctx.fillText(pk.label, px, Math.max(padTop + 10, py - 8));
       }
     }
 
-    // Selection Zoom Box
     if (interactionMode === 'select-zoom' && dragStart && dragCurr) {
       const bx = Math.min(dragStart.x, dragCurr.x);
       const bw = Math.abs(dragCurr.x - dragStart.x);
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.16)';
-      ctx.strokeStyle = '#38bdf8';
+      ctx.fillStyle = 'rgba(2, 132, 199, 0.16)';
+      ctx.strokeStyle = '#0284c7';
       ctx.lineWidth = 1;
       ctx.fillRect(bx, padTop, bw, plotH);
       ctx.strokeRect(bx, padTop, bw, plotH);
     }
 
-    // Crosshair Hover Line
     if (hoverPos && hoverPos.px >= padLeft && hoverPos.px <= padLeft + plotW) {
-      ctx.strokeStyle = isDark ? 'rgba(226, 232, 240, 0.45)' : 'rgba(15, 23, 42, 0.4)';
+      ctx.strokeStyle = isDark ? 'rgba(226, 232, 240, 0.45)' : 'rgba(15, 23, 42, 0.45)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -322,6 +313,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
 
     ctx.restore();
   }, [
+    darkMode,
     xData,
     series,
     hiddenIds,
@@ -428,7 +420,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
         <div>
           <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
           {subtitle && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{subtitle}</p>
           )}
         </div>
 
@@ -466,13 +458,8 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
             onClick={() =>
               setInteractionMode((m) => (m === 'select-zoom' ? 'pan' : 'select-zoom'))
             }
-            title={
-              interactionMode === 'select-zoom'
-                ? 'Box Zoom Mode (Click to switch to Pan)'
-                : 'Pan Mode (Click to switch to Box Zoom)'
-            }
             className={`neu-btn px-2 py-1 rounded-md text-xs font-mono flex items-center gap-1 whitespace-nowrap cursor-pointer ${
-              interactionMode === 'pan' ? 'neu-btn-active text-sky-500' : ''
+              interactionMode === 'pan' ? 'neu-btn-active text-sky-600 dark:text-sky-400' : ''
             }`}
           >
             {interactionMode === 'pan' ? (
@@ -539,7 +526,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
         />
 
         {hoverPos && (
-          <div className="pointer-events-none absolute top-2.5 right-3 bg-slate-900/85 text-slate-100 px-2.5 py-1.5 rounded-md text-[11px] font-mono tabular-nums flex flex-wrap items-center gap-3 border border-slate-700/80">
+          <div className="pointer-events-none absolute top-2.5 right-3 bg-white/92 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-md px-2.5 py-1.5 rounded-md text-[11px] font-mono tabular-nums flex flex-wrap items-center gap-3 border border-slate-300/80 dark:border-slate-700/80">
             <span>
               x: <strong>{hoverPos.xVal.toFixed(3)}</strong>
             </span>
@@ -561,15 +548,12 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
   );
 };
 
-/**
- * Interactive 2D Heatmap for STFT Spectrograms & Continuous Wavelet Scalograms
- */
 interface InteractiveHeatmapProps {
   title: string;
   subtitle?: string;
   xValues: number[];
   yValues: number[];
-  matrix: number[][]; // [xIdx][yIdx] normalized [0..1]
+  matrix: number[][];
   xLabel?: string;
   yLabel?: string;
   height?: number;
@@ -593,6 +577,7 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
   yLabel = 'Frequency (Hz)',
   height = 240,
 }) => {
+  const { darkMode } = useLab();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [probe, setProbe] = useState<{ x: number; y: number; val: number } | null>(null);
@@ -617,8 +602,8 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = document.documentElement.classList.contains('dark');
-    ctx.fillStyle = isDark ? '#0b0f17' : '#f8fafc';
+    const isDark = darkMode;
+    ctx.fillStyle = isDark ? '#080d18' : '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
     const padLeft = 56;
@@ -646,8 +631,7 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
       }
     }
 
-    // Labels
-    ctx.fillStyle = isDark ? '#94a3b8' : '#475569';
+    ctx.fillStyle = isDark ? '#94a3b8' : '#334155';
     ctx.font = '10px "IBM Plex Mono", monospace';
     const yMin = yValues[0] ?? 0;
     const yMax = yValues[yValues.length - 1] ?? 100;
@@ -679,7 +663,7 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
     ctx.textAlign = 'center';
     ctx.fillText(yLabel, 0, 0);
     ctx.restore();
-  }, [matrix, xValues, yValues, height, xLabel, yLabel]);
+  }, [darkMode, matrix, xValues, yValues, height, xLabel, yLabel]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -708,11 +692,11 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
         <div>
           <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
           {subtitle && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{subtitle}</p>
           )}
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-slate-500">
+          <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-slate-600 dark:text-slate-400">
             <span>Low</span>
             <div className="w-20 h-2.5 rounded-sm bg-gradient-to-r from-[#001459] via-[#1f9e89] to-[#fde725]" />
             <span>High Energy</span>
@@ -736,7 +720,7 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
           className="block w-full cursor-crosshair rounded-lg"
         />
         {probe && (
-          <div className="pointer-events-none absolute top-2.5 right-3 bg-slate-900/85 text-slate-100 px-2.5 py-1 rounded-md text-[11px] font-mono tabular-nums flex items-center gap-3 border border-slate-700">
+          <div className="pointer-events-none absolute top-2.5 right-3 bg-white/92 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-mono tabular-nums flex items-center gap-3 border border-slate-300/80 dark:border-slate-700">
             <span>t: {probe.x.toFixed(2)}s</span>
             <span>f/scale: {probe.y.toFixed(1)}</span>
             <span>Norm Energy: {(probe.val * 100).toFixed(1)}%</span>

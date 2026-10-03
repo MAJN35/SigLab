@@ -28,7 +28,7 @@ const SCHEME_COLORS: Record<DigitalModType, string> = {
 };
 
 export const ModulationBERPage: React.FC = () => {
-  const { experiment, setExperiment } = useLab();
+  const { experiment, setExperiment, darkMode } = useLab();
   const digCfg = experiment.modulation.digital;
   const constellationCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const berCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -58,7 +58,6 @@ export const ModulationBERPage: React.FC = () => {
     [digCfg, experiment.randomSeed]
   );
 
-  // Run Monte Carlo BER vs SNR via Web Worker (with instant fallback)
   const triggerBerSweep = () => {
     setIsRunningBer(true);
     const req: BERSimulationRequest = {
@@ -110,16 +109,15 @@ export const ModulationBERPage: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = document.documentElement.classList.contains('dark');
-    ctx.fillStyle = isDark ? '#0b0f17' : '#f8fafc';
+    const isDark = darkMode;
+    ctx.fillStyle = isDark ? '#080d18' : '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
     const cy = height / 2;
     const radius = Math.min(width, height) * 0.36;
 
-    // Grid circles & axes
-    ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.16)' : 'rgba(100,116,139,0.2)';
+    ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.16)' : 'rgba(100,116,139,0.22)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(16, cy);
@@ -132,17 +130,15 @@ export const ModulationBERPage: React.FC = () => {
     ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
     ctx.stroke();
 
-    // Received noisy symbols
     for (const rx of digResult.rxSymbols) {
       const px = cx + rx.I * radius;
       const py = cy - rx.Q * radius;
-      ctx.fillStyle = rx.isError ? 'rgba(244, 63, 94, 0.85)' : 'rgba(56, 189, 248, 0.55)';
+      ctx.fillStyle = rx.isError ? 'rgba(225, 29, 72, 0.85)' : 'rgba(2, 132, 199, 0.62)';
       ctx.beginPath();
       ctx.arc(px, py, rx.isError ? 3.2 : 2.3, 0, 2 * Math.PI);
       ctx.fill();
     }
 
-    // Ideal reference constellation points
     for (const pt of digResult.idealConstellation) {
       const px = cx + pt.I * radius;
       const py = cy - pt.Q * radius;
@@ -153,20 +149,20 @@ export const ModulationBERPage: React.FC = () => {
       ctx.stroke();
 
       if (digResult.idealConstellation.length <= 16) {
-        ctx.fillStyle = isDark ? '#cbd5e1' : '#334155';
-        ctx.font = '10px "IBM Plex Mono", monospace';
+        ctx.fillStyle = isDark ? '#cbd5e1' : '#1e293b';
+        ctx.font = '600 10px "IBM Plex Mono", monospace';
         ctx.textAlign = 'center';
         ctx.fillText(pt.label, px, py - 9);
       }
     }
 
-    ctx.fillStyle = isDark ? '#94a3b8' : '#475569';
+    ctx.fillStyle = isDark ? '#94a3b8' : '#334155';
     ctx.font = '11px "IBM Plex Mono", monospace';
     ctx.textAlign = 'right';
     ctx.fillText('In-Phase (I)', width - 16, cy - 8);
     ctx.textAlign = 'left';
     ctx.fillText('Quadrature (Q)', cx + 8, 24);
-  }, [digResult]);
+  }, [darkMode, digResult]);
 
   // Draw Logarithmic BER vs Eb/N0 Waterfall Plot
   useEffect(() => {
@@ -179,8 +175,8 @@ export const ModulationBERPage: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = document.documentElement.classList.contains('dark');
-    ctx.fillStyle = isDark ? '#0b0f17' : '#f8fafc';
+    const isDark = darkMode;
+    ctx.fillStyle = isDark ? '#080d18' : '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
     const padL = 62;
@@ -190,16 +186,15 @@ export const ModulationBERPage: React.FC = () => {
     const plotW = Math.max(50, width - padL - padR);
     const plotH = Math.max(50, height - padT - padB);
 
-    const logMin = -6; // 10^-6
-    const logMax = 0;  // 10^0
+    const logMin = -6;
+    const logMax = 0;
     const snrMin = -2;
     const snrMax = 20;
 
-    ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.14)' : 'rgba(100,116,139,0.18)';
-    ctx.fillStyle = isDark ? '#94a3b8' : '#475569';
+    ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.14)' : 'rgba(100,116,139,0.2)';
+    ctx.fillStyle = isDark ? '#94a3b8' : '#334155';
     ctx.font = '10px "IBM Plex Mono", monospace';
 
-    // Horizontal log10 grid lines
     for (let exp = logMin; exp <= logMax; exp++) {
       const ratio = (logMax - exp) / (logMax - logMin);
       const py = padT + ratio * plotH;
@@ -212,7 +207,6 @@ export const ModulationBERPage: React.FC = () => {
       ctx.fillText(`10^${exp}`, padL - 6, py);
     }
 
-    // Vertical SNR grid lines
     for (let s = snrMin; s <= snrMax; s += 2) {
       const ratio = (s - snrMin) / (snrMax - snrMin);
       const px = padL + ratio * plotW;
@@ -228,11 +222,9 @@ export const ModulationBERPage: React.FC = () => {
     ctx.textAlign = 'right';
     ctx.fillText('Eb/N0 (dB)', padL + plotW, height - 10);
 
-    // Plot each scheme's Theoretical (dashed) and Simulated Monte Carlo (solid + markers)
     for (const c of berCurves) {
-      const color = SCHEME_COLORS[c.scheme] || '#0ea5e9';
+      const color = SCHEME_COLORS[c.scheme] || '#0284c7';
 
-      // Theoretical curve
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.4;
       ctx.setLineDash([4, 4]);
@@ -246,7 +238,6 @@ export const ModulationBERPage: React.FC = () => {
       });
       ctx.stroke();
 
-      // Empirical Monte Carlo curve
       ctx.setLineDash([]);
       ctx.lineWidth = 2.1;
       ctx.beginPath();
@@ -259,7 +250,6 @@ export const ModulationBERPage: React.FC = () => {
       });
       ctx.stroke();
 
-      // Data points
       c.snrDb.forEach((snr, idx) => {
         const px = padL + ((snr - snrMin) / (snrMax - snrMin)) * plotW;
         const lv = Math.max(logMin, Math.min(logMax, Math.log10(Math.max(1e-7, c.simulatedBer[idx]))));
@@ -270,7 +260,7 @@ export const ModulationBERPage: React.FC = () => {
         ctx.fill();
       });
     }
-  }, [berCurves]);
+  }, [darkMode, berCurves]);
 
   const toggleSchemeComparison = (scheme: DigitalModType) => {
     setSelectedBerSchemes((prev) =>

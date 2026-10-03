@@ -256,12 +256,22 @@ const LabShell: React.FC = () => {
               <div className="text-xs font-bold tracking-tight">
                 Signal Processing Laboratory — Educational Simulation
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                 Synthetic data only. Designed for academic education, visualization, and research experimentation. Not intended for clinical diagnosis or real-world telecommunications operation.
               </p>
             </div>
-            <div className="text-[11px] font-mono text-slate-500 whitespace-nowrap">
-              100% Client-Side Static Build · GitHub Pages Ready
+            <div className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
+              by{' '}
+              <a
+                href="https://majn35.ir"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-sky-600 dark:text-sky-400 hover:underline"
+              >
+                Mohammadali Javadinasab
+              </a>{' '}
+              <span className="text-slate-400 mx-1">·</span>
+              <span className="font-mono text-[11px] text-slate-500">SigLab.majn35.ir</span>
             </div>
           </footer>
         </main>

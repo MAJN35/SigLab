@@ -129,8 +129,8 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('signallab_dark_mode');
-    return saved ? saved === 'true' : true;
+    const saved = localStorage.getItem('signallab_theme_dark');
+    return saved ? saved === 'true' : false;
   });
 
   const [experiment, setExperiment] = useState<Experiment>(DEFAULT_EXPERIMENT);
@@ -154,7 +154,7 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       document.documentElement.classList.remove('dark');
     }
-    localStorage.setItem('signallab_dark_mode', String(darkMode));
+    localStorage.setItem('signallab_theme_dark', String(darkMode));
   }, [darkMode]);
 
   useEffect(() => {

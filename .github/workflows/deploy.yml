@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages (SigLab.majn35.ir)
 
 on:
   push:
@@ -34,8 +34,10 @@ jobs:
       - name: Build static production bundle
         run: npm run build
 
-      - name: Copy index.html to 404.html for SPA fallback
-        run: cp dist/index.html dist/404.html
+      - name: Ensure CNAME and 404 SPA fallback exist in dist
+        run: |
+          cp dist/index.html dist/404.html
+          echo "SigLab.majn35.ir" > dist/CNAME
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
