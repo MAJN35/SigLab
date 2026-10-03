@@ -1,0 +1,6 @@
+{
+  "name": "SignalLab — Signal Processing, Telecom, EEG & ML Laboratory",
+  "description": "Interactive browser-based educational laboratory for signal processing, analog & digital telecommunications, synthetic EEG analysis, FFT, wavelets, filtering, PCA, ICA, and deep learning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
