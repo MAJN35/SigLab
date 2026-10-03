@@ -9,6 +9,7 @@ import {
   BarChart3,
   BookOpen,
   Brain,
+  Check,
   Cpu,
   Database,
   Filter,
@@ -19,6 +20,7 @@ import {
   Menu,
   Moon,
   Radio,
+  Save,
   Signal,
   Sun,
   Waves,
@@ -58,6 +60,16 @@ const NAV_ITEMS: { id: PageId; label: string; icon: React.ComponentType<{ classN
     { id: 'experiments', label: 'Experiments', icon: FlaskConical },
     { id: 'documentation', label: 'Documentation', icon: BookOpen },
   ];
+
+const TOP_NAV_SHORTCUTS: { id: PageId; label: string }[] = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'signal-generator', label: 'Signal Gen' },
+  { id: 'telecommunications', label: 'Telecom' },
+  { id: 'eeg-simulator', label: 'EEG Lab' },
+  { id: 'fft-spectrum', label: 'FFT' },
+  { id: 'modulation-ber', label: 'BER & SNR' },
+  { id: 'deep-learning', label: 'Deep Learning' },
+];
 
 const LabShell: React.FC = () => {
   const { activePage, setActivePage, darkMode, setDarkMode, saveCurrentExperiment } =
@@ -108,115 +120,113 @@ const LabShell: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* 3-Zone Top Bar Contract */}
-      <header className="sticky top-0 z-30 neu-card rounded-none border-x-0 border-t-0 px-4 sm:px-6 py-3 flex items-center justify-between">
-        {/* Zone 1: Single text element wordmark */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((o) => !o)}
-            className="lg:hidden neu-btn p-2 rounded-lg cursor-pointer"
-            aria-label="Toggle Navigation Sidebar"
-          >
-            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
-          <a
-            href="#/dashboard"
-            onClick={(e) => {
-              e.preventDefault();
-              setActivePage('dashboard');
-            }}
-            className="font-display text-lg font-bold tracking-tight whitespace-nowrap"
-          >
-            SignalLab
-          </a>
-        </div>
+      {/* Refined Glassmorphic Top Bar */}
+      <header className="sticky top-0 z-30 glass-header">
+        <div className="max-w-[1640px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          {/* Zone 1: Brand Lockup */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              className="lg:hidden neu-btn p-2 rounded-xl cursor-pointer"
+              aria-label="Toggle Navigation Sidebar"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
 
-        {/* Zone 2: Clean single-line text navigation links */}
-        <nav className="hidden xl:flex items-center gap-6 text-xs font-medium text-slate-600 dark:text-slate-300">
-          <button
-            type="button"
-            onClick={() => setActivePage('dashboard')}
-            className={`hover:text-sky-500 transition-colors whitespace-nowrap cursor-pointer ${
-              activePage === 'dashboard' ? 'text-sky-500 font-semibold underline underline-offset-4' : ''
-            }`}
-          >
-            Dashboard
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePage('telecommunications')}
-            className={`hover:text-sky-500 transition-colors whitespace-nowrap cursor-pointer ${
-              activePage === 'telecommunications' ? 'text-sky-500 font-semibold underline underline-offset-4' : ''
-            }`}
-          >
-            Telecom
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePage('eeg-simulator')}
-            className={`hover:text-sky-500 transition-colors whitespace-nowrap cursor-pointer ${
-              activePage === 'eeg-simulator' ? 'text-sky-500 font-semibold underline underline-offset-4' : ''
-            }`}
-          >
-            EEG Lab
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePage('modulation-ber')}
-            className={`hover:text-sky-500 transition-colors whitespace-nowrap cursor-pointer ${
-              activePage === 'modulation-ber' ? 'text-sky-500 font-semibold underline underline-offset-4' : ''
-            }`}
-          >
-            BER & SNR
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePage('deep-learning')}
-            className={`hover:text-sky-500 transition-colors whitespace-nowrap cursor-pointer ${
-              activePage === 'deep-learning' ? 'text-sky-500 font-semibold underline underline-offset-4' : ''
-            }`}
-          >
-            Deep Learning
-          </button>
-        </nav>
+            <a
+              href="#/dashboard"
+              onClick={(e) => {
+                e.preventDefault();
+                setActivePage('dashboard');
+              }}
+              className="flex items-center gap-2.5 group"
+            >
+              <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-600 to-indigo-600 text-white flex items-center justify-center shadow-sm">
+                <Waves className="w-5 h-5" />
+              </span>
+              <span className="font-display text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+                SignalLab
+              </span>
+            </a>
+          </div>
 
-        {/* Zone 3: 1-2 Primary Actions */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={handleQuickSave}
-            className="neu-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap cursor-pointer"
-          >
-            {savedNotice ? 'Saved to IndexedDB' : 'Save Experiment'}
-          </button>
+          {/* Zone 2: Segmented Glass Quick-Navigation Pill Bar */}
+          <nav className="hidden xl:flex items-center gap-1 p-1 rounded-xl neu-inset">
+            {TOP_NAV_SHORTCUTS.map((tab) => {
+              const isActive = activePage === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActivePage(tab.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                    isActive
+                      ? 'bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-400 shadow-xs border border-slate-300/70 dark:border-slate-700'
+                      : 'text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
 
-          <button
-            type="button"
-            onClick={() => setDarkMode((d) => !d)}
-            aria-label="Toggle Light and Dark Theme"
-            className="neu-btn p-2 rounded-lg cursor-pointer"
-            title={darkMode ? 'Switch to Calibrated Light Lab' : 'Switch to Dark Lab Theme'}
-          >
-            {darkMode ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-700" />
-            )}
-          </button>
+          {/* Zone 3: Actions & Theme Switcher */}
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleQuickSave}
+              className="neu-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-sky-700 dark:text-sky-300 flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            >
+              {savedNotice ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Saved</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save State</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDarkMode((d) => !d)}
+              aria-label="Toggle Light and Dark Theme"
+              className="neu-btn px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {darkMode ? (
+                <>
+                  <Sun className="w-4 h-4 text-amber-400" />
+                  <span className="hidden sm:inline">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-4 h-4 text-indigo-700" />
+                  <span className="hidden sm:inline">Dark</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main Layout Container */}
-      <div className="flex-1 flex relative">
+      <div className="flex-1 flex relative max-w-[1640px] w-full mx-auto">
         {/* Sidebar Navigation (14 Laboratories) */}
         <aside
           className={`${
-            mobileMenuOpen ? 'fixed inset-y-0 left-0 z-40 w-64 pt-16' : 'hidden'
+            mobileMenuOpen
+              ? 'fixed inset-y-0 left-0 z-40 w-68 pt-20 bg-slate-200/80 dark:bg-slate-950/80 backdrop-blur-xl'
+              : 'hidden'
           } lg:block lg:w-64 shrink-0 p-4`}
         >
           <div className="neu-card p-3 sticky top-20 flex flex-col gap-1">
-            <div className="px-3 py-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+            <div className="px-3 py-2 text-[11px] font-mono font-semibold text-slate-600 dark:text-slate-400">
               Laboratory Modules (14)
             </div>
             {NAV_ITEMS.map((item, index) => {
@@ -232,8 +242,8 @@ const LabShell: React.FC = () => {
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
                     isActive
-                      ? 'neu-inset text-sky-600 dark:text-sky-400 font-semibold'
-                      : 'hover:bg-slate-200/40 dark:hover:bg-slate-800/40 text-slate-600 dark:text-slate-300'
+                      ? 'neu-btn-active font-bold'
+                      : 'hover:bg-white/60 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -247,7 +257,7 @@ const LabShell: React.FC = () => {
         </aside>
 
         {/* Main Stage Content */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 flex flex-col justify-between gap-8 max-w-[1600px] mx-auto w-full">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 flex flex-col justify-between gap-8 w-full">
           <div>{renderPage()}</div>
 
           {/* Required Educational Simulation Disclaimer Footer */}
@@ -260,18 +270,16 @@ const LabShell: React.FC = () => {
                 Synthetic data only. Designed for academic education, visualization, and research experimentation. Not intended for clinical diagnosis or real-world telecommunications operation.
               </p>
             </div>
-            <div className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
+            <div className="text-xs font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
               by{' '}
               <a
                 href="https://majn35.ir"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-sky-600 dark:text-sky-400 hover:underline"
+                className="font-bold text-sky-700 dark:text-sky-400 hover:underline"
               >
                 Mohammadali Javadinasab
-              </a>{' '}
-              <span className="text-slate-400 mx-1">·</span>
-              <span className="font-mono text-[11px] text-slate-500">SigLab.majn35.ir</span>
+              </a>
             </div>
           </footer>
         </main>

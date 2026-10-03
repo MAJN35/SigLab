@@ -1,11 +1,11 @@
 import React from 'react';
-import { BookOpen, Globe, ShieldCheck, Terminal } from 'lucide-react';
+import { Activity, BookOpen, Brain, Cpu, Filter, Radio, Waves } from 'lucide-react';
 import { MathFormula } from '../components/MathBlock';
 
 export const DocumentationPage: React.FC = () => {
   const EQUATIONS = [
     {
-      name: 'Discrete Fourier Transform (DFT)',
+      name: 'Discrete Fourier Transform (DFT) & Radix-2 FFT',
       tex: 'X[k] = \\sum_{n=0}^{N-1} x[n]\\,e^{-j\\frac{2\\pi}{N}kn}, \\quad x[n] = \\frac{1}{N}\\sum_{k=0}^{N-1} X[k]\\,e^{+j\\frac{2\\pi}{N}kn}',
       desc: 'Transforms discrete time-domain signals into frequency-domain complex phasors with O(N log₂ N) Cooley-Tukey Radix-2 butterfly computation.',
     },
@@ -29,19 +29,57 @@ export const DocumentationPage: React.FC = () => {
       tex: '\\mathbf{\\Sigma}\\mathbf{v}_i = \\lambda_i\\mathbf{v}_i, \\quad \\mathbf{w}^+ = \\mathbb{E}\\{\\mathbf{z}\\tanh(\\mathbf{w}^\\top\\mathbf{z})\\} - \\mathbb{E}\\{1-\\tanh^2(\\mathbf{w}^\\top\\mathbf{z})\\}\\mathbf{w}',
       desc: 'Orthogonal variance maximization (PCA) and higher-order non-Gaussian negentropy maximization (FastICA) for multi-channel source separation.',
     },
+    {
+      name: '1D Convolutional Neural Networks & Denoising Autoencoders',
+      tex: 'z_k[n] = \\sigma\\!\\left(b_k + \\sum_{m=0}^{K-1} w_k[m]x[n+m]\\right), \\quad \\mathcal{L}_{\\text{AE}} = \\frac{1}{N}\\left\\|\\mathbf{x}_{\\text{clean}} - g_\\phi(f_\\theta(\\mathbf{\\tilde{x}}))\\right\\|_2^2',
+      desc: 'Shift-invariant temporal feature extraction and nonlinear bottleneck manifold compression trained directly in the browser.',
+    },
+  ];
+
+  const MODULES_OVERVIEW = [
+    {
+      icon: Waves,
+      title: 'Signal Synthesis & Spectral Analysis',
+      body: 'Generate canonical periodic waveforms, linear frequency-swept chirps, and multi-harmonic composite signals. Analyze spectral leakage across Rectangular, Hann, Hamming, Blackman, and Flat-top windows using Radix-2 FFT and Short-Time Fourier Transform (STFT) spectrograms.',
+    },
+    {
+      icon: Radio,
+      title: 'Analog & Digital Telecommunications',
+      body: 'Simulate AM, DSB-SC, SSB, FM, and PM analog transceivers alongside ASK, FSK, BPSK, QPSK, 8-PSK, 16-QAM, and 64-QAM digital constellations. Compare empirical Monte Carlo BER curves against theoretical Q-function bounds.',
+    },
+    {
+      icon: Activity,
+      title: 'Synthetic EEG & Artifact Rejection',
+      body: 'Synthesize Delta (0.5–4 Hz), Theta (4–8 Hz), Alpha (8–13 Hz), Beta (13–30 Hz), and Gamma (30–80 Hz) cortical rhythms corrupted by EOG eye blinks, cranial EMG bursts, baseline drift, and 50/60 Hz hum.',
+    },
+    {
+      icon: Filter,
+      title: 'Wavelets & Digital Filter Design',
+      body: 'Design Butterworth Biquad IIR, Windowed-Sinc FIR, Notch, and Moving Average filters or decompose non-stationary transients via Haar, Daubechies D4, Symlet S4, and Morlet wavelet scalograms.',
+    },
+    {
+      icon: Cpu,
+      title: 'Subspace Projection (PCA & FastICA)',
+      body: 'Diagonalize multidimensional sensor covariance matrices via Jacobi eigendecomposition (PCA) and unmix statistically independent sources from linear sensor mixtures using FastICA.',
+    },
+    {
+      icon: Brain,
+      title: 'In-Browser Neural Network Laboratory',
+      body: 'Train Dense MLP, 1D-CNN, Denoising Autoencoder, and Simple RNN architectures in TensorFlow.js with real-time epoch loss/accuracy telemetry, confusion matrices, and learned filter inspection.',
+    },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       <div className="neu-card p-6 flex flex-col gap-3">
-        <div className="text-xs font-mono text-sky-600 dark:text-sky-400">
-          SigLab.majn35.ir · Architecture & Academic Reference Manual · by Mohammadali Javadinasab
+        <div className="text-xs font-mono font-semibold text-sky-600 dark:text-sky-400">
+          Academic Reference Manual · by Mohammadali Javadinasab
         </div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Signal Processing, Telecommunications, EEG & Machine Learning Laboratory Documentation
+          Signal Processing, Telecommunications, EEG & Machine Learning Laboratory Reference
         </h1>
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-4xl">
-          This application is a <strong>100% client-side, static browser laboratory</strong> engineered to run natively on <strong>SigLab.majn35.ir</strong> via GitHub Pages without any backend server, database, or external API dependencies. All numerical DSP algorithms, Monte Carlo simulations, IndexedDB storage, and TensorFlow.js neural networks execute locally inside the user&apos;s browser.
+        <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-w-4xl">
+          Comprehensive mathematical formulations, digital signal processing theory, and laboratory module specifications for academic education, algorithm experimentation, and interactive engineering visualization.
         </p>
       </div>
 
@@ -58,10 +96,10 @@ export const DocumentationPage: React.FC = () => {
           {EQUATIONS.map((eq) => (
             <div key={eq.name} className="neu-inset p-4 flex flex-col justify-between gap-3">
               <div>
-                <h3 className="text-xs font-bold text-sky-600 dark:text-sky-400">{eq.name}</h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{eq.desc}</p>
+                <h3 className="text-xs font-bold text-sky-700 dark:text-sky-400">{eq.name}</h3>
+                <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">{eq.desc}</p>
               </div>
-              <div className="p-3 rounded-lg bg-white/85 dark:bg-slate-900/75 overflow-x-auto">
+              <div className="p-3 rounded-lg bg-white/90 dark:bg-slate-900/80 border border-slate-300/60 dark:border-slate-800 overflow-x-auto">
                 <MathFormula tex={eq.tex} block={true} className="text-xs" />
               </div>
             </div>
@@ -69,75 +107,26 @@ export const DocumentationPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Custom Subdomain Setup (SigLab.majn35.ir) & Local Build Instructions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="neu-card p-6 flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-            <h2 className="text-base font-bold tracking-tight">
-              Connecting Subdomain: majn35.ir → SigLab.majn35.ir
-            </h2>
-          </div>
-
-          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            This project already includes <code className="font-mono">public/CNAME</code> configured for{' '}
-            <code className="font-mono font-semibold text-sky-600 dark:text-sky-400">SigLab.majn35.ir</code>. Follow these steps to connect your subdomain on <code className="font-mono">majn35.ir</code>:
-          </p>
-
-          <ol className="text-xs text-slate-600 dark:text-slate-300 space-y-2.5 list-decimal list-inside leading-relaxed">
-            <li>
-              <strong>Add a DNS CNAME Record</strong> in your <code className="font-mono">majn35.ir</code> DNS panel (e.g., Cloudflare, ArvanCloud, or your registrar):
-              <div className="neu-inset p-3 mt-1.5 font-mono text-[11px] flex flex-col gap-1">
-                <div>Type: <strong>CNAME</strong></div>
-                <div>Name / Host: <strong>SigLab</strong></div>
-                <div>Target / Value: <strong>&lt;YOUR_GITHUB_USERNAME&gt;.github.io</strong></div>
-                <div>Proxy / TTL: <strong>DNS Only (or Auto TTL)</strong></div>
+      {/* Laboratory Modules Engineering Guide */}
+      <div className="neu-card p-6 flex flex-col gap-4">
+        <h2 className="text-base font-bold tracking-tight">
+          Laboratory Modules & Scientific Capabilities
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {MODULES_OVERVIEW.map((mod) => {
+            const Icon = mod.icon;
+            return (
+              <div key={mod.title} className="neu-inset p-4 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                  <h3 className="text-xs font-bold">{mod.title}</h3>
+                </div>
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {mod.body}
+                </p>
               </div>
-            </li>
-            <li>
-              <strong>Push this repository to GitHub</strong> (<code className="font-mono">main</code> branch).
-            </li>
-            <li>
-              In your GitHub repository, open <strong>Settings → Pages</strong>:
-              <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
-                <li>Under <strong>Source</strong>, select <strong>GitHub Actions</strong>.</li>
-                <li>Under <strong>Custom domain</strong>, enter <code className="font-mono font-semibold">SigLab.majn35.ir</code> and click <strong>Save</strong>.</li>
-                <li>Check <strong>Enforce HTTPS</strong> once the DNS check completes.</li>
-              </ul>
-            </li>
-          </ol>
-
-          <div className="neu-inset p-3.5 flex items-start gap-2.5 text-xs">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-            <div>
-              <strong>Automatic CNAME Preservation:</strong> Both <code className="font-mono">public/CNAME</code> and <code className="font-mono">.github/workflows/deploy.yml</code> automatically emit <code className="font-mono">dist/CNAME</code> on every build so GitHub Pages retains <code className="font-mono">SigLab.majn35.ir</code>.
-            </div>
-          </div>
-        </div>
-
-        <div className="neu-card p-6 flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <Terminal className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <h2 className="text-base font-bold tracking-tight">
-              Local Development & Static Build Commands
-            </h2>
-          </div>
-
-          <div className="neu-inset p-4 font-mono text-xs flex flex-col gap-2">
-            <div className="text-slate-500"># 1. Install dependencies</div>
-            <div className="font-semibold text-sky-600 dark:text-sky-400">npm install</div>
-            <div className="text-slate-500 mt-2"># 2. Start local Vite development server</div>
-            <div className="font-semibold text-sky-600 dark:text-sky-400">npm run dev</div>
-            <div className="text-slate-500 mt-2"># 3. Compile static production bundle into dist/</div>
-            <div className="font-semibold text-emerald-600 dark:text-emerald-400">npm run build</div>
-            <div className="text-slate-500 mt-2"># 4. Preview production static bundle locally</div>
-            <div className="font-semibold text-sky-600 dark:text-sky-400">npm run preview</div>
-          </div>
-
-          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            Running <code className="font-mono">npm run build</code> outputs a self-contained{' '}
-            <code className="font-mono">dist/</code> directory containing <code className="font-mono">index.html</code>, <code className="font-mono">CNAME</code> (<code className="font-mono">SigLab.majn35.ir</code>), and bundled JS/CSS assets configured with relative base paths (<code className="font-mono">base: &apos;./&apos;</code>) so it works on both <code className="font-mono">https://SigLab.majn35.ir</code> and <code className="font-mono">https://USERNAME.github.io/REPOSITORY/</code>.
-          </p>
+            );
+          })}
         </div>
       </div>
     </div>
