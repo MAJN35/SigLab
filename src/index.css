@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
 @layer base {
   :root {
@@ -27,7 +27,9 @@
     color-scheme: light;
   }
 
-  .dark {
+  .dark,
+  :root[data-theme="dark"],
+  body[data-theme="dark"] {
     --bg-canvas: #05080e;
     --bg-gradient: radial-gradient(circle at 50% 10%, #0a0e17 0%, #05080e 50%, #020306 100%);
     --liquid-bg: rgba(14, 20, 32, 0.20);
@@ -100,17 +102,17 @@
 }
 
 /* Text Contrast Calibration across Light & Dark Themes */
-html:not(.dark) .text-slate-600,
-html:not(.dark) .text-slate-500 {
+html:not(.dark):not([data-theme="dark"]) .text-slate-600,
+html:not(.dark):not([data-theme="dark"]) .text-slate-500 {
   color: #334155 !important;
 }
 
-html:not(.dark) .text-slate-400 {
+html:not(.dark):not([data-theme="dark"]) .text-slate-400 {
   color: #64748b !important;
 }
 
-html:not(.dark) .text-sky-500,
-html:not(.dark) .text-sky-600 {
+html:not(.dark):not([data-theme="dark"]) .text-sky-500,
+html:not(.dark):not([data-theme="dark"]) .text-sky-600 {
   color: #0284c7 !important;
 }
 

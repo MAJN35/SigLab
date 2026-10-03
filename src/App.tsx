@@ -149,9 +149,11 @@ const LabShell: React.FC = () => {
         {/* Left: Laboratory Brand & Back Badge linking to https://majn35.ir */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <a
-            href="https://majn35.ir"
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
+            onClick={(e) => {
+              const currentTheme = darkMode ? 'dark' : 'light';
+              e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
+            }}
             className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
             title="Return to majn35.ir Portfolio"
           >
@@ -346,7 +348,11 @@ const LabShell: React.FC = () => {
             <div className="text-xs font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
               by{' '}
               <a
-                href="https://majn35.ir"
+                href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
+                onClick={(e) => {
+                  const currentTheme = darkMode ? 'dark' : 'light';
+                  e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
+                }}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-bold text-sky-700 dark:text-sky-400 hover:underline"

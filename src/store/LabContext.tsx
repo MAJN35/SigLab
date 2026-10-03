@@ -131,8 +131,25 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('signallab_theme_dark');
-    return saved ? saved === 'true' : false;
+    const params = new URLSearchParams(window.location.search);
+    let theme = params.get('theme');
+    if (!theme) {
+      const attrTheme = document.documentElement.getAttribute('data-theme');
+      if (attrTheme === 'dark' || attrTheme === 'light') {
+        theme = attrTheme;
+      }
+    }
+    if (!theme) {
+      const match = document.cookie.match(/(^|;)\s*theme\s*=\s*([^;]+)/);
+      theme = match ? match[2] : localStorage.getItem('theme');
+    }
+    if (!theme) {
+      const legacy = localStorage.getItem('signallab_theme_dark');
+      if (legacy !== null) {
+        theme = legacy === 'true' ? 'dark' : 'light';
+      }
+    }
+    return theme === 'dark';
   });
 
   const [lang, setLang] = useState<'en' | 'fa'>(() => {
@@ -156,12 +173,23 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    const theme = darkMode ? 'dark' : 'light';
+    document.documentElement.classList.toggle('dark', darkMode);
+    document.documentElement.setAttribute('data-theme', theme);
+    if (document.body) {
+      document.body.setAttribute('data-theme', theme);
     }
+    localStorage.setItem('theme', theme);
     localStorage.setItem('signallab_theme_dark', String(darkMode));
+    document.cookie = `theme=${theme}; domain=.majn35.ir; path=/; max-age=31536000; SameSite=Lax`;
+    document.cookie = `theme=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+
+    // Keep URL ?theme= parameter synced if present
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('theme') && url.searchParams.get('theme') !== theme) {
+      url.searchParams.set('theme', theme);
+      window.history.replaceState({}, '', url.toString());
+    }
   }, [darkMode]);
 
   useEffect(() => {
