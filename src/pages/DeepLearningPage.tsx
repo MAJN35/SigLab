@@ -85,7 +85,7 @@ export const DeepLearningPage: React.FC = () => {
     if (!ctx) return;
     ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = darkMode ? '#080d18' : '#ffffff';
+    ctx.fillStyle = '#050912';
     ctx.fillRect(0, 0, width, height);
 
     const numClasses = result?.classNames.length ?? 2;
@@ -135,9 +135,7 @@ export const DeepLearningPage: React.FC = () => {
       for (let i = 0; i < curr.length; i++) {
         for (let j = 0; j < next.length; j++) {
           const weightStrength = Math.abs(Math.sin((l + 1) * 3.1 + i * 1.7 + j * 2.3));
-          ctx.strokeStyle = darkMode
-            ? `rgba(56, 189, 248, ${0.12 + weightStrength * 0.32})`
-            : `rgba(2, 132, 199, ${0.16 + weightStrength * 0.36})`;
+          ctx.strokeStyle = `rgba(34, 211, 238, ${0.14 + weightStrength * 0.36})`;
           ctx.lineWidth = 0.8 + weightStrength * 1.4;
           ctx.beginPath();
           ctx.moveTo(curr[i].x, curr[i].y);
@@ -155,13 +153,9 @@ export const DeepLearningPage: React.FC = () => {
         ctx.fillStyle = isLast
           ? prob > 0.5
             ? '#10b981'
-            : darkMode
-            ? '#1e293b'
-            : '#e2e8f0'
-          : darkMode
-          ? '#0284c7'
-          : '#0ea5e9';
-        ctx.strokeStyle = darkMode ? '#f8fafc' : '#0f172a';
+            : '#1e293b'
+          : '#22d3ee';
+        ctx.strokeStyle = '#f8fafc';
         ctx.lineWidth = 1.6;
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, isLast ? 9 : 7, 0, 2 * Math.PI);
@@ -169,7 +163,7 @@ export const DeepLearningPage: React.FC = () => {
         ctx.stroke();
 
         if (isLast && result?.classNames[nIdx] && mlConfig.architecture !== 'autoencoder') {
-          ctx.fillStyle = darkMode ? '#e2e8f0' : '#0f172a';
+          ctx.fillStyle = '#f8fafc';
           ctx.font = '600 10px "IBM Plex Mono", monospace';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
@@ -182,12 +176,12 @@ export const DeepLearningPage: React.FC = () => {
       });
 
       const headerX = col[0]?.x ?? 50;
-      ctx.fillStyle = darkMode ? '#f8fafc' : '#0f172a';
-      ctx.font = '600 11px "Plus Jakarta Sans", sans-serif';
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '600 11px "Inter", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(layers[lIdx].name, headerX, height - 24);
 
-      ctx.fillStyle = darkMode ? '#94a3b8' : '#475569';
+      ctx.fillStyle = '#94a3b8';
       ctx.font = '10px "IBM Plex Mono", monospace';
       ctx.fillText(layers[lIdx].sub, headerX, height - 10);
     });
@@ -392,8 +386,8 @@ export const DeepLearningPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="neu-inset p-1 overflow-hidden">
-            <canvas ref={netCanvasRef} className="block w-full rounded-lg" />
+          <div className="oscilloscope-frame p-1 overflow-hidden">
+            <canvas ref={netCanvasRef} className="block w-full rounded-xl" />
           </div>
         </div>
 

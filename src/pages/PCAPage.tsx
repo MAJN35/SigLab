@@ -39,15 +39,14 @@ export const PCAPage: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = darkMode;
-    ctx.fillStyle = isDark ? '#080d18' : '#ffffff';
+    ctx.fillStyle = '#050912';
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
     const cy = height / 2;
     const scale = Math.min(width, height) / 9.5;
 
-    ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.18)' : 'rgba(100,116,139,0.22)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
     ctx.beginPath();
     ctx.moveTo(20, cy);
     ctx.lineTo(width - 20, cy);
@@ -55,7 +54,7 @@ export const PCAPage: React.FC = () => {
     ctx.lineTo(cx, height - 20);
     ctx.stroke();
 
-    const colors = ['#0284c7', '#059669', '#d97706'];
+    const colors = ['#22d3ee', '#10b981', '#f59e0b'];
     for (const pt of res.projected2D) {
       const px = cx + pt.pc1 * scale;
       const py = cy - pt.pc2 * scale;
@@ -66,20 +65,20 @@ export const PCAPage: React.FC = () => {
     }
 
     // Draw orthogonal Principal Component direction vectors
-    ctx.strokeStyle = '#e11d48';
+    ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 2.2;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.sqrt(res.eigenvalues[0] ?? 1) * scale * 1.3, cy);
     ctx.stroke();
 
-    ctx.strokeStyle = '#7c3aed';
+    ctx.strokeStyle = '#a855f7';
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx, cy - Math.sqrt(res.eigenvalues[1] ?? 1) * scale * 1.3);
     ctx.stroke();
 
-    ctx.fillStyle = isDark ? '#94a3b8' : '#334155';
+    ctx.fillStyle = '#94a3b8';
     ctx.font = '11px "IBM Plex Mono", monospace';
     ctx.fillText(`PC1 (${res.explainedVarianceRatio[0]?.toFixed(1)}%)`, width - 115, cy - 8);
     ctx.fillText(`PC2 (${res.explainedVarianceRatio[1]?.toFixed(1)}%)`, cx + 8, 28);
@@ -96,8 +95,7 @@ export const PCAPage: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = darkMode;
-    ctx.fillStyle = isDark ? '#080d18' : '#ffffff';
+    ctx.fillStyle = '#050912';
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
@@ -116,9 +114,9 @@ export const PCAPage: React.FC = () => {
     };
 
     const axes = [
-      { label: 'PC1', v: [3.2, 0, 0], color: '#e11d48' },
-      { label: 'PC2', v: [0, 3.2, 0], color: '#7c3aed' },
-      { label: 'PC3', v: [0, 0, 3.2], color: '#0284c7' },
+      { label: 'PC1', v: [3.2, 0, 0], color: '#22d3ee' },
+      { label: 'PC2', v: [0, 3.2, 0], color: '#a855f7' },
+      { label: 'PC3', v: [0, 0, 3.2], color: '#38bdf8' },
     ];
     for (const ax of axes) {
       const p0 = project3D(0, 0, 0);
@@ -134,7 +132,7 @@ export const PCAPage: React.FC = () => {
       ctx.fillText(ax.label, p1.px + 4, p1.py);
     }
 
-    const colors = ['#0284c7', '#059669', '#d97706'];
+    const colors = ['#22d3ee', '#10b981', '#f59e0b'];
     for (const pt of res.projected3D) {
       const { px, py } = project3D(pt.pc1, pt.pc2, pt.pc3);
       ctx.fillStyle = colors[pt.cluster % 3];
@@ -296,8 +294,8 @@ export const PCAPage: React.FC = () => {
               Orthogonal variance-maximizing axes with cluster distributions
             </p>
           </div>
-          <div className="neu-inset p-1 overflow-hidden">
-            <canvas ref={canvas2DRef} className="block w-full rounded-lg" />
+          <div className="oscilloscope-frame p-1 overflow-hidden">
+            <canvas ref={canvas2DRef} className="block w-full rounded-xl" />
           </div>
         </div>
 
@@ -322,8 +320,8 @@ export const PCAPage: React.FC = () => {
               />
             </div>
           </div>
-          <div className="neu-inset p-1 overflow-hidden">
-            <canvas ref={canvas3DRef} className="block w-full rounded-lg" />
+          <div className="oscilloscope-frame p-1 overflow-hidden">
+            <canvas ref={canvas3DRef} className="block w-full rounded-xl" />
           </div>
         </div>
       </div>

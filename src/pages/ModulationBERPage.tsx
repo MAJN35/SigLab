@@ -109,15 +109,14 @@ export const ModulationBERPage: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = darkMode;
-    ctx.fillStyle = isDark ? '#080d18' : '#ffffff';
+    ctx.fillStyle = '#050912';
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
     const cy = height / 2;
     const radius = Math.min(width, height) * 0.36;
 
-    ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.16)' : 'rgba(100,116,139,0.22)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(16, cy);
@@ -133,7 +132,7 @@ export const ModulationBERPage: React.FC = () => {
     for (const rx of digResult.rxSymbols) {
       const px = cx + rx.I * radius;
       const py = cy - rx.Q * radius;
-      ctx.fillStyle = rx.isError ? 'rgba(225, 29, 72, 0.85)' : 'rgba(2, 132, 199, 0.62)';
+      ctx.fillStyle = rx.isError ? 'rgba(244, 63, 94, 0.9)' : 'rgba(34, 211, 238, 0.78)';
       ctx.beginPath();
       ctx.arc(px, py, rx.isError ? 3.2 : 2.3, 0, 2 * Math.PI);
       ctx.fill();
@@ -142,21 +141,21 @@ export const ModulationBERPage: React.FC = () => {
     for (const pt of digResult.idealConstellation) {
       const px = cx + pt.I * radius;
       const py = cy - pt.Q * radius;
-      ctx.strokeStyle = isDark ? '#f8fafc' : '#0f172a';
+      ctx.strokeStyle = '#f8fafc';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(px, py, 5, 0, 2 * Math.PI);
       ctx.stroke();
 
       if (digResult.idealConstellation.length <= 16) {
-        ctx.fillStyle = isDark ? '#cbd5e1' : '#1e293b';
+        ctx.fillStyle = '#cbd5e1';
         ctx.font = '600 10px "IBM Plex Mono", monospace';
         ctx.textAlign = 'center';
         ctx.fillText(pt.label, px, py - 9);
       }
     }
 
-    ctx.fillStyle = isDark ? '#94a3b8' : '#334155';
+    ctx.fillStyle = '#94a3b8';
     ctx.font = '11px "IBM Plex Mono", monospace';
     ctx.textAlign = 'right';
     ctx.fillText('In-Phase (I)', width - 16, cy - 8);
@@ -175,9 +174,8 @@ export const ModulationBERPage: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = darkMode;
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = isDark ? 'rgba(10, 14, 23, 0.58)' : 'rgba(255, 255, 255, 0.52)';
+    ctx.fillStyle = '#050912';
     ctx.fillRect(0, 0, width, height);
 
     const padL = 62;
@@ -192,8 +190,8 @@ export const ModulationBERPage: React.FC = () => {
     const snrMin = -2;
     const snrMax = 20;
 
-    ctx.strokeStyle = isDark ? 'rgba(148,163,184,0.14)' : 'rgba(100,116,139,0.2)';
-    ctx.fillStyle = isDark ? '#94a3b8' : '#334155';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
+    ctx.fillStyle = '#94a3b8';
     ctx.font = '10px "IBM Plex Mono", monospace';
 
     for (let exp = logMin; exp <= logMax; exp++) {
@@ -384,8 +382,8 @@ export const ModulationBERPage: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="neu-inset p-1 overflow-hidden">
-            <canvas ref={constellationCanvasRef} className="block w-full rounded-lg" />
+          <div className="oscilloscope-frame p-1 overflow-hidden">
+            <canvas ref={constellationCanvasRef} className="block w-full rounded-xl" />
           </div>
         </div>
 
@@ -449,8 +447,8 @@ export const ModulationBERPage: React.FC = () => {
             })}
           </div>
 
-          <div className="neu-inset p-1 overflow-hidden">
-            <canvas ref={berCanvasRef} className="block w-full rounded-lg" />
+          <div className="oscilloscope-frame p-1 overflow-hidden">
+            <canvas ref={berCanvasRef} className="block w-full rounded-xl" />
           </div>
         </div>
       </div>

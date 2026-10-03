@@ -125,10 +125,10 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
     if (!ctx) return;
     ctx.scale(dpr, dpr);
 
-    const isDark = darkMode;
-    const bg = isDark ? 'rgba(10, 14, 23, 0.58)' : 'rgba(255, 255, 255, 0.52)';
-    const gridColor = isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(100, 116, 139, 0.18)';
-    const axisText = isDark ? '#94a3b8' : '#334155';
+    // Dark-mode-first oscilloscope canvas with anti-aliased grid lines
+    const bg = '#050912';
+    const gridColor = 'rgba(56, 189, 248, 0.13)';
+    const axisText = '#94a3b8';
 
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = bg;
@@ -240,7 +240,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
 
     if (effYMin < 0 && effYMax > 0) {
       const zeroY = padTop + ((effYMax - 0) / (effYMax - effYMin)) * plotH;
-      ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(71, 85, 105, 0.32)';
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.28)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(padLeft, zeroY);
@@ -250,8 +250,16 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
 
     const spanIdx = Math.max(1, endIdx - startIdx);
     for (const s of activeSeries) {
-      ctx.strokeStyle = s.color;
-      ctx.lineWidth = s.lineWidth ?? 1.95;
+      const isCyanPrimary =
+        s.color === '#0284c7' || s.color === '#0ea5e9' || s.color === '#38bdf8';
+      const traceColor = isCyanPrimary ? '#22d3ee' : s.color;
+      ctx.save();
+      ctx.strokeStyle = traceColor;
+      ctx.lineWidth = s.lineWidth ?? 2.0;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowColor = traceColor;
+      ctx.shadowBlur = isCyanPrimary ? 7 : 4;
       ctx.setLineDash(s.dashed ? [5, 4] : []);
       ctx.beginPath();
 
@@ -274,6 +282,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
         }
       }
       ctx.stroke();
+      ctx.restore();
     }
     ctx.setLineDash([]);
 
@@ -281,7 +290,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
       if (pk.x >= xMin && pk.x <= xMax) {
         const px = padLeft + ((pk.x - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
         const py = padTop + ((effYMax - pk.y) / Math.max(1e-9, effYMax - effYMin)) * plotH;
-        ctx.fillStyle = isDark ? '#f59e0b' : '#d97706';
+        ctx.fillStyle = '#38bdf8';
         ctx.beginPath();
         ctx.arc(px, py, 4, 0, 2 * Math.PI);
         ctx.fill();
@@ -294,15 +303,15 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
     if (interactionMode === 'select-zoom' && dragStart && dragCurr) {
       const bx = Math.min(dragStart.x, dragCurr.x);
       const bw = Math.abs(dragCurr.x - dragStart.x);
-      ctx.fillStyle = 'rgba(2, 132, 199, 0.16)';
-      ctx.strokeStyle = '#0284c7';
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.16)';
+      ctx.strokeStyle = '#22d3ee';
       ctx.lineWidth = 1;
       ctx.fillRect(bx, padTop, bw, plotH);
       ctx.strokeRect(bx, padTop, bw, plotH);
     }
 
     if (hoverPos && hoverPos.px >= padLeft && hoverPos.px <= padLeft + plotW) {
-      ctx.strokeStyle = isDark ? 'rgba(226, 232, 240, 0.45)' : 'rgba(15, 23, 42, 0.45)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -512,7 +521,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
         </div>
       </div>
 
-      <div className="relative neu-inset overflow-hidden p-1">
+      <div className="relative oscilloscope-frame overflow-hidden p-1">
         <canvas
           ref={canvasRef}
           onMouseMove={handleMouseMove}
@@ -523,11 +532,11 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
             setDragStart(null);
             setDragCurr(null);
           }}
-          className="block w-full cursor-crosshair rounded-lg"
+          className="block w-full cursor-crosshair rounded-xl"
         />
 
         {hoverPos && (
-          <div className="pointer-events-none absolute top-2.5 right-3 bg-white/92 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-md px-2.5 py-1.5 rounded-md text-[11px] font-mono tabular-nums flex flex-wrap items-center gap-3 border border-slate-300/80 dark:border-slate-700/80">
+          <div className="pointer-events-none absolute top-2.5 right-3 bg-slate-950/90 text-slate-100 shadow-md backdrop-blur-md px-2.5 py-1.5 rounded-lg text-[11px] font-mono tabular-nums flex flex-wrap items-center gap-3 border border-sky-400/30">
             <span>
               x: <strong>{hoverPos.xVal.toFixed(3)}</strong>
             </span>
@@ -603,9 +612,8 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = darkMode;
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = isDark ? 'rgba(10, 14, 23, 0.58)' : 'rgba(255, 255, 255, 0.52)';
+    ctx.fillStyle = '#050912';
     ctx.fillRect(0, 0, width, height);
 
     const padLeft = 56;
@@ -633,7 +641,7 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
       }
     }
 
-    ctx.fillStyle = isDark ? '#94a3b8' : '#334155';
+    ctx.fillStyle = '#94a3b8';
     ctx.font = '10px "IBM Plex Mono", monospace';
     const yMin = yValues[0] ?? 0;
     const yMax = yValues[yValues.length - 1] ?? 100;
@@ -714,15 +722,15 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
         </div>
       </div>
 
-      <div className="relative neu-inset p-1">
+      <div className="relative oscilloscope-frame p-1">
         <canvas
           ref={canvasRef}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setProbe(null)}
-          className="block w-full cursor-crosshair rounded-lg"
+          className="block w-full cursor-crosshair rounded-xl"
         />
         {probe && (
-          <div className="pointer-events-none absolute top-2.5 right-3 bg-white/92 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 shadow-sm backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-mono tabular-nums flex items-center gap-3 border border-slate-300/80 dark:border-slate-700">
+          <div className="pointer-events-none absolute top-2.5 right-3 bg-slate-950/90 text-slate-100 shadow-md backdrop-blur-md px-2.5 py-1 rounded-lg text-[11px] font-mono tabular-nums flex items-center gap-3 border border-sky-400/30">
             <span>t: {probe.x.toFixed(2)}s</span>
             <span>f/scale: {probe.y.toFixed(1)}</span>
             <span>Norm Energy: {(probe.val * 100).toFixed(1)}%</span>

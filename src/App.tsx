@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import {
   Activity,
+  ArrowLeft,
   BarChart3,
   BookOpen,
   Brain,
@@ -68,12 +69,13 @@ const NAV_ITEMS: {
 
 const TOP_NAV_SHORTCUTS: { id: PageId; label: string; faLabel: string }[] = [
   { id: 'dashboard', label: 'Dashboard', faLabel: 'داشبورد' },
-  { id: 'signal-generator', label: 'Signal Gen', faLabel: 'سیگنال' },
-  { id: 'telecommunications', label: 'Telecom', faLabel: 'مخابرات' },
-  { id: 'eeg-simulator', label: 'EEG Lab', faLabel: 'نوار مغز' },
-  { id: 'fft-spectrum', label: 'FFT', faLabel: 'طیف FFT' },
-  { id: 'modulation-ber', label: 'BER & SNR', faLabel: 'نرخ خطا' },
+  { id: 'signal-generator', label: 'Waveforms', faLabel: 'شکل‌موج‌ها' },
+  { id: 'filtering', label: 'Filters', faLabel: 'فیلترها' },
+  { id: 'fft-spectrum', label: 'Spectrogram', faLabel: 'طیف‌نگار' },
+  { id: 'eeg-simulator', label: 'EEG/BCI Tools', faLabel: 'ابزار EEG/BCI' },
+  { id: 'modulation-ber', label: 'Telecom & BER', faLabel: 'مخابرات' },
   { id: 'deep-learning', label: 'Deep Learning', faLabel: 'یادگیری عمیق' },
+  { id: 'documentation', label: 'Docs', faLabel: 'مستندات' },
 ];
 
 const LabShell: React.FC = () => {
@@ -142,18 +144,20 @@ const LabShell: React.FC = () => {
         <div className="absolute -bottom-28 left-1/3 w-[26rem] h-[26rem] rounded-full bg-blue-400/18 dark:bg-indigo-500/12 blur-3xl" />
       </div>
 
-      {/* Floating Pill Navbar: Fixed at top: 16px, left: 50%, translateX(-50%), width: min(96%, 1160px), height: 62px */}
+      {/* Floating Pill Navbar: Fixed at top: 16px, left: 50%, translateX(-50%), width: min(96%, 1240px), height: 62px */}
       <header className="floating-pill-navbar px-3.5 sm:px-5 flex items-center justify-between gap-2">
-        {/* Left: Brand Logo & Title */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((o) => !o)}
-            className="lg:hidden btn-circle-glass cursor-pointer"
-            aria-label="Toggle Navigation Sidebar"
+        {/* Left: Laboratory Brand & Back Badge linking to https://majn35.ir */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <a
+            href="https://majn35.ir"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+            title="Return to majn35.ir Portfolio"
           >
-            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
+            <ArrowLeft className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <span>{lang === 'fa' ? 'پورتفولیو' : 'Portfolio'}</span>
+          </a>
 
           <a
             href="#/dashboard"
@@ -161,13 +165,13 @@ const LabShell: React.FC = () => {
               e.preventDefault();
               setActivePage('dashboard');
             }}
-            className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-full"
+            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full"
           >
-            <span className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#0284c7] to-[#38bdf8] text-white flex items-center justify-center shadow-md shrink-0">
+            <span className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0284c7] to-[#22d3ee] text-white flex items-center justify-center shadow-md shrink-0">
               <Waves className="w-4 h-4" />
             </span>
             <div className="flex flex-col leading-none">
-              <span className="font-display text-base sm:text-lg font-extrabold tracking-tight whitespace-nowrap">
+              <span className="font-display text-sm sm:text-base font-extrabold tracking-tight whitespace-nowrap">
                 SigLab
               </span>
               <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 hidden sm:inline">
@@ -177,8 +181,8 @@ const LabShell: React.FC = () => {
           </a>
         </div>
 
-        {/* Center: Section Links with Active 2px Indicator Underline */}
-        <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto">
+        {/* Center: Lab Section Links with Hover & Active 2px Indicator Underline (hidden on <= 860px) */}
+        <nav className="nav-center-links overflow-x-auto">
           {TOP_NAV_SHORTCUTS.map((tab) => {
             const isActive = activePage === tab.id;
             return (
@@ -196,8 +200,8 @@ const LabShell: React.FC = () => {
           })}
         </nav>
 
-        {/* Right: Circular 38px Glass Utility Buttons (Save, Language/RTL, Theme Toggle) */}
-        <div className="flex items-center gap-2">
+        {/* Right: Controls Cluster (Save, Language EN/FA, Theme Sun/Moon, and Mobile Hamburger on <= 860px) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={handleQuickSave}
@@ -233,23 +237,36 @@ const LabShell: React.FC = () => {
               <Moon className="w-4 h-4 text-sky-700" />
             )}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            className="btn-circle-glass nav-mobile-toggle cursor-pointer"
+            aria-label="Toggle Navigation Drawer"
+          >
+            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
         </div>
       </header>
 
-      {/* Main Layout Container padded below Fixed Floating Pill Navbar */}
-      <div className="flex-1 flex relative z-10 max-w-[1600px] w-full mx-auto pt-22">
-        {/* Sidebar Navigation (14 Laboratories) */}
-        <aside
-          className={`${
-            mobileMenuOpen
-              ? 'fixed inset-y-0 left-0 z-40 w-72 pt-24 px-4 bg-white/75 dark:bg-slate-950/80 backdrop-blur-2xl'
-              : 'hidden'
-          } lg:block lg:w-64 shrink-0 p-4`}
-        >
-          <div className="neu-card p-3 sticky top-24 flex flex-col gap-1">
+      {/* Mobile Sliding Glass Drawer (<= 860px, backdrop-filter: blur(28px)) */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-40 flex">
+          <div
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <aside className="relative z-50 w-76 max-w-[85vw] h-full pt-22 pb-6 px-4 overflow-y-auto mobile-glass-drawer flex flex-col gap-2">
             <div className="px-3 py-2 text-[11px] font-mono font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between">
-              <span>{lang === 'fa' ? 'ماژول‌های آزمایشگاه (۱۴)' : 'Laboratory Modules · 14'}</span>
-              <Globe className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+              <span>{lang === 'fa' ? 'ماژول‌های آزمایشگاه · ۱۴' : 'Laboratory Modules · 14'}</span>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="btn-circle-glass cursor-pointer"
+                aria-label="Close Drawer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
             {NAV_ITEMS.map((item, index) => {
               const Icon = item.icon;
@@ -262,6 +279,40 @@ const LabShell: React.FC = () => {
                     setActivePage(item.id);
                     setMobileMenuOpen(false);
                   }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                    isActive
+                      ? 'btn-tool-pill font-bold'
+                      : 'hover:bg-white/35 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="truncate">
+                    {String(index + 1).padStart(2, '0')} · {lang === 'fa' ? item.faLabel : item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </aside>
+        </div>
+      )}
+
+      {/* Main Layout Container padded below Fixed Floating Pill Navbar */}
+      <div className="flex-1 flex relative z-10 max-w-[1600px] w-full mx-auto pt-22">
+        {/* Desktop Sidebar Navigation (14 Laboratories) */}
+        <aside className="hidden lg:block lg:w-64 shrink-0 p-4">
+          <div className="neu-card p-3 sticky top-24 flex flex-col gap-1">
+            <div className="px-3 py-2 text-[11px] font-mono font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between">
+              <span>{lang === 'fa' ? 'ماژول‌های آزمایشگاه · ۱۴' : 'Laboratory Modules · 14'}</span>
+              <Globe className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            </div>
+            {NAV_ITEMS.map((item, index) => {
+              const Icon = item.icon;
+              const isActive = activePage === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActivePage(item.id)}
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
                     isActive
                       ? 'btn-tool-pill font-bold'
