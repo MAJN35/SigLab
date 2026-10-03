@@ -119,16 +119,26 @@ const LabShell: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Refined Glassmorphic Top Bar */}
-      <header className="sticky top-0 z-30 glass-header">
-        <div className="max-w-[1640px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <div className="min-h-screen flex flex-col relative">
+      {/* Ambient Background Glow Orbs for Genuine Glassmorphism Refraction */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 overflow-hidden z-0"
+      >
+        <div className="absolute -top-24 left-1/4 w-96 h-96 rounded-full bg-sky-400/25 dark:bg-sky-500/15 blur-3xl" />
+        <div className="absolute top-1/3 -right-20 w-96 h-96 rounded-full bg-indigo-400/20 dark:bg-indigo-500/15 blur-3xl" />
+        <div className="absolute -bottom-24 left-1/3 w-96 h-96 rounded-full bg-teal-400/20 dark:bg-emerald-500/12 blur-3xl" />
+      </div>
+
+      {/* Floating Curved Island Header */}
+      <div className="sticky top-3 z-30 px-4 sm:px-6 pt-1">
+        <header className="max-w-[1560px] mx-auto glass-island-header px-3.5 sm:px-5 py-2.5 flex items-center justify-between gap-3">
           {/* Zone 1: Brand Lockup */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => setMobileMenuOpen((o) => !o)}
-              className="lg:hidden neu-btn p-2 rounded-xl cursor-pointer"
+              className="lg:hidden neu-btn p-2 rounded-full cursor-pointer"
               aria-label="Toggle Navigation Sidebar"
             >
               {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -140,19 +150,19 @@ const LabShell: React.FC = () => {
                 e.preventDefault();
                 setActivePage('dashboard');
               }}
-              className="flex items-center gap-2.5 group"
+              className="flex items-center gap-2.5 pl-1 pr-2 py-0.5 rounded-full"
             >
-              <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-600 to-indigo-600 text-white flex items-center justify-center shadow-sm">
-                <Waves className="w-5 h-5" />
+              <span className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 text-white flex items-center justify-center shadow-md">
+                <Waves className="w-4 h-4" />
               </span>
-              <span className="font-display text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+              <span className="font-display text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
                 SignalLab
               </span>
             </a>
           </div>
 
-          {/* Zone 2: Segmented Glass Quick-Navigation Pill Bar */}
-          <nav className="hidden xl:flex items-center gap-1 p-1 rounded-xl neu-inset">
+          {/* Zone 2: Curved Island Navigation Links */}
+          <nav className="hidden xl:flex items-center gap-1 px-1.5 py-1 rounded-full bg-white/50 dark:bg-slate-900/50 border border-white/70 dark:border-white/10">
             {TOP_NAV_SHORTCUTS.map((tab) => {
               const isActive = activePage === tab.id;
               return (
@@ -160,10 +170,10 @@ const LabShell: React.FC = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setActivePage(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                     isActive
-                      ? 'bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-400 shadow-xs border border-slate-300/70 dark:border-slate-700'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400'
+                      ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-sm'
+                      : 'text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-white/60 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   {tab.label}
@@ -172,12 +182,12 @@ const LabShell: React.FC = () => {
             })}
           </nav>
 
-          {/* Zone 3: Actions & Theme Switcher */}
-          <div className="flex items-center gap-2.5">
+          {/* Zone 3: Curved Pill Actions & Theme Switcher */}
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleQuickSave}
-              className="neu-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-sky-700 dark:text-sky-300 flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold text-sky-700 dark:text-sky-300 flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
             >
               {savedNotice ? (
                 <>
@@ -187,7 +197,7 @@ const LabShell: React.FC = () => {
               ) : (
                 <>
                   <Save className="w-3.5 h-3.5" />
-                  <span>Save State</span>
+                  <span className="hidden sm:inline">Save State</span>
                 </>
               )}
             </button>
@@ -196,37 +206,37 @@ const LabShell: React.FC = () => {
               type="button"
               onClick={() => setDarkMode((d) => !d)}
               aria-label="Toggle Light and Dark Theme"
-              className="neu-btn px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
               title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {darkMode ? (
                 <>
-                  <Sun className="w-4 h-4 text-amber-400" />
-                  <span className="hidden sm:inline">Light</span>
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Light</span>
                 </>
               ) : (
                 <>
-                  <Moon className="w-4 h-4 text-indigo-700" />
-                  <span className="hidden sm:inline">Dark</span>
+                  <Moon className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Dark</span>
                 </>
               )}
             </button>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
       {/* Main Layout Container */}
-      <div className="flex-1 flex relative max-w-[1640px] w-full mx-auto">
+      <div className="flex-1 flex relative z-10 max-w-[1600px] w-full mx-auto pt-2">
         {/* Sidebar Navigation (14 Laboratories) */}
         <aside
           className={`${
             mobileMenuOpen
-              ? 'fixed inset-y-0 left-0 z-40 w-68 pt-20 bg-slate-200/80 dark:bg-slate-950/80 backdrop-blur-xl'
+              ? 'fixed inset-y-0 left-0 z-40 w-68 pt-20 bg-white/85 dark:bg-slate-950/85 backdrop-blur-2xl'
               : 'hidden'
           } lg:block lg:w-64 shrink-0 p-4`}
         >
-          <div className="neu-card p-3 sticky top-20 flex flex-col gap-1">
-            <div className="px-3 py-2 text-[11px] font-mono font-semibold text-slate-600 dark:text-slate-400">
+          <div className="neu-card p-3 sticky top-22 flex flex-col gap-1">
+            <div className="px-3 py-2 text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400">
               Laboratory Modules (14)
             </div>
             {NAV_ITEMS.map((item, index) => {
@@ -240,9 +250,9 @@ const LabShell: React.FC = () => {
                     setActivePage(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
                     isActive
-                      ? 'neu-btn-active font-bold'
+                      ? 'bg-gradient-to-r from-sky-500/15 to-indigo-500/15 text-sky-700 dark:text-sky-300 font-bold border border-sky-500/30 shadow-xs'
                       : 'hover:bg-white/60 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300'
                   }`}
                 >

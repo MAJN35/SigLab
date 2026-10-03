@@ -1,58 +1,61 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
-    --bg-canvas: #e2e8f0;
+    --bg-canvas: #eef3fb;
     --bg-gradient:
-      radial-gradient(at 10% 8%, rgba(2, 132, 199, 0.18) 0px, transparent 45%),
-      radial-gradient(at 90% 12%, rgba(79, 70, 229, 0.15) 0px, transparent 45%),
-      radial-gradient(at 50% 92%, rgba(5, 150, 105, 0.14) 0px, transparent 50%),
-      linear-gradient(135deg, #e8eef5 0%, #dde6f0 50%, #e4ebf4 100%);
-    --glass-surface: rgba(255, 255, 255, 0.86);
-    --glass-surface-sm: rgba(255, 255, 255, 0.92);
-    --glass-recessed: rgba(226, 232, 240, 0.78);
-    --glass-border: rgba(255, 255, 255, 0.95);
-    --glass-border-outer: rgba(100, 116, 139, 0.34);
+      radial-gradient(circle at 12% 14%, rgba(56, 189, 248, 0.28) 0%, transparent 38%),
+      radial-gradient(circle at 86% 12%, rgba(129, 140, 248, 0.25) 0%, transparent 40%),
+      radial-gradient(circle at 78% 84%, rgba(45, 212, 191, 0.22) 0%, transparent 42%),
+      radial-gradient(circle at 18% 82%, rgba(244, 114, 182, 0.15) 0%, transparent 38%),
+      linear-gradient(135deg, #f5f8ff 0%, #e8f0fe 50%, #f0f5fd 100%);
+    --glass-surface: rgba(255, 255, 255, 0.62);
+    --glass-surface-sm: rgba(255, 255, 255, 0.74);
+    --glass-recessed: rgba(255, 255, 255, 0.46);
+    --glass-border-outer: rgba(255, 255, 255, 0.85);
+    --glass-ring: rgba(148, 163, 184, 0.26);
     --glass-shadow:
-      0 10px 28px -6px rgba(15, 23, 42, 0.1),
-      0 2px 8px -2px rgba(15, 23, 42, 0.06),
-      inset 0 1px 0 0 rgba(255, 255, 255, 1);
+      0 12px 36px -8px rgba(30, 58, 138, 0.09),
+      0 4px 14px -2px rgba(15, 23, 42, 0.04),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
     --glass-shadow-sm:
-      0 4px 12px -2px rgba(15, 23, 42, 0.08),
-      inset 0 1px 0 0 rgba(255, 255, 255, 1);
+      0 6px 18px -4px rgba(30, 58, 138, 0.07),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
     --glass-shadow-inset:
-      inset 0 2px 5px rgba(15, 23, 42, 0.09),
-      0 1px 0 rgba(255, 255, 255, 0.9);
+      inset 0 2px 5px rgba(15, 23, 42, 0.05),
+      inset 0 0 0 1px rgba(148, 163, 184, 0.22);
     --text-primary: #0f172a;
     --text-secondary: #1e293b;
-    --text-muted: #334155;
-    --accent-primary: #0369a1;
-    --accent-secondary: #4338ca;
+    --text-muted: #475569;
+    --accent-primary: #0284c7;
+    --accent-secondary: #4f46e5;
     color-scheme: light;
   }
 
   .dark {
-    --bg-canvas: #070b14;
+    --bg-canvas: #060a14;
     --bg-gradient:
-      radial-gradient(at 15% 12%, rgba(56, 189, 248, 0.14) 0px, transparent 48%),
-      radial-gradient(at 85% 18%, rgba(99, 102, 241, 0.14) 0px, transparent 48%),
-      radial-gradient(at 50% 90%, rgba(16, 185, 129, 0.1) 0px, transparent 52%),
-      linear-gradient(135deg, #060911 0%, #0b111e 50%, #090d18 100%);
-    --glass-surface: rgba(17, 24, 39, 0.72);
-    --glass-surface-sm: rgba(30, 41, 59, 0.7);
-    --glass-recessed: rgba(10, 15, 26, 0.78);
-    --glass-border: rgba(255, 255, 255, 0.12);
-    --glass-border-outer: rgba(148, 163, 184, 0.2);
+      radial-gradient(circle at 14% 12%, rgba(56, 189, 248, 0.18) 0%, transparent 42%),
+      radial-gradient(circle at 86% 16%, rgba(99, 102, 241, 0.18) 0%, transparent 42%),
+      radial-gradient(circle at 50% 88%, rgba(16, 185, 129, 0.12) 0%, transparent 48%),
+      linear-gradient(135deg, #050811 0%, #0a1020 50%, #070c18 100%);
+    --glass-surface: rgba(15, 23, 42, 0.58);
+    --glass-surface-sm: rgba(30, 41, 59, 0.56);
+    --glass-recessed: rgba(8, 13, 26, 0.62);
+    --glass-border-outer: rgba(255, 255, 255, 0.13);
+    --glass-ring: rgba(255, 255, 255, 0.08);
     --glass-shadow:
-      0 12px 32px -6px rgba(0, 0, 0, 0.55),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+      0 16px 40px -8px rgba(0, 0, 0, 0.6),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.14);
     --glass-shadow-sm:
-      0 4px 16px -2px rgba(0, 0, 0, 0.45),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.09);
+      0 6px 18px -4px rgba(0, 0, 0, 0.45),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
     --glass-shadow-inset:
-      inset 0 2px 6px rgba(0, 0, 0, 0.6),
-      0 1px 0 rgba(255, 255, 255, 0.06);
+      inset 0 2px 6px rgba(0, 0, 0, 0.55),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.07);
     --text-primary: #f8fafc;
     --text-secondary: #e2e8f0;
     --text-muted: #94a3b8;
@@ -98,95 +101,81 @@
   }
 }
 
-/* High-Contrast Light Theme Calibration for Semantic & Muted Text */
-html:not(.dark) .text-slate-500 {
-  color: #334155 !important;
+/* Floating Curved Island Header */
+.glass-island-header {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 12px 34px -6px rgba(30, 58, 138, 0.12),
+    0 0 0 1px rgba(148, 163, 184, 0.24),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 1);
+  border-radius: 9999px;
 }
 
-html:not(.dark) .text-slate-400 {
-  color: #475569 !important;
+.dark .glass-island-header {
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 14px 38px -6px rgba(0, 0, 0, 0.65),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-html:not(.dark) .text-sky-500 {
-  color: #0369a1 !important;
-}
-
-html:not(.dark) .text-amber-500 {
-  color: #b45309 !important;
-}
-
-html:not(.dark) .text-emerald-500 {
-  color: #047857 !important;
-}
-
-html:not(.dark) .text-rose-500 {
-  color: #be123c !important;
-}
-
-/* Glassmorphism Surface Architecture */
-.glass-header {
-  background: rgba(255, 255, 255, 0.84);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid rgba(100, 116, 139, 0.28);
-  box-shadow: 0 4px 20px -4px rgba(15, 23, 42, 0.07);
-}
-
-.dark .glass-header {
-  background: rgba(11, 17, 30, 0.8);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.5);
-}
-
+/* Glassmorphism Cards & Panels */
 .neu-card {
   background: var(--glass-surface);
-  backdrop-filter: blur(18px) saturate(175%);
-  -webkit-backdrop-filter: blur(18px) saturate(175%);
-  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(22px) saturate(190%);
+  -webkit-backdrop-filter: blur(22px) saturate(190%);
+  box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-ring);
   border: 1px solid var(--glass-border-outer);
-  border-radius: 1rem;
+  border-radius: 1.35rem;
 }
 
 .neu-card-sm {
   background: var(--glass-surface-sm);
-  backdrop-filter: blur(14px) saturate(165%);
-  -webkit-backdrop-filter: blur(14px) saturate(165%);
-  box-shadow: var(--glass-shadow-sm);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: var(--glass-shadow-sm), 0 0 0 1px var(--glass-ring);
   border: 1px solid var(--glass-border-outer);
-  border-radius: 0.75rem;
+  border-radius: 1rem;
 }
 
 .neu-inset {
   background: var(--glass-recessed);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
   box-shadow: var(--glass-shadow-inset);
   border: 1px solid var(--glass-border-outer);
-  border-radius: 0.75rem;
+  border-radius: 1rem;
 }
 
 .neu-btn {
   background: var(--glass-surface-sm);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: var(--glass-shadow-sm);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--glass-shadow-sm), 0 0 0 1px var(--glass-ring);
   border: 1px solid var(--glass-border-outer);
   color: var(--text-primary);
-  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms ease, border-color 150ms ease;
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms ease, box-shadow 150ms ease;
 }
 
 .neu-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: var(--accent-primary);
+  box-shadow: var(--glass-shadow-sm), 0 0 0 1px var(--accent-primary);
 }
 
 .neu-btn:active:not(:disabled),
 .neu-btn-active {
-  background: rgba(2, 132, 199, 0.16);
-  box-shadow: var(--glass-shadow-inset);
-  border-color: var(--accent-primary);
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.18), rgba(79, 70, 229, 0.14));
+  box-shadow: inset 0 1px 2px rgba(2, 132, 199, 0.15), 0 0 0 1px var(--accent-primary);
+  border-color: rgba(255, 255, 255, 0.8);
   color: var(--accent-primary);
   transform: translateY(0);
+}
+
+.dark .neu-btn-active {
+  border-color: rgba(56, 189, 248, 0.35);
 }
 
 /* Custom Range Input for Glassmorphic Scientific Scrubbers */
@@ -197,7 +186,6 @@ input[type="range"].sci-slider {
   height: 8px;
   background: var(--glass-recessed);
   box-shadow: var(--glass-shadow-inset);
-  border: 1px solid var(--glass-border-outer);
   border-radius: 999px;
   outline: none;
   cursor: pointer;
