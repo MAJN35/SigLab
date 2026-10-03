@@ -216,7 +216,7 @@ export const DeepLearningPage: React.FC = () => {
                 onClick={() => {
                   stopRef.current = true;
                 }}
-                className="neu-btn px-4 py-2 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 cursor-pointer"
+                className="neu-btn px-4 py-2 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 cursor-pointer"
               >
                 <Square className="w-3.5 h-3.5" />
                 <span>Stop Training</span>
@@ -225,7 +225,7 @@ export const DeepLearningPage: React.FC = () => {
               <button
                 type="button"
                 onClick={startTraining}
-                className="neu-btn px-4 py-2 rounded-lg text-xs font-semibold text-sky-600 dark:text-sky-400 flex items-center gap-1.5 cursor-pointer"
+                className="btn-primary-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5" />
                 <span>Train Model in Browser</span>

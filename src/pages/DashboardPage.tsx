@@ -48,13 +48,13 @@ export const DashboardPage: React.FC = () => {
               if (found) applyEducationalPreset(found);
             }}
             defaultValue=""
-            className="neu-inset px-3 py-2 text-xs font-medium rounded-lg bg-transparent outline-none cursor-pointer"
+            className="neu-inset px-3.5 py-2 text-xs font-medium rounded-full bg-transparent outline-none cursor-pointer"
           >
-            <option value="" disabled className="bg-slate-900 text-white">
+            <option value="" disabled>
               Load Educational Preset...
             </option>
             {EDUCATIONAL_PRESETS.map((p) => (
-              <option key={p.id} value={p.id} className="bg-slate-900 text-white">
+              <option key={p.id} value={p.id}>
                 [{p.category}] {p.title}
               </option>
             ))}
@@ -63,14 +63,14 @@ export const DashboardPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActivePage('signal-generator')}
-            className="neu-btn px-3.5 py-2 rounded-lg text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap cursor-pointer"
+            className="btn-primary-pill px-4 py-2 text-xs whitespace-nowrap cursor-pointer"
           >
             Configure Signal
           </button>
           <button
             type="button"
             onClick={() => setActivePage('experiments')}
-            className="neu-btn px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap cursor-pointer"
+            className="neu-btn px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer"
           >
             Save / Export JSON
           </button>

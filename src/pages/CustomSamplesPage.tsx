@@ -290,7 +290,7 @@ export const CustomSamplesPage: React.FC = () => {
             <button
               type="button"
               onClick={handleSave}
-              className="neu-btn py-2.5 px-4 rounded-xl text-xs font-bold text-sky-500 flex items-center justify-center gap-1.5 mt-1 cursor-pointer"
+              className="btn-primary-pill py-2.5 px-5 text-xs flex items-center justify-center gap-1.5 mt-1 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>{editingId ? 'Update Sample in IndexedDB' : 'Save Sample to IndexedDB'}</span>
@@ -317,6 +317,7 @@ export const CustomSamplesPage: React.FC = () => {
                       {s.signalType.toUpperCase()} · {s.frequency} Hz · {s.amplitude} V · fs=
                       {s.samplingRate} Hz · {s.channels}ch · Mod: {s.modulation} · SNR: {s.noiseSnrDb}{' '}
                       dB
+                      {s.artifacts.length > 0 ? ` · ${s.artifacts.join(' · ')}` : ''}
                     </div>
                   </div>
 
@@ -325,7 +326,7 @@ export const CustomSamplesPage: React.FC = () => {
                       type="button"
                       onClick={() => handleEdit(s)}
                       title="Edit Sample"
-                      className="neu-btn p-1.5 rounded-lg cursor-pointer"
+                      className="btn-circle-glass cursor-pointer"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
@@ -333,7 +334,7 @@ export const CustomSamplesPage: React.FC = () => {
                       type="button"
                       onClick={() => handleDuplicate(s)}
                       title="Duplicate Sample"
-                      className="neu-btn p-1.5 rounded-lg cursor-pointer"
+                      className="btn-circle-glass cursor-pointer"
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
@@ -341,7 +342,7 @@ export const CustomSamplesPage: React.FC = () => {
                       type="button"
                       onClick={() => handleExportSample(s)}
                       title="Export Sample JSON"
-                      className="neu-btn p-1.5 rounded-lg cursor-pointer"
+                      className="btn-circle-glass cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" />
                     </button>
@@ -350,7 +351,7 @@ export const CustomSamplesPage: React.FC = () => {
                         type="button"
                         onClick={() => deleteCustomSample(s.id)}
                         title="Delete Sample"
-                        className="neu-btn p-1.5 rounded-lg text-rose-500 cursor-pointer"
+                        className="btn-circle-glass text-rose-500 cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -374,10 +375,10 @@ export const CustomSamplesPage: React.FC = () => {
                   <select
                     value={sampleA.id}
                     onChange={(e) => setCompareIds([e.target.value, compareIds[1]])}
-                    className="neu-inset px-2 py-1 rounded bg-transparent"
+                    className="neu-inset px-3 py-1 rounded-full bg-transparent"
                   >
                     {customSamples.map((s) => (
-                      <option key={s.id} value={s.id} className="bg-slate-900 text-white">
+                      <option key={s.id} value={s.id}>
                         A: {s.name}
                       </option>
                     ))}
@@ -386,10 +387,10 @@ export const CustomSamplesPage: React.FC = () => {
                   <select
                     value={sampleB.id}
                     onChange={(e) => setCompareIds([compareIds[0], e.target.value])}
-                    className="neu-inset px-2 py-1 rounded bg-transparent"
+                    className="neu-inset px-3 py-1 rounded-full bg-transparent"
                   >
                     {customSamples.map((s) => (
-                      <option key={s.id} value={s.id} className="bg-slate-900 text-white">
+                      <option key={s.id} value={s.id}>
                         B: {s.name}
                       </option>
                     ))}

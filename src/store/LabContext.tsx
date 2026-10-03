@@ -27,6 +27,8 @@ interface LabContextValue {
   setActivePage: (page: PageId) => void;
   darkMode: boolean;
   setDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
+  lang: 'en' | 'fa';
+  setLang: React.Dispatch<React.SetStateAction<'en' | 'fa'>>;
   experiment: Experiment;
   setExperiment: React.Dispatch<React.SetStateAction<Experiment>>;
   mlConfig: MLConfig;
@@ -133,6 +135,11 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? saved === 'true' : false;
   });
 
+  const [lang, setLang] = useState<'en' | 'fa'>(() => {
+    const saved = localStorage.getItem('signallab_lang');
+    return saved === 'fa' ? 'fa' : 'en';
+  });
+
   const [experiment, setExperiment] = useState<Experiment>(DEFAULT_EXPERIMENT);
   const [savedExperiments, setSavedExperiments] = useState<Experiment[]>([]);
   const [customSamples, setCustomSamples] = useState<CustomSample[]>(INITIAL_SAMPLES);
@@ -156,6 +163,12 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     localStorage.setItem('signallab_theme_dark', String(darkMode));
   }, [darkMode]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+    localStorage.setItem('signallab_lang', lang);
+  }, [lang]);
 
   useEffect(() => {
     window.location.hash = `#/${activePage}`;
@@ -401,6 +414,8 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActivePage,
         darkMode,
         setDarkMode,
+        lang,
+        setLang,
         experiment,
         setExperiment,
         mlConfig,

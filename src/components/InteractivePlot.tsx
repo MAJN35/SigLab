@@ -126,10 +126,11 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
     ctx.scale(dpr, dpr);
 
     const isDark = darkMode;
-    const bg = isDark ? '#080d18' : '#ffffff';
+    const bg = isDark ? 'rgba(10, 14, 23, 0.58)' : 'rgba(255, 255, 255, 0.52)';
     const gridColor = isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(100, 116, 139, 0.18)';
     const axisText = isDark ? '#94a3b8' : '#334155';
 
+    ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
 
@@ -433,7 +434,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
                   key={s.id}
                   type="button"
                   onClick={() => toggleSeries(s.id)}
-                  className={`neu-btn px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  className={`neu-btn px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     isHidden ? 'opacity-45' : ''
                   }`}
                 >
@@ -451,15 +452,15 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
               );
             })}
 
-          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1" />
+          <div className="h-4 w-px bg-slate-300/60 dark:bg-slate-700/60 mx-1" />
 
           <button
             type="button"
             onClick={() =>
               setInteractionMode((m) => (m === 'select-zoom' ? 'pan' : 'select-zoom'))
             }
-            className={`neu-btn px-2 py-1 rounded-md text-xs font-mono flex items-center gap-1 whitespace-nowrap cursor-pointer ${
-              interactionMode === 'pan' ? 'neu-btn-active text-sky-600 dark:text-sky-400' : ''
+            className={`neu-btn px-3 py-1 rounded-full text-xs font-mono flex items-center gap-1 whitespace-nowrap cursor-pointer ${
+              interactionMode === 'pan' ? 'btn-tool-pill' : ''
             }`}
           >
             {interactionMode === 'pan' ? (
@@ -479,7 +480,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
             type="button"
             onClick={() => handleZoom(0.65)}
             title="Zoom In"
-            className="neu-btn p-1.5 rounded-md cursor-pointer"
+            className="neu-btn p-1.5 rounded-full cursor-pointer"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
@@ -487,7 +488,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
             type="button"
             onClick={() => handleZoom(1.45)}
             title="Zoom Out"
-            className="neu-btn p-1.5 rounded-md cursor-pointer"
+            className="neu-btn p-1.5 rounded-full cursor-pointer"
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
@@ -495,7 +496,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
             type="button"
             onClick={resetView}
             title="Reset Axes"
-            className="neu-btn p-1.5 rounded-md cursor-pointer"
+            className="neu-btn p-1.5 rounded-full cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -503,7 +504,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
             type="button"
             onClick={handleExportImage}
             title="Export Plot as PNG"
-            className="neu-btn px-2 py-1 rounded-md text-xs font-mono flex items-center gap-1 whitespace-nowrap cursor-pointer"
+            className="neu-btn px-2.5 py-1 rounded-full text-xs font-mono flex items-center gap-1 whitespace-nowrap cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>PNG</span>
@@ -603,7 +604,8 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
     if (!ctx) return;
 
     const isDark = darkMode;
-    ctx.fillStyle = isDark ? '#080d18' : '#ffffff';
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = isDark ? 'rgba(10, 14, 23, 0.58)' : 'rgba(255, 255, 255, 0.52)';
     ctx.fillRect(0, 0, width, height);
 
     const padLeft = 56;
@@ -704,7 +706,7 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
           <button
             type="button"
             onClick={handleExport}
-            className="neu-btn px-2 py-1 rounded-md text-xs font-mono flex items-center gap-1 cursor-pointer"
+            className="neu-btn px-2.5 py-1 rounded-full text-xs font-mono flex items-center gap-1 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>PNG</span>

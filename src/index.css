@@ -5,188 +5,301 @@
 
 @layer base {
   :root {
-    --bg-canvas: #eef3fb;
-    --bg-gradient:
-      radial-gradient(circle at 12% 14%, rgba(56, 189, 248, 0.28) 0%, transparent 38%),
-      radial-gradient(circle at 86% 12%, rgba(129, 140, 248, 0.25) 0%, transparent 40%),
-      radial-gradient(circle at 78% 84%, rgba(45, 212, 191, 0.22) 0%, transparent 42%),
-      radial-gradient(circle at 18% 82%, rgba(244, 114, 182, 0.15) 0%, transparent 38%),
-      linear-gradient(135deg, #f5f8ff 0%, #e8f0fe 50%, #f0f5fd 100%);
-    --glass-surface: rgba(255, 255, 255, 0.62);
-    --glass-surface-sm: rgba(255, 255, 255, 0.74);
-    --glass-recessed: rgba(255, 255, 255, 0.46);
-    --glass-border-outer: rgba(255, 255, 255, 0.85);
-    --glass-ring: rgba(148, 163, 184, 0.26);
+    --bg-canvas: #edf4fc;
+    --bg-gradient: radial-gradient(circle at 50% 0%, #f9fbfe 0%, #edf4fc 40%, #e2effa 100%);
+    --glass-surface: rgba(255, 255, 255, 0.26);
+    --glass-surface-sm: rgba(255, 255, 255, 0.28);
+    --glass-recessed: rgba(255, 255, 255, 0.22);
+    --glass-border: rgba(255, 255, 255, 0.45);
+    --text-main: #0f172a;
+    --text-muted: #334155;
+    --text-dim: #64748b;
+    --accent: #0284c7;
+    --accent-alt: #0ea5e9;
+    --accent-glow: rgba(2, 132, 199, 0.15);
     --glass-shadow:
-      0 12px 36px -8px rgba(30, 58, 138, 0.09),
-      0 4px 14px -2px rgba(15, 23, 42, 0.04),
-      inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
-    --glass-shadow-sm:
-      0 6px 18px -4px rgba(30, 58, 138, 0.07),
-      inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
-    --glass-shadow-inset:
-      inset 0 2px 5px rgba(15, 23, 42, 0.05),
-      inset 0 0 0 1px rgba(148, 163, 184, 0.22);
-    --text-primary: #0f172a;
-    --text-secondary: #1e293b;
-    --text-muted: #475569;
-    --accent-primary: #0284c7;
-    --accent-secondary: #4f46e5;
+      0 16px 36px -6px rgba(15, 23, 42, 0.08),
+      inset 0 1px 1.5px rgba(255, 255, 255, 0.5);
+    --glass-shadow-hover:
+      0 20px 42px -6px rgba(2, 132, 199, 0.15),
+      0 8px 20px -4px rgba(15, 23, 42, 0.08),
+      inset 0 1px 1.5px rgba(255, 255, 255, 0.65);
     color-scheme: light;
   }
 
   .dark {
-    --bg-canvas: #060a14;
-    --bg-gradient:
-      radial-gradient(circle at 14% 12%, rgba(56, 189, 248, 0.18) 0%, transparent 42%),
-      radial-gradient(circle at 86% 16%, rgba(99, 102, 241, 0.18) 0%, transparent 42%),
-      radial-gradient(circle at 50% 88%, rgba(16, 185, 129, 0.12) 0%, transparent 48%),
-      linear-gradient(135deg, #050811 0%, #0a1020 50%, #070c18 100%);
-    --glass-surface: rgba(15, 23, 42, 0.58);
-    --glass-surface-sm: rgba(30, 41, 59, 0.56);
-    --glass-recessed: rgba(8, 13, 26, 0.62);
-    --glass-border-outer: rgba(255, 255, 255, 0.13);
-    --glass-ring: rgba(255, 255, 255, 0.08);
+    --bg-canvas: #05080e;
+    --bg-gradient: radial-gradient(circle at 50% 10%, #0a0e17 0%, #05080e 50%, #020306 100%);
+    --glass-surface: rgba(14, 20, 32, 0.26);
+    --glass-surface-sm: rgba(14, 20, 32, 0.30);
+    --glass-recessed: rgba(14, 20, 32, 0.20);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --text-main: #f8fafc;
+    --text-muted: #cbd5e1;
+    --text-dim: #94a3b8;
+    --accent: #38bdf8;
+    --accent-alt: #22d3ee;
+    --accent-glow: rgba(56, 189, 248, 0.25);
     --glass-shadow:
-      0 16px 40px -8px rgba(0, 0, 0, 0.6),
-      inset 0 1px 1px 0 rgba(255, 255, 255, 0.14);
-    --glass-shadow-sm:
-      0 6px 18px -4px rgba(0, 0, 0, 0.45),
-      inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
-    --glass-shadow-inset:
-      inset 0 2px 6px rgba(0, 0, 0, 0.55),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.07);
-    --text-primary: #f8fafc;
-    --text-secondary: #e2e8f0;
-    --text-muted: #94a3b8;
-    --accent-primary: #38bdf8;
-    --accent-secondary: #818cf8;
+      0 16px 36px -6px rgba(0, 0, 0, 0.55),
+      inset 0 1px 1.5px rgba(255, 255, 255, 0.12);
+    --glass-shadow-hover:
+      0 20px 44px -6px rgba(56, 189, 248, 0.22),
+      0 8px 24px -4px rgba(0, 0, 0, 0.6),
+      inset 0 1px 1.5px rgba(255, 255, 255, 0.2);
     color-scheme: dark;
   }
 
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-gradient);
     background-color: var(--bg-canvas);
-    background-image: var(--bg-gradient);
     background-attachment: fixed;
-    color: var(--text-primary);
+    color: var(--text-main);
     margin: 0;
     padding: 0;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
 
-  h1, h2, .font-display {
-    font-family: 'Fraunces', Georgia, serif;
+  html[dir="rtl"] body {
+    font-family: 'Vazirmatn', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: inherit;
+    letter-spacing: -0.03em;
+    font-weight: 800;
     text-wrap: balance;
   }
 
   code, pre, .font-mono, .tabular-nums {
     font-family: 'IBM Plex Mono', monospace;
     font-variant-numeric: tabular-nums;
+    direction: ltr;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   select, input[type="text"], input[type="number"] {
-    color: var(--text-primary);
+    color: var(--text-main);
   }
 
   select option {
-    background-color: #ffffff !important;
+    background-color: #f9fbfe !important;
     color: #0f172a !important;
   }
 
   .dark select option {
-    background-color: #0f172a !important;
+    background-color: #0a0e17 !important;
     color: #f8fafc !important;
   }
 }
 
-/* Floating Curved Island Header */
-.glass-island-header {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  box-shadow:
-    0 12px 34px -6px rgba(30, 58, 138, 0.12),
-    0 0 0 1px rgba(148, 163, 184, 0.24),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 1);
-  border-radius: 9999px;
+/* WCAG AA Text Contrast Calibration across Light & Dark Themes */
+html:not(.dark) .text-slate-600,
+html:not(.dark) .text-slate-500 {
+  color: #334155 !important;
 }
 
-.dark .glass-island-header {
-  background: rgba(15, 23, 42, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow:
-    0 14px 38px -6px rgba(0, 0, 0, 0.65),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.14);
+html:not(.dark) .text-slate-400 {
+  color: #64748b !important;
 }
 
-/* Glassmorphism Cards & Panels */
+html:not(.dark) .text-sky-500,
+html:not(.dark) .text-sky-600 {
+  color: #0284c7 !important;
+}
+
+/* Floating Pill Navbar (Fixed at top: 16px, left: 50%, translateX(-50%), width: min(96%, 1160px), height: 62px) */
+.floating-pill-navbar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(96%, 1160px);
+  height: 62px;
+  border-radius: 999px;
+  background: var(--glass-surface-sm);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  z-index: 50;
+}
+
+/* Section links with active 2px indicator underline */
+.nav-section-link {
+  position: relative;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color 160ms ease;
+  white-space: nowrap;
+}
+
+.nav-section-link:hover {
+  color: var(--text-main);
+}
+
+.nav-section-link-active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.nav-section-link-active::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* Liquid Glass Cards (border-radius: 22px, 1px translucent border, hover elevation -3px & cyan glow) */
 .neu-card {
   background: var(--glass-surface);
-  backdrop-filter: blur(22px) saturate(190%);
-  -webkit-backdrop-filter: blur(22px) saturate(190%);
-  box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-ring);
-  border: 1px solid var(--glass-border-outer);
-  border-radius: 1.35rem;
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  box-shadow: var(--glass-shadow);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease;
+}
+
+.neu-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--glass-shadow-hover);
+  border-color: rgba(56, 189, 248, 0.32);
 }
 
 .neu-card-sm {
   background: var(--glass-surface-sm);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  box-shadow: var(--glass-shadow-sm), 0 0 0 1px var(--glass-ring);
-  border: 1px solid var(--glass-border-outer);
-  border-radius: 1rem;
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--glass-shadow);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-card-sm:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-hover);
 }
 
 .neu-inset {
   background: var(--glass-recessed);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  box-shadow: var(--glass-shadow-inset);
-  border: 1px solid var(--glass-border-outer);
-  border-radius: 1rem;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
+/* Button System */
+/* 1. Primary Action Pill */
+.btn-primary-pill {
+  background: var(--accent);
+  color: #ffffff;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 6px 18px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  font-weight: 600;
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms ease, filter 150ms ease;
+}
+
+.dark .btn-primary-pill {
+  color: #020617;
+  font-weight: 700;
+}
+
+.btn-primary-pill:hover {
+  transform: translateY(-1.5px);
+  filter: brightness(1.06);
+  box-shadow: 0 10px 24px var(--accent-glow);
+}
+
+/* 2. Secondary / Tool Pill */
+.btn-tool-pill,
+.neu-btn-active {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(14, 165, 233, 0.22)) !important;
+  border: 1px solid var(--accent) !important;
+  color: var(--accent) !important;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  font-weight: 600;
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms ease;
+}
+
+.btn-tool-pill:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 8px 22px var(--accent-glow);
+}
+
+/* 3. Circular Icon Buttons (38px x 38px glass circles) */
+.btn-circle-glass {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-surface-sm);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  color: var(--text-main);
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.btn-circle-glass:hover {
+  transform: translateY(-1.5px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px var(--accent-glow);
+}
+
+/* Standard Interactive Glass Pill Button */
 .neu-btn {
   background: var(--glass-surface-sm);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: var(--glass-shadow-sm), 0 0 0 1px var(--glass-ring);
-  border: 1px solid var(--glass-border-outer);
-  color: var(--text-primary);
-  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms ease, box-shadow 150ms ease;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  box-shadow: var(--glass-shadow);
+  color: var(--text-main);
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .neu-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--glass-shadow-sm), 0 0 0 1px var(--accent-primary);
+  transform: translateY(-1.5px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 16px var(--accent-glow);
 }
 
-.neu-btn:active:not(:disabled),
-.neu-btn-active {
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.18), rgba(79, 70, 229, 0.14));
-  box-shadow: inset 0 1px 2px rgba(2, 132, 199, 0.15), 0 0 0 1px var(--accent-primary);
-  border-color: rgba(255, 255, 255, 0.8);
-  color: var(--accent-primary);
-  transform: translateY(0);
-}
-
-.dark .neu-btn-active {
-  border-color: rgba(56, 189, 248, 0.35);
-}
-
-/* Custom Range Input for Glassmorphic Scientific Scrubbers */
+/* Custom Glass Slider Tracks & Electric Cyan Thumbs */
 input[type="range"].sci-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
   height: 8px;
   background: var(--glass-recessed);
-  box-shadow: var(--glass-shadow-inset);
+  border: 1px solid var(--glass-border);
   border-radius: 999px;
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.12);
   outline: none;
   cursor: pointer;
 }
@@ -197,13 +310,14 @@ input[type="range"].sci-slider::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.45);
+  background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+  box-shadow: 0 0 12px var(--accent-glow), 0 2px 6px rgba(15, 23, 42, 0.25);
   border: 2px solid #ffffff;
   cursor: grab;
-  transition: transform 120ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 input[type="range"].sci-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.14);
+  transform: scale(1.16);
+  box-shadow: 0 0 16px var(--accent), 0 2px 8px rgba(15, 23, 42, 0.3);
 }

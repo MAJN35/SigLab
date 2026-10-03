@@ -133,7 +133,7 @@ export const ExperimentsPage: React.FC = () => {
             <button
               type="button"
               onClick={handleSaveNew}
-              className="neu-btn px-3.5 py-2 rounded-lg text-xs font-semibold text-sky-500 flex items-center gap-1.5 cursor-pointer"
+              className="btn-primary-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
               <span>Save to IndexedDB</span>
@@ -142,7 +142,7 @@ export const ExperimentsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleExportJSON(experiment)}
-              className="neu-btn px-3.5 py-2 rounded-lg text-xs font-mono flex items-center gap-1.5 cursor-pointer"
+              className="neu-btn px-3.5 py-2 rounded-full text-xs font-mono flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export JSON</span>
@@ -151,7 +151,7 @@ export const ExperimentsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="neu-btn px-3.5 py-2 rounded-lg text-xs font-mono flex items-center gap-1.5 cursor-pointer"
+              className="neu-btn px-3.5 py-2 rounded-full text-xs font-mono flex items-center gap-1.5 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5" />
               <span>Import JSON</span>
@@ -194,7 +194,7 @@ export const ExperimentsPage: React.FC = () => {
                         await renameExperiment(exp.id, renameText);
                         setRenamingId(null);
                       }}
-                      className="neu-btn px-2.5 py-1 rounded text-xs font-mono text-emerald-500 cursor-pointer"
+                      className="btn-primary-pill px-3 py-1 text-xs font-mono cursor-pointer"
                     >
                       Save
                     </button>
@@ -218,7 +218,7 @@ export const ExperimentsPage: React.FC = () => {
                     setNewExpName(exp.name);
                     notify(`Loaded "${exp.name}".`);
                   }}
-                  className="neu-btn px-3 py-1 rounded-lg text-xs font-semibold text-sky-500 flex items-center gap-1 cursor-pointer"
+                  className="btn-tool-pill px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
                   <span>Load</span>
@@ -232,7 +232,7 @@ export const ExperimentsPage: React.FC = () => {
                       setRenameText(exp.name);
                     }}
                     title="Rename Experiment"
-                    className="neu-btn p-1.5 rounded-lg cursor-pointer"
+                    className="btn-circle-glass cursor-pointer"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
@@ -240,7 +240,7 @@ export const ExperimentsPage: React.FC = () => {
                     type="button"
                     onClick={() => duplicateExperiment(exp)}
                     title="Duplicate Experiment"
-                    className="neu-btn p-1.5 rounded-lg cursor-pointer"
+                    className="btn-circle-glass cursor-pointer"
                   >
                     <Copy className="w-3.5 h-3.5" />
                   </button>
@@ -248,7 +248,7 @@ export const ExperimentsPage: React.FC = () => {
                     type="button"
                     onClick={() => handleExportJSON(exp)}
                     title="Export JSON"
-                    className="neu-btn p-1.5 rounded-lg cursor-pointer"
+                    className="btn-circle-glass cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                   </button>
@@ -257,7 +257,7 @@ export const ExperimentsPage: React.FC = () => {
                       type="button"
                       onClick={() => deleteExperiment(exp.id)}
                       title="Delete Experiment"
-                      className="neu-btn p-1.5 rounded-lg text-rose-500 cursor-pointer"
+                      className="btn-circle-glass text-rose-500 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

@@ -176,7 +176,8 @@ export const ModulationBERPage: React.FC = () => {
     if (!ctx) return;
 
     const isDark = darkMode;
-    ctx.fillStyle = isDark ? '#080d18' : '#ffffff';
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = isDark ? 'rgba(10, 14, 23, 0.58)' : 'rgba(255, 255, 255, 0.52)';
     ctx.fillRect(0, 0, width, height);
 
     const padL = 62;
@@ -403,17 +404,17 @@ export const ModulationBERPage: React.FC = () => {
               <select
                 value={simBitsPerPoint}
                 onChange={(e) => setSimBitsPerPoint(Number(e.target.value))}
-                className="neu-inset px-2.5 py-1 rounded text-xs font-mono bg-transparent"
+                className="neu-inset px-3 py-1.5 rounded-full text-xs font-mono bg-transparent"
               >
-                <option value={1500} className="bg-slate-900 text-white">1,500 bits/pt (Fast)</option>
-                <option value={4000} className="bg-slate-900 text-white">4,000 bits/pt (Balanced)</option>
-                <option value={12000} className="bg-slate-900 text-white">12,000 bits/pt (High Precision)</option>
+                <option value={1500}>1,500 bits/pt (Fast)</option>
+                <option value={4000}>4,000 bits/pt (Balanced)</option>
+                <option value={12000}>12,000 bits/pt (High Precision)</option>
               </select>
               <button
                 type="button"
                 onClick={triggerBerSweep}
                 disabled={isRunningBer}
-                className="neu-btn px-3 py-1 rounded text-xs font-mono font-semibold text-sky-500 flex items-center gap-1 cursor-pointer"
+                className="btn-primary-pill px-3.5 py-1.5 text-xs font-mono flex items-center gap-1.5 cursor-pointer"
               >
                 {isRunningBer ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
