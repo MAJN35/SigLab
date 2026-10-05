@@ -111,7 +111,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const [durationSec, setDurationSec] = useState<number>(8);
   const [sampleRate, setSampleRate] = useState<number>(44100);
   const [fftSize, setFftSize] = useState<number>(4096);
-  const [maxFreqDisplay, setMaxFreqDisplay] = useState<number>(250);
+  const [maxFreqDisplay, setMaxFreqDisplay] = useState<number>(20000);
 
   // Custom Mixed Signal layers (default: 20 Hz sine + 100 Hz sine + white noise)
   const [mixLayers, setMixLayers] = useState<MixLayer[]>([
@@ -147,7 +147,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     frequency: 20,
     magnitudeDb: -6.2,
     normX: 0.3,
-    normY: 20 / 250,
+    normY: 20 / 20000,
   });
   const [selectedRegion, setSelectedRegion] = useState<SelectedRegion | null>(null);
   const [dragBox, setDragBox] = useState<{
@@ -325,7 +325,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     []
   );
 
-  // Compute exact windowed spectral magnitude (in dB) for a slice of audio around centerSample
+  // Compute exact windowed spectral magnitude (in dB) across 0..maxFreq (up to 20 kHz) using radix-2 2048-pt FFT
   const computeSliceSpectrumDb = useCallback(
     (
       channelData: Float32Array,
@@ -334,34 +334,80 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       maxFreq: number,
       numRows: number
     ): Float32Array => {
-      const out = new Float32Array(numRows);
-      // Use a window long enough to resolve low frequencies like 20 Hz cleanly (approx 0.18s window)
-      const winLen = Math.min(channelData.length, Math.max(512, Math.round(fs * 0.16)));
-      const half = Math.floor(winLen / 2);
-      const start = Math.max(0, Math.min(channelData.length - winLen, centerSample - half));
+      const out = new Float32Array(numRows).fill(-95);
+      const N = 2048;
+      const half = N >> 1;
+      const start = Math.max(0, Math.min(Math.max(0, channelData.length - N), centerSample - half));
 
-      // Subsample step if winLen is very large to keep CPU super fast (< 1ms per frame)
-      const stride = winLen > 2048 ? Math.floor(winLen / 1024) : 1;
-      const effN = Math.floor(winLen / stride);
-
-      for (let r = 0; r < numRows; r++) {
-        const f = ((r + 0.5) / numRows) * maxFreq;
-        const omega = (2 * Math.PI * f * stride) / fs;
-        let re = 0;
-        let im = 0;
-        for (let k = 0; k < effN; k++) {
-          const idx = start + k * stride;
-          // Hann window
-          const w = 0.5 * (1 - Math.cos((2 * Math.PI * k) / (effN - 1)));
-          const x = channelData[idx] * w;
-          const ang = omega * k;
-          re += x * Math.cos(ang);
-          im -= x * Math.sin(ang);
-        }
-        const mag = (2 * Math.sqrt(re * re + im * im)) / Math.max(1, effN);
-        const db = 20 * Math.log10(Math.max(1e-5, mag));
-        out[r] = Math.max(-95, Math.min(0, db));
+      const re = new Float32Array(N);
+      const im = new Float32Array(N);
+      for (let i = 0; i < N; i++) {
+        const sample = channelData[start + i] ?? 0;
+        const w = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (N - 1)));
+        re[i] = sample * w;
       }
+
+      // Bit-reversal permutation
+      let j = 0;
+      for (let i = 0; i < N; i++) {
+        if (i < j) {
+          const tr = re[i];
+          re[i] = re[j];
+          re[j] = tr;
+        }
+        let m = N >> 1;
+        while (m >= 1 && j >= m) {
+          j -= m;
+          m >>= 1;
+        }
+        j += m;
+      }
+
+      // Cooley-Tukey radix-2 butterflies
+      for (let len = 2; len <= N; len <<= 1) {
+        const halfLen = len >> 1;
+        const ang = (-2 * Math.PI) / len;
+        const wCos = Math.cos(ang);
+        const wSin = Math.sin(ang);
+        for (let i = 0; i < N; i += len) {
+          let uCos = 1;
+          let uSin = 0;
+          for (let k = 0; k < halfLen; k++) {
+            const evenIdx = i + k;
+            const oddIdx = i + k + halfLen;
+            const tr = uCos * re[oddIdx] - uSin * im[oddIdx];
+            const ti = uCos * im[oddIdx] + uSin * re[oddIdx];
+            re[oddIdx] = re[evenIdx] - tr;
+            im[oddIdx] = im[evenIdx] - ti;
+            re[evenIdx] += tr;
+            im[evenIdx] += ti;
+            const nextCos = uCos * wCos - uSin * wSin;
+            uSin = uCos * wSin + uSin * wCos;
+            uCos = nextCos;
+          }
+        }
+      }
+
+      const binDb = new Float32Array(half);
+      const scale = 4 / N;
+      for (let k = 0; k < half; k++) {
+        const mag = Math.sqrt(re[k] * re[k] + im[k] * im[k]) * scale;
+        binDb[k] = Math.max(-95, Math.min(0, 20 * Math.log10(Math.max(1e-5, mag))));
+      }
+
+      // Map FFT bins into spectrogram rows (taking peak dB within each row's frequency band)
+      for (let r = 0; r < numRows; r++) {
+        const fLow = (r / numRows) * maxFreq;
+        const fHigh = ((r + 1) / numRows) * maxFreq;
+        const k0 = Math.max(1, Math.min(half - 1, Math.floor((fLow * N) / fs)));
+        const k1 = Math.max(k0, Math.min(half - 1, Math.ceil((fHigh * N) / fs)));
+        let peak = -95;
+        for (let k = k0; k <= k1; k++) {
+          if (binDb[k] > peak) peak = binDb[k];
+        }
+        out[r] = peak;
+      }
+
       return out;
     },
     []
@@ -963,7 +1009,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(Math.max(16, Math.min(16000, freqHz)), ctx.currentTime);
+      osc.frequency.setValueAtTime(Math.max(16, Math.min(20000, freqHz)), ctx.currentTime);
 
       const peakGain = (isMuted ? 0.25 : Math.max(0.15, volume)) * 0.45;
       gain.gain.setValueAtTime(0.001, ctx.currentTime);
@@ -982,7 +1028,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const startOrUpdateDragTone = useCallback(
     (freqHz: number) => {
       const ctx = getOrCreateAudioContext();
-      const clampedFreq = Math.max(16, Math.min(16000, freqHz));
+      const clampedFreq = Math.max(16, Math.min(20000, freqHz));
       if (!previewOscRef.current || !previewGainRef.current) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -1272,7 +1318,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       setTotalDuration(decoded.duration);
       pauseOffsetRef.current = 0;
       setCurrentTime(0);
-      const autoMaxFreq = Math.min(4000, Math.round(decoded.sampleRate / 4));
+      const autoMaxFreq = 20000;
       setMaxFreqDisplay(autoMaxFreq);
       precomputeBufferSpectrogram(decoded, autoMaxFreq);
       startPlayback(0);
@@ -1304,52 +1350,52 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       setWaveType('sine');
       setFrequency(20);
       setAmplitude(0.5);
-      setMaxFreqDisplay(150);
+      setMaxFreqDisplay(20000);
       setSelectedPoint({
         time: 2.0,
         frequency: 20,
         magnitudeDb: -6.0,
         normX: 0.25,
-        normY: 20 / 150,
+        normY: 20 / 20000,
       });
     } else if (preset === '100hz') {
       setWaveType('sine');
       setFrequency(100);
       setAmplitude(0.5);
-      setMaxFreqDisplay(400);
+      setMaxFreqDisplay(20000);
       setSelectedPoint({
         time: 2.5,
         frequency: 100,
         magnitudeDb: -6.0,
         normX: 0.3,
-        normY: 100 / 400,
+        normY: 100 / 20000,
       });
     } else if (preset === '1khz') {
       setWaveType('sine');
       setFrequency(1000);
       setAmplitude(0.45);
-      setMaxFreqDisplay(2500);
+      setMaxFreqDisplay(20000);
       setSelectedPoint({
         time: 3.0,
         frequency: 1000,
         magnitudeDb: -6.5,
         normX: 0.35,
-        normY: 1000 / 2500,
+        normY: 1000 / 20000,
       });
     } else if (preset === 'chirp') {
       setWaveType('chirp');
-      setFrequency(40);
-      setSweepEndFreq(1200);
+      setFrequency(100);
+      setSweepEndFreq(12000);
       setAmplitude(0.5);
-      setMaxFreqDisplay(1500);
+      setMaxFreqDisplay(20000);
     } else if (preset === 'white') {
       setWaveType('white-noise');
       setAmplitude(0.35);
-      setMaxFreqDisplay(4000);
+      setMaxFreqDisplay(20000);
     } else if (preset === 'pink') {
       setWaveType('pink-noise');
       setAmplitude(0.45);
-      setMaxFreqDisplay(2500);
+      setMaxFreqDisplay(20000);
     } else if (preset === 'mixed') {
       setWaveType('mixed');
       setMixLayers([
@@ -1357,20 +1403,20 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         { id: 'm2', type: 'sine', frequency: 100, amplitude: 0.35, enabled: true },
         { id: 'm3', type: 'white-noise', frequency: 0, amplitude: 0.08, enabled: true },
       ]);
-      setMaxFreqDisplay(250);
+      setMaxFreqDisplay(20000);
     } else if (preset === 'speech') {
       setWaveType('speech-synth');
       setFrequency(130);
       setAmplitude(0.55);
-      setMaxFreqDisplay(3000);
+      setMaxFreqDisplay(20000);
     } else if (preset === 'random') {
       const types: LiveWaveType[] = ['am-fm', 'musical', 'speech-synth', 'chirp', 'square'];
       const pick = types[Math.floor(Math.random() * types.length)];
-      const randFreq = Math.round(40 + Math.random() * 440);
+      const randFreq = Math.round(80 + Math.random() * 4000);
       setWaveType(pick);
       setFrequency(randFreq);
-      setSweepEndFreq(randFreq * 3);
-      setMaxFreqDisplay(Math.max(800, randFreq * 4));
+      setSweepEndFreq(Math.min(18000, randFreq * 3));
+      setMaxFreqDisplay(20000);
     }
   };
 
@@ -1600,8 +1646,8 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                           <input
                             type="range"
                             min={10}
-                            max={2000}
-                            step={5}
+                            max={20000}
+                            step={10}
                             value={lyr.frequency}
                             onChange={(e) =>
                               setMixLayers((prev) =>
@@ -1656,15 +1702,12 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                   <input
                     type="number"
                     min={10}
-                    max={8000}
+                    max={20000}
                     step={1}
                     value={frequency}
                     onChange={(e) => {
-                      const val = Math.max(10, Math.min(8000, Number(e.target.value)));
+                      const val = Math.max(10, Math.min(20000, Number(e.target.value)));
                       setFrequency(val);
-                      if (val > maxFreqDisplay * 0.85) {
-                        setMaxFreqDisplay(Math.min(12000, Math.round(val * 2)));
-                      }
                     }}
                     className="neu-inset w-20 px-2 py-0.5 rounded text-right font-bold text-sky-500 bg-transparent"
                   />
@@ -1672,15 +1715,12 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 <input
                   type="range"
                   min={10}
-                  max={2000}
+                  max={20000}
                   step={1}
-                  value={Math.min(2000, frequency)}
+                  value={Math.min(20000, frequency)}
                   onChange={(e) => {
                     const val = Number(e.target.value);
                     setFrequency(val);
-                    if (val > maxFreqDisplay * 0.85) {
-                      setMaxFreqDisplay(Math.min(12000, Math.round(val * 1.8)));
-                    }
                   }}
                   className="sci-slider"
                 />
@@ -1705,13 +1745,17 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               <div>
                 <div className="flex justify-between text-xs font-mono mb-1.5">
                   <span>{lang === 'fa' ? 'محدوده محور فرکانس' : 'Spectrogram Max Freq'}</span>
-                  <span className="font-bold text-emerald-500">{maxFreqDisplay} Hz</span>
+                  <span className="font-bold text-emerald-500">
+                    {maxFreqDisplay >= 1000
+                      ? `${(maxFreqDisplay / 1000).toFixed(1)} kHz`
+                      : `${maxFreqDisplay} Hz`}
+                  </span>
                 </div>
                 <input
                   type="range"
                   min={100}
-                  max={6000}
-                  step={50}
+                  max={20000}
+                  step={100}
                   value={maxFreqDisplay}
                   onChange={(e) => setMaxFreqDisplay(Number(e.target.value))}
                   className="sci-slider"
