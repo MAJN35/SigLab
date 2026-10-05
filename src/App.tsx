@@ -24,9 +24,11 @@ import {
   Save,
   Signal,
   Sun,
+  Volume2,
   X,
 } from 'lucide-react';
 import { LAB_IMAGES } from './assets/labImages';
+import { AudioSpectrogramPage } from './pages/AudioSpectrogramPage';
 import { CustomSamplesPage } from './pages/CustomSamplesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DeepLearningPage } from './pages/DeepLearningPage';
@@ -51,6 +53,7 @@ const NAV_ITEMS: {
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
   { id: 'dashboard', label: 'Overview', faLabel: 'نمای کلی آزمایشگاه', icon: LayoutDashboard },
+  { id: 'audio-lab', label: 'Audio & Spectrogram', faLabel: 'پخش زنده صوت و طیف‌نگار', icon: Volume2 },
   { id: 'signal-generator', label: 'Signal Generator', faLabel: 'تولیدکننده سیگنال', icon: Activity },
   { id: 'fft-spectrum', label: 'FFT & Spectrum', faLabel: 'طیف فوریه و FFT', icon: BarChart3 },
   { id: 'filtering', label: 'Digital Filtering', faLabel: 'فیلترینگ دیجیتال', icon: Filter },
@@ -68,12 +71,12 @@ const NAV_ITEMS: {
 
 const TOP_NAV_SHORTCUTS: { id: PageId; label: string; faLabel: string }[] = [
   { id: 'dashboard', label: 'Overview', faLabel: 'نمای کلی' },
+  { id: 'audio-lab', label: 'Audio & Spectrogram', faLabel: 'پخش صوت و طیف‌نگار' },
   { id: 'signal-generator', label: 'Waveforms', faLabel: 'شکل‌موج‌ها' },
   { id: 'fft-spectrum', label: 'Spectrum', faLabel: 'طیف فوریه' },
   { id: 'filtering', label: 'Filters', faLabel: 'فیلترها' },
   { id: 'eeg-simulator', label: 'EEG Lab', faLabel: 'آزمایشگاه EEG' },
   { id: 'modulation-ber', label: 'Telecom', faLabel: 'مخابرات' },
-  { id: 'deep-learning', label: 'AI Lab', faLabel: 'یادگیری عمیق' },
   { id: 'documentation', label: 'Docs', faLabel: 'مرجع علمی' },
 ];
 
@@ -100,6 +103,8 @@ const LabShell: React.FC = () => {
     switch (activePage) {
       case 'dashboard':
         return <DashboardPage />;
+      case 'audio-lab':
+        return <AudioSpectrogramPage />;
       case 'signal-generator':
         return <SignalGeneratorPage />;
       case 'telecommunications':

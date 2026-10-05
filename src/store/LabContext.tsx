@@ -113,6 +113,7 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const hash = window.location.hash.replace('#/', '') as PageId;
     const validPages: PageId[] = [
       'dashboard',
+      'audio-lab',
       'signal-generator',
       'telecommunications',
       'eeg-simulator',

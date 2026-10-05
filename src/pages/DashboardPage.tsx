@@ -3,6 +3,7 @@ import { LAB_IMAGES } from '../assets/labImages';
 import { InteractiveHeatmap, InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
 import { EDUCATIONAL_PRESETS, useLab } from '../store/LabContext';
+import { AudioSpectrogramPage } from './AudioSpectrogramPage';
 
 export const DashboardPage: React.FC = () => {
   const {
@@ -62,8 +63,16 @@ export const DashboardPage: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setActivePage('signal-generator')}
+              onClick={() => setActivePage('audio-lab')}
               className="btn-primary-pill px-5 py-2.5 text-xs whitespace-nowrap cursor-pointer"
+            >
+              {lang === 'fa' ? 'پخش زنده صوت و طیف‌نگار' : 'Live Audio & Spectrogram'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActivePage('signal-generator')}
+              className="neu-btn px-4 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer"
             >
               {lang === 'fa' ? 'تنظیم سیگنال' : 'Configure Signal'}
             </button>
@@ -191,6 +200,9 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Live Audio Signal Player & Interactive Click-to-Hear Spectrogram System */}
+      <AudioSpectrogramPage embedded />
 
       {/* Primary Time-Domain & Frequency Spectrum Plots with Generous Spacing */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
