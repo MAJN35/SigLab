@@ -5,7 +5,7 @@ import { runPCAExperiment } from '../simulations/pca';
 import { useLab } from '../store/LabContext';
 
 export const PCAPage: React.FC = () => {
-  const { experiment, setExperiment, darkMode } = useLab();
+  const { experiment, setExperiment, darkMode, lang } = useLab();
   const pcaCfg = experiment.analysis.pca;
   const [rotYaw, setRotYaw] = useState(34);
   const [rotPitch, setRotPitch] = useState(22);
@@ -148,18 +148,24 @@ export const PCAPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-xl font-bold tracking-tight">
-              Principal Component Analysis (PCA) & Subspace Reconstruction
+              {lang === 'fa'
+                ? 'تحلیل مؤلفه‌های اصلی (PCA) و بازسازی زیرفضای متعامد'
+                : 'Principal Component Analysis (PCA) & Subspace Reconstruction'}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Perform orthogonal eigendecomposition of multi-channel covariance matrices, inspect Explained Variance ratios, and evaluate rank-k reconstruction error.
+              {lang === 'fa'
+                ? 'تجزیه مقادیر ویژه ماتریس کوواریانس چندکاناله، بررسی نسبت واریانس تبیین‌شده و ارزیابی خطای بازسازی با رتبه کاهش‌یافته k.'
+                : 'Perform orthogonal eigendecomposition of multi-channel covariance matrices, inspect Explained Variance ratios, and evaluate rank-k reconstruction error.'}
             </p>
           </div>
           <div className="text-xs font-mono">
-            Retained Variance ({pcaCfg.numComponents}/{pcaCfg.numDimensions} PCs):{' '}
+            {lang === 'fa'
+              ? `واریانس حفظ‌شده (${pcaCfg.numComponents}/${pcaCfg.numDimensions} مؤلفه): `
+              : `Retained Variance (${pcaCfg.numComponents}/${pcaCfg.numDimensions} PCs): `}
             <strong className="text-emerald-500">
               {(res.cumulativeVarianceRatio[pcaCfg.numComponents - 1] ?? 100).toFixed(1)}%
             </strong>{' '}
-            · Reconstruction RMSE:{' '}
+            · {lang === 'fa' ? 'خطای بازسازی RMSE: ' : 'Reconstruction RMSE: '}
             <strong className="text-sky-500">{res.reconstructionRmse.toFixed(4)}</strong>
           </div>
         </div>
@@ -167,7 +173,7 @@ export const PCAPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Sensor Dimensions (D)</span>
+              <span>{lang === 'fa' ? 'ابعاد حسگرها (D)' : 'Sensor Dimensions (D)'}</span>
               <span className="text-sky-500 font-semibold">{pcaCfg.numDimensions}D</span>
             </div>
             <input
@@ -189,7 +195,7 @@ export const PCAPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Retained Components (k)</span>
+              <span>{lang === 'fa' ? 'مؤلفه‌های نگه‌داشته‌شده (k)' : 'Retained Components (k)'}</span>
               <span className="text-emerald-500 font-semibold">{pcaCfg.numComponents} PCs</span>
             </div>
             <input
@@ -205,7 +211,7 @@ export const PCAPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Observation Noise (σ)</span>
+              <span>{lang === 'fa' ? 'نویز مشاهده (σ)' : 'Observation Noise (σ)'}</span>
               <span className="text-amber-500 font-semibold">{pcaCfg.noiseLevel.toFixed(2)}</span>
             </div>
             <input
@@ -221,7 +227,7 @@ export const PCAPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Latent Correlation</span>
+              <span>{lang === 'fa' ? 'همبستگی پنهان کانال‌ها' : 'Latent Correlation'}</span>
               <span className="text-sky-500 font-semibold">
                 {(pcaCfg.correlationStrength * 100).toFixed(0)}%
               </span>
@@ -245,10 +251,14 @@ export const PCAPage: React.FC = () => {
         <div className="neu-card p-5 flex flex-col justify-between gap-4">
           <div>
             <h3 className="text-sm font-semibold tracking-tight">
-              Eigenvalue Spectrum & Explained Variance
+              {lang === 'fa'
+                ? 'طیف مقادیر ویژه و واریانس تبیین‌شده'
+                : 'Eigenvalue Spectrum & Explained Variance'}
             </h3>
             <p className="text-xs text-slate-500">
-              Individual λ_i% and cumulative variance captured by top k components
+              {lang === 'fa'
+                ? 'درصد واریانس تک‌تک مقادیر ویژه λ_i و واریانس تجمعی k مؤلفه اول'
+                : 'Individual λ_i% and cumulative variance captured by top k components'}
             </p>
           </div>
 
@@ -262,7 +272,8 @@ export const PCAPage: React.FC = () => {
                       PC{idx + 1} (λ={res.eigenvalues[idx].toFixed(2)})
                     </span>
                     <span className="tabular-nums">
-                      {ratio.toFixed(1)}% · Cum: {res.cumulativeVarianceRatio[idx].toFixed(1)}%
+                      {ratio.toFixed(1)}% · {lang === 'fa' ? 'تجمعی:' : 'Cum:'}{' '}
+                      {res.cumulativeVarianceRatio[idx].toFixed(1)}%
                     </span>
                   </div>
                   <div className="h-2.5 w-full neu-inset overflow-hidden p-0.5">
@@ -279,7 +290,7 @@ export const PCAPage: React.FC = () => {
           </div>
 
           <div className="neu-inset p-3 text-xs font-mono flex justify-between">
-            <span>Subspace Error (RMSE):</span>
+            <span>{lang === 'fa' ? 'خطای زیرفضا (RMSE):' : 'Subspace Error (RMSE):'}</span>
             <strong className="text-emerald-500">{res.reconstructionRmse.toFixed(4)}</strong>
           </div>
         </div>
@@ -288,10 +299,14 @@ export const PCAPage: React.FC = () => {
         <div className="neu-card p-4 flex flex-col gap-3">
           <div>
             <h3 className="text-sm font-semibold tracking-tight">
-              2D Principal Subspace Projection (PC1 vs. PC2)
+              {lang === 'fa'
+                ? 'تصویر دوبعدی زیرفضای اصلی (PC1 در برابر PC2)'
+                : '2D Principal Subspace Projection (PC1 vs. PC2)'}
             </h3>
             <p className="text-xs text-slate-500">
-              Orthogonal variance-maximizing axes with cluster distributions
+              {lang === 'fa'
+                ? 'محورهای متعامد بیشینه‌ساز واریانس به همراه توزیع خوشه‌ها'
+                : 'Orthogonal variance-maximizing axes with cluster distributions'}
             </p>
           </div>
           <div className="oscilloscope-frame p-1 overflow-hidden">
@@ -304,12 +319,16 @@ export const PCAPage: React.FC = () => {
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold tracking-tight">
-                3D Principal Manifold (PC1 · PC2 · PC3)
+                {lang === 'fa'
+                  ? 'منیفولد سه‌بعدی مؤلفه‌های اصلی (PC1 · PC2 · PC3)'
+                  : '3D Principal Manifold (PC1 · PC2 · PC3)'}
               </h3>
-              <p className="text-xs text-slate-500">Rotate 3D camera yaw & pitch</p>
+              <p className="text-xs text-slate-500">
+                {lang === 'fa' ? 'چرخش زاویه دید دوربین سه‌بعدی' : 'Rotate 3D camera yaw & pitch'}
+              </p>
             </div>
             <div className="flex items-center gap-2 text-[10px] font-mono">
-              <span>Yaw</span>
+              <span>{lang === 'fa' ? 'چرخش' : 'Yaw'}</span>
               <input
                 type="range"
                 min={-180}
@@ -328,23 +347,34 @@ export const PCAPage: React.FC = () => {
 
       {/* Rank-k Signal Reconstruction Plot */}
       <InteractivePlot
-        title={`Rank-${pcaCfg.numComponents} PCA Signal Reconstruction vs. Original Sensor Channel 1`}
-        subtitle={`Reconstructing ${pcaCfg.numDimensions}-dimensional sensor array from top k = ${pcaCfg.numComponents} Principal Components (RMSE = ${res.reconstructionRmse.toFixed(4)})`}
+        title={
+          lang === 'fa'
+            ? `بازسازی سیگنال با رتبه ${pcaCfg.numComponents} در مقایسه با کانال حسگر اصلی ۱`
+            : `Rank-${pcaCfg.numComponents} PCA Signal Reconstruction vs. Original Sensor Channel 1`
+        }
+        subtitle={
+          lang === 'fa'
+            ? `بازسازی آرایه حسگر ${pcaCfg.numDimensions}-بعدی از ${pcaCfg.numComponents} مؤلفه اصلی اول (RMSE = ${res.reconstructionRmse.toFixed(4)})`
+            : `Reconstructing ${pcaCfg.numDimensions}-dimensional sensor array from top k = ${pcaCfg.numComponents} Principal Components (RMSE = ${res.reconstructionRmse.toFixed(4)})`
+        }
         xData={Array.from({ length: res.timeSeriesOriginal.length }, (_, i) => i)}
-        xLabel="Sample Index (n)"
-        yLabel="Centered Amplitude"
+        xLabel={lang === 'fa' ? 'اندیس نمونه (n)' : 'Sample Index (n)'}
+        yLabel={lang === 'fa' ? 'دامنه مرکزگراشده' : 'Centered Amplitude'}
         height={250}
         series={[
           {
             id: 'pca-orig',
-            label: 'Original Sensor Channel x₁[n]',
+            label: lang === 'fa' ? 'کانال حسگر اصلی x₁[n]' : 'Original Sensor Channel x₁[n]',
             data: res.timeSeriesOriginal,
             color: '#0ea5e9',
             lineWidth: 1.8,
           },
           {
             id: 'pca-rec',
-            label: `Rank-${pcaCfg.numComponents} PCA Reconstructed x̂₁[n]`,
+            label:
+              lang === 'fa'
+                ? `سیگنال بازسازی‌شده PCA با رتبه ${pcaCfg.numComponents}`
+                : `Rank-${pcaCfg.numComponents} PCA Reconstructed x̂₁[n]`,
             data: res.timeSeriesReconstructed,
             color: '#10b981',
             lineWidth: 2.2,
@@ -355,16 +385,28 @@ export const PCAPage: React.FC = () => {
       <TheoryAccordion
         items={[
           {
-            title: 'Sample Covariance Matrix & Orthogonal Eigendecomposition',
-            formula: '\\mathbf{\\Sigma} = \\frac{1}{N-1}\\mathbf{X}_c^\\top \\mathbf{X}_c, \\quad \\mathbf{\\Sigma}\\mathbf{v}_i = \\lambda_i \\mathbf{v}_i',
+            title:
+              lang === 'fa'
+                ? 'ماتریس کوواریانس نمونه و تجزیه مقادیر ویژه متعامد'
+                : 'Sample Covariance Matrix & Orthogonal Eigendecomposition',
+            formula:
+              '\\mathbf{\\Sigma} = \\frac{1}{N-1}\\mathbf{X}_c^\\top \\mathbf{X}_c, \\quad \\mathbf{\\Sigma}\\mathbf{v}_i = \\lambda_i \\mathbf{v}_i',
             explanation:
-              'Principal Component Analysis finds mutually orthogonal unit vectors v_i that diagonalize the sample covariance matrix Σ. The eigenvalues λ_i equal the variance of the data projected onto each principal axis.',
+              lang === 'fa'
+                ? 'تحلیل مؤلفه‌های اصلی (PCA) بردارهای یکه متعامد v_i را می‌یابد که ماتریس کوواریانس نمونه Σ را قطری می‌کنند. مقادیر ویژه λ_i برابر با واریانس داده‌های تصویرشده روی هر محور اصلی هستند.'
+                : 'Principal Component Analysis finds mutually orthogonal unit vectors v_i that diagonalize the sample covariance matrix Σ. The eigenvalues λ_i equal the variance of the data projected onto each principal axis.',
           },
           {
-            title: 'Eckart-Young Low-Rank Subspace Reconstruction',
-            formula: '\\mathbf{\\hat{X}}_k = \\mathbf{X}_c \\mathbf{V}_k \\mathbf{V}_k^\\top, \\quad \\|\\mathbf{X}_c - \\mathbf{\\hat{X}}_k\\|_F^2 = \\sum_{i=k+1}^{D} (N-1)\\lambda_i',
+            title:
+              lang === 'fa'
+                ? 'بازسازی زیرفضای کم‌رتبه اکارت-یانگ (Eckart-Young)'
+                : 'Eckart-Young Low-Rank Subspace Reconstruction',
+            formula:
+              '\\mathbf{\\hat{X}}_k = \\mathbf{X}_c \\mathbf{V}_k \\mathbf{V}_k^\\top, \\quad \\|\\mathbf{X}_c - \\mathbf{\\hat{X}}_k\\|_F^2 = \\sum_{i=k+1}^{D} (N-1)\\lambda_i',
             explanation:
-              'Projecting D-dimensional noisy sensor observations onto the top k eigenvectors V_k achieves the minimum possible Frobenius-norm reconstruction error among all rank-k linear projections.',
+              lang === 'fa'
+                ? 'تصویر کردن مشاهدات نویزی D-بعدی روی k بردار ویژه اول V_k کمترین خطای بازسازی نرم فروبنیوس ممکن را در میان تمام نگاشت‌های خطی با رتبه k به دست می‌دهد.'
+                : 'Projecting D-dimensional noisy sensor observations onto the top k eigenvectors V_k achieves the minimum possible Frobenius-norm reconstruction error among all rank-k linear projections.',
           },
         ]}
       />

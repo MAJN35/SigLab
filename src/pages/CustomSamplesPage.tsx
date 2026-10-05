@@ -11,7 +11,7 @@ import {
 } from '../types';
 
 export const CustomSamplesPage: React.FC = () => {
-  const { customSamples, saveCustomSample, deleteCustomSample, experiment } = useLab();
+  const { customSamples, saveCustomSample, deleteCustomSample, experiment, lang } = useLab();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('Synthetic Multi-Channel Telemetry Sample');
@@ -138,10 +138,18 @@ export const CustomSamplesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg font-bold tracking-tight">
-                {editingId ? 'Edit Custom Sample' : 'Custom Synthetic Sample Builder'}
+                {editingId
+                  ? lang === 'fa'
+                    ? 'ویرایش نمونه سفارشی'
+                    : 'Edit Custom Sample'
+                  : lang === 'fa'
+                  ? 'سازنده نمونه‌های سیگنال مصنوعی سفارشی'
+                  : 'Custom Synthetic Sample Builder'}
               </h1>
               <p className="text-xs text-slate-500">
-                Persisted locally in browser IndexedDB
+                {lang === 'fa'
+                  ? 'ذخیره دائمی و محلی در پایگاه داده IndexedDB مرورگر'
+                  : 'Persisted locally in browser IndexedDB'}
               </p>
             </div>
             {editingId && (
@@ -150,14 +158,16 @@ export const CustomSamplesPage: React.FC = () => {
                 onClick={() => setEditingId(null)}
                 className="text-xs font-mono text-sky-500 underline cursor-pointer"
               >
-                Cancel Edit
+                {lang === 'fa' ? 'لغو ویرایش' : 'Cancel Edit'}
               </button>
             )}
           </div>
 
           <div className="flex flex-col gap-3 text-xs">
             <div>
-              <label className="block font-mono text-slate-500 mb-1">Sample Name</label>
+              <label className="block font-mono text-slate-500 mb-1">
+                {lang === 'fa' ? 'نام نمونه' : 'Sample Name'}
+              </label>
               <input
                 type="text"
                 value={name}
@@ -168,41 +178,49 @@ export const CustomSamplesPage: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-mono text-slate-500 mb-1">Waveform Type</label>
+                <label className="block font-mono text-slate-500 mb-1">
+                  {lang === 'fa' ? 'نوع شکل‌موج' : 'Waveform Type'}
+                </label>
                 <select
                   value={signalType}
                   onChange={(e) => setSignalType(e.target.value as SignalWaveType)}
                   className="neu-inset w-full px-2.5 py-2 rounded-lg font-mono bg-transparent"
                 >
-                  <option value="sine" className="bg-slate-900 text-white">Sine</option>
-                  <option value="cosine" className="bg-slate-900 text-white">Cosine</option>
-                  <option value="square" className="bg-slate-900 text-white">Square</option>
-                  <option value="triangle" className="bg-slate-900 text-white">Triangle</option>
-                  <option value="sawtooth" className="bg-slate-900 text-white">Sawtooth</option>
-                  <option value="chirp" className="bg-slate-900 text-white">Chirp</option>
+                  <option value="sine">{lang === 'fa' ? 'سینوسی (Sine)' : 'Sine'}</option>
+                  <option value="cosine">{lang === 'fa' ? 'کسینوسی (Cosine)' : 'Cosine'}</option>
+                  <option value="square">{lang === 'fa' ? 'مربعی (Square)' : 'Square'}</option>
+                  <option value="triangle">{lang === 'fa' ? 'مثلثی (Triangle)' : 'Triangle'}</option>
+                  <option value="sawtooth">{lang === 'fa' ? 'دندان‌اره‌ای (Sawtooth)' : 'Sawtooth'}</option>
+                  <option value="chirp">{lang === 'fa' ? 'چرپ (Chirp)' : 'Chirp'}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block font-mono text-slate-500 mb-1">Modulation</label>
+                <label className="block font-mono text-slate-500 mb-1">
+                  {lang === 'fa' ? 'مدولاسیون' : 'Modulation'}
+                </label>
                 <select
                   value={modulation}
                   onChange={(e) => setModulation(e.target.value as any)}
                   className="neu-inset w-full px-2.5 py-2 rounded-lg font-mono bg-transparent"
                 >
-                  <option value="None" className="bg-slate-900 text-white">None (Baseband)</option>
-                  <option value="AM" className="bg-slate-900 text-white">AM</option>
-                  <option value="FM" className="bg-slate-900 text-white">FM</option>
-                  <option value="BPSK" className="bg-slate-900 text-white">BPSK</option>
-                  <option value="QPSK" className="bg-slate-900 text-white">QPSK</option>
-                  <option value="16-QAM" className="bg-slate-900 text-white">16-QAM</option>
+                  <option value="None">
+                    {lang === 'fa' ? 'بدون مدولاسیون (باند پایه)' : 'None (Baseband)'}
+                  </option>
+                  <option value="AM">AM</option>
+                  <option value="FM">FM</option>
+                  <option value="BPSK">BPSK</option>
+                  <option value="QPSK">QPSK</option>
+                  <option value="16-QAM">16-QAM</option>
                 </select>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3 font-mono">
               <div>
-                <label className="block text-slate-500 mb-1">fs (Hz)</label>
+                <label className="block text-slate-500 mb-1">
+                  {lang === 'fa' ? 'نرخ نمونه fs (Hz)' : 'fs (Hz)'}
+                </label>
                 <input
                   type="number"
                   value={samplingRate}
@@ -211,7 +229,9 @@ export const CustomSamplesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-slate-500 mb-1">Duration (s)</label>
+                <label className="block text-slate-500 mb-1">
+                  {lang === 'fa' ? 'مدت (ثانیه)' : 'Duration (s)'}
+                </label>
                 <input
                   type="number"
                   step={0.5}
@@ -221,7 +241,9 @@ export const CustomSamplesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-slate-500 mb-1">Channels</label>
+                <label className="block text-slate-500 mb-1">
+                  {lang === 'fa' ? 'تعداد کانال' : 'Channels'}
+                </label>
                 <input
                   type="number"
                   min={1}
@@ -235,7 +257,9 @@ export const CustomSamplesPage: React.FC = () => {
 
             <div className="grid grid-cols-3 gap-3 font-mono">
               <div>
-                <label className="block text-slate-500 mb-1">Freq (Hz)</label>
+                <label className="block text-slate-500 mb-1">
+                  {lang === 'fa' ? 'فرکانس (Hz)' : 'Freq (Hz)'}
+                </label>
                 <input
                   type="number"
                   step={0.5}
@@ -245,7 +269,9 @@ export const CustomSamplesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-slate-500 mb-1">Amp (V)</label>
+                <label className="block text-slate-500 mb-1">
+                  {lang === 'fa' ? 'دامنه (V)' : 'Amp (V)'}
+                </label>
                 <input
                   type="number"
                   step={0.1}
@@ -267,7 +293,9 @@ export const CustomSamplesPage: React.FC = () => {
 
             <div>
               <span className="block font-mono text-slate-500 mb-1.5">
-                Embedded Artifacts & Interference
+                {lang === 'fa'
+                  ? 'آرتیفکت‌ها و تداخل‌های تعبیه‌شده'
+                  : 'Embedded Artifacts & Interference'}
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {['Eye Blink', 'EMG Burst', '50Hz Hum', 'Baseline Drift', 'Impulse Noise'].map(
@@ -293,7 +321,15 @@ export const CustomSamplesPage: React.FC = () => {
               className="btn-primary-pill py-2.5 px-5 text-xs flex items-center justify-center gap-1.5 mt-1 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>{editingId ? 'Update Sample in IndexedDB' : 'Save Sample to IndexedDB'}</span>
+              <span>
+                {editingId
+                  ? lang === 'fa'
+                    ? 'به‌روزرسانی نمونه در IndexedDB'
+                    : 'Update Sample in IndexedDB'
+                  : lang === 'fa'
+                  ? 'ذخیره نمونه در IndexedDB'
+                  : 'Save Sample to IndexedDB'}
+              </span>
             </button>
           </div>
         </div>
@@ -302,7 +338,9 @@ export const CustomSamplesPage: React.FC = () => {
         <div className="lg:col-span-7 flex flex-col gap-6">
           <div className="neu-card p-5 flex flex-col gap-3.5">
             <h2 className="text-base font-bold tracking-tight">
-              Saved IndexedDB Custom Samples ({customSamples.length})
+              {lang === 'fa'
+                ? `نمونه‌های سفارشی ذخیره‌شده در مرورگر (${customSamples.length})`
+                : `Saved IndexedDB Custom Samples (${customSamples.length})`}
             </h2>
 
             <div className="flex flex-col gap-2.5">
@@ -325,7 +363,7 @@ export const CustomSamplesPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleEdit(s)}
-                      title="Edit Sample"
+                      title={lang === 'fa' ? 'ویرایش نمونه' : 'Edit Sample'}
                       className="btn-circle-glass cursor-pointer"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
@@ -333,7 +371,7 @@ export const CustomSamplesPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleDuplicate(s)}
-                      title="Duplicate Sample"
+                      title={lang === 'fa' ? 'تکثیر نمونه' : 'Duplicate Sample'}
                       className="btn-circle-glass cursor-pointer"
                     >
                       <Copy className="w-3.5 h-3.5" />
@@ -341,7 +379,7 @@ export const CustomSamplesPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleExportSample(s)}
-                      title="Export Sample JSON"
+                      title={lang === 'fa' ? 'خروجی JSON نمونه' : 'Export Sample JSON'}
                       className="btn-circle-glass cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -350,7 +388,7 @@ export const CustomSamplesPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => deleteCustomSample(s.id)}
-                        title="Delete Sample"
+                        title={lang === 'fa' ? 'حذف نمونه' : 'Delete Sample'}
                         className="btn-circle-glass text-rose-500 cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -368,7 +406,11 @@ export const CustomSamplesPage: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <GitCompare className="w-4 h-4 text-sky-500" />
-                  <h3 className="text-sm font-semibold">Compare Saved Custom Samples</h3>
+                  <h3 className="text-sm font-semibold">
+                    {lang === 'fa'
+                      ? 'مقایسه هم‌زمان دو نمونه سفارشی ذخیره‌شده'
+                      : 'Compare Saved Custom Samples'}
+                  </h3>
                 </div>
 
                 <div className="flex items-center gap-2 text-xs font-mono">
@@ -383,7 +425,7 @@ export const CustomSamplesPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <span>vs.</span>
+                  <span>{lang === 'fa' ? 'در برابر' : 'vs.'}</span>
                   <select
                     value={sampleB.id}
                     onChange={(e) => setCompareIds([compareIds[0], e.target.value])}
@@ -399,10 +441,14 @@ export const CustomSamplesPage: React.FC = () => {
               </div>
 
               <InteractivePlot
-                title={`Waveform Comparison: ${sampleA.name} vs. ${sampleB.name}`}
+                title={
+                  lang === 'fa'
+                    ? `مقایسه شکل‌موج: ${sampleA.name} در برابر ${sampleB.name}`
+                    : `Waveform Comparison: ${sampleA.name} vs. ${sampleB.name}`
+                }
                 xData={Array.from({ length: sampleA.previewData.length }, (_, i) => i)}
-                xLabel="Sample Index (n)"
-                yLabel="Amplitude (V)"
+                xLabel={lang === 'fa' ? 'اندیس نمونه (n)' : 'Sample Index (n)'}
+                yLabel={lang === 'fa' ? 'دامنه (V)' : 'Amplitude (V)'}
                 height={220}
                 series={[
                   {

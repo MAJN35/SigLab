@@ -13,6 +13,13 @@ import { PipelineEditor } from '../components/PipelineEditor';
 import { EDUCATIONAL_PRESETS, useLab } from '../store/LabContext';
 import { Experiment } from '../types';
 
+const CATEGORY_FA: Record<string, string> = {
+  Telecommunications: 'آزمایش‌های مخابرات آنالوگ و دیجیتال',
+  'Signal Processing': 'آزمایش‌های پردازش سیگنال و تحلیل طیفی',
+  EEG: 'آزمایش‌های سیگنال مغزی (EEG) و حذف آرتیفکت',
+  'Machine Learning': 'آزمایش‌های یادگیری ماشین و شبکه عصبی',
+};
+
 export const ExperimentsPage: React.FC = () => {
   const {
     experiment,
@@ -24,6 +31,7 @@ export const ExperimentsPage: React.FC = () => {
     duplicateExperiment,
     renameExperiment,
     applyEducationalPreset,
+    lang,
   } = useLab();
 
   const [newExpName, setNewExpName] = useState(experiment.name);
@@ -39,7 +47,11 @@ export const ExperimentsPage: React.FC = () => {
 
   const handleSaveNew = async () => {
     await saveCurrentExperiment(newExpName.trim() || experiment.name);
-    notify('Experiment saved to IndexedDB.');
+    notify(
+      lang === 'fa'
+        ? 'آزمایش در پایگاه داده مرورگر (IndexedDB) ذخیره شد.'
+        : 'Experiment saved to IndexedDB.'
+    );
   };
 
   const handleExportJSON = (exp: Experiment = experiment) => {
@@ -50,7 +62,11 @@ export const ExperimentsPage: React.FC = () => {
     link.download = `${exp.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-experiment.json`;
     link.click();
     URL.revokeObjectURL(url);
-    notify(`Exported "${exp.name}" as JSON.`);
+    notify(
+      lang === 'fa'
+        ? `خروجی JSON آزمایش «${exp.name}» دانلود شد.`
+        : `Exported "${exp.name}" as JSON.`
+    );
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,10 +85,16 @@ export const ExperimentsPage: React.FC = () => {
           };
           loadExperiment(imported);
           await saveCurrentExperiment(imported.name);
-          notify(`Imported & loaded experiment "${imported.name}".`);
+          notify(
+            lang === 'fa'
+              ? `آزمایش «${imported.name}» با موفقیت بارگذاری شد.`
+              : `Imported & loaded experiment "${imported.name}".`
+          );
         }
       } catch {
-        notify('Invalid JSON experiment file.');
+        notify(
+          lang === 'fa' ? 'فایل JSON آزمایش معتبر نیست.' : 'Invalid JSON experiment file.'
+        );
       }
     };
     reader.readAsText(file);
@@ -86,10 +108,14 @@ export const ExperimentsPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold tracking-tight">
-              Reproducible Experiment & Preset Laboratory (IndexedDB)
+              {lang === 'fa'
+                ? 'مدیریت آزمایش‌های تکرارپذیر و سناریوهای آماده (IndexedDB)'
+                : 'Reproducible Experiment & Preset Laboratory (IndexedDB)'}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Save complete laboratory configurations (signal, noise, modulation, pipeline, analysis & randomSeed) locally in IndexedDB or export/import reproducible JSON files.
+              {lang === 'fa'
+                ? 'ذخیره کامل تنظیمات آزمایشگاه (سیگنال، نویز، مدولاسیون، خط لوله پردازشی، تحلیل‌ها و بذر تصادفی) در مرورگر یا خروجی/ورودی فایل JSON.'
+                : 'Save complete laboratory configurations (signal, noise, modulation, pipeline, analysis & randomSeed) locally in IndexedDB or export/import reproducible JSON files.'}
             </p>
           </div>
           {statusMessage && (
@@ -102,7 +128,7 @@ export const ExperimentsPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
           <div className="lg:col-span-5">
             <label className="block text-xs font-mono text-slate-500 mb-1">
-              Experiment Name
+              {lang === 'fa' ? 'نام آزمایش' : 'Experiment Name'}
             </label>
             <input
               type="text"
@@ -117,7 +143,7 @@ export const ExperimentsPage: React.FC = () => {
 
           <div className="lg:col-span-3">
             <label className="block text-xs font-mono text-slate-500 mb-1">
-              Deterministic PRNG Seed
+              {lang === 'fa' ? 'بذر تصادفی تکرارپذیر (PRNG Seed)' : 'Deterministic PRNG Seed'}
             </label>
             <input
               type="number"
@@ -136,7 +162,7 @@ export const ExperimentsPage: React.FC = () => {
               className="btn-primary-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>Save to IndexedDB</span>
+              <span>{lang === 'fa' ? 'ذخیره در مرورگر' : 'Save to IndexedDB'}</span>
             </button>
 
             <button
@@ -145,7 +171,7 @@ export const ExperimentsPage: React.FC = () => {
               className="neu-btn px-3.5 py-2 rounded-full text-xs font-mono flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Export JSON</span>
+              <span>{lang === 'fa' ? 'خروجی JSON' : 'Export JSON'}</span>
             </button>
 
             <button
@@ -154,7 +180,7 @@ export const ExperimentsPage: React.FC = () => {
               className="neu-btn px-3.5 py-2 rounded-full text-xs font-mono flex items-center gap-1.5 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5" />
-              <span>Import JSON</span>
+              <span>{lang === 'fa' ? 'ورودی JSON' : 'Import JSON'}</span>
             </button>
             <input
               ref={fileInputRef}
@@ -170,7 +196,9 @@ export const ExperimentsPage: React.FC = () => {
       {/* Saved IndexedDB Experiments Manager */}
       <div className="neu-card p-5 flex flex-col gap-4">
         <h2 className="text-base font-bold tracking-tight">
-          Saved Local Experiments ({savedExperiments.length})
+          {lang === 'fa'
+            ? `آزمایش‌های ذخیره‌شده محلی (${savedExperiments.length})`
+            : `Saved Local Experiments (${savedExperiments.length})`}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -196,7 +224,7 @@ export const ExperimentsPage: React.FC = () => {
                       }}
                       className="btn-primary-pill px-3 py-1 text-xs font-mono cursor-pointer"
                     >
-                      Save
+                      {lang === 'fa' ? 'ذخیره' : 'Save'}
                     </button>
                   </div>
                 ) : (
@@ -216,12 +244,16 @@ export const ExperimentsPage: React.FC = () => {
                   onClick={() => {
                     loadExperiment(exp);
                     setNewExpName(exp.name);
-                    notify(`Loaded "${exp.name}".`);
+                    notify(
+                      lang === 'fa'
+                        ? `آزمایش «${exp.name}» بارگذاری شد.`
+                        : `Loaded "${exp.name}".`
+                    );
                   }}
                   className="btn-tool-pill px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
-                  <span>Load</span>
+                  <span>{lang === 'fa' ? 'بارگذاری' : 'Load'}</span>
                 </button>
 
                 <div className="flex items-center gap-1.5">
@@ -231,7 +263,7 @@ export const ExperimentsPage: React.FC = () => {
                       setRenamingId(exp.id);
                       setRenameText(exp.name);
                     }}
-                    title="Rename Experiment"
+                    title={lang === 'fa' ? 'تغییر نام آزمایش' : 'Rename Experiment'}
                     className="btn-circle-glass cursor-pointer"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
@@ -239,7 +271,7 @@ export const ExperimentsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => duplicateExperiment(exp)}
-                    title="Duplicate Experiment"
+                    title={lang === 'fa' ? 'تکثیر آزمایش' : 'Duplicate Experiment'}
                     className="btn-circle-glass cursor-pointer"
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -247,7 +279,7 @@ export const ExperimentsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleExportJSON(exp)}
-                    title="Export JSON"
+                    title={lang === 'fa' ? 'خروجی JSON' : 'Export JSON'}
                     className="btn-circle-glass cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
@@ -256,7 +288,7 @@ export const ExperimentsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => deleteExperiment(exp.id)}
-                      title="Delete Experiment"
+                      title={lang === 'fa' ? 'حذف آزمایش' : 'Delete Experiment'}
                       className="btn-circle-glass text-rose-500 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -277,7 +309,9 @@ export const ExperimentsPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-sky-500" />
           <h2 className="text-base font-bold tracking-tight">
-            Ready-Made Educational Laboratory Presets ({EDUCATIONAL_PRESETS.length})
+            {lang === 'fa'
+              ? `کاتالوگ سناریوهای آموزشی آماده آزمایشگاه (${EDUCATIONAL_PRESETS.length})`
+              : `Ready-Made Educational Laboratory Presets (${EDUCATIONAL_PRESETS.length})`}
           </h2>
         </div>
 
@@ -285,7 +319,7 @@ export const ExperimentsPage: React.FC = () => {
           (cat) => (
             <div key={cat} className="flex flex-col gap-2.5">
               <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-500">
-                {cat} Experiments
+                {lang === 'fa' ? CATEGORY_FA[cat] || cat : `${cat} Experiments`}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {EDUCATIONAL_PRESETS.filter((p) => p.category === cat).map((preset) => (
@@ -304,7 +338,7 @@ export const ExperimentsPage: React.FC = () => {
                       onClick={() => applyEducationalPreset(preset)}
                       className="neu-btn py-1.5 px-3 rounded-lg text-xs font-semibold text-sky-500 self-start cursor-pointer"
                     >
-                      Launch Preset →
+                      {lang === 'fa' ? 'اجرای سناریو ←' : 'Launch Preset →'}
                     </button>
                   </div>
                 ))}
