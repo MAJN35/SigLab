@@ -27,6 +27,7 @@ import {
   Sun,
   X,
 } from 'lucide-react';
+import { LAB_IMAGES } from './assets/labImages';
 import { CustomSamplesPage } from './pages/CustomSamplesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DeepLearningPage } from './pages/DeepLearningPage';
@@ -169,9 +170,12 @@ const LabShell: React.FC = () => {
             className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full"
           >
             <img
-              src="/src/assets/images/siglab_favicon_icon_1791208347926.jpg"
+              src={LAB_IMAGES.favicon}
               alt="SigLab Icon"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.src = './favicon.svg';
+              }}
               className="w-8 h-8 rounded-full object-cover border border-sky-400/40 shadow-md shrink-0"
             />
             <div className="flex flex-col leading-none">
