@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity, BookOpen, Brain, Cpu, Filter, Radio, Waves } from 'lucide-react';
+import { LAB_IMAGES } from '../assets/labImages';
 import { MathFormula } from '../components/MathBlock';
 import { useLab } from '../store/LabContext';
 
@@ -146,7 +147,7 @@ export const DocumentationPage: React.FC = () => {
 
   const VISUAL_GUIDES = [
     {
-      img: '/src/assets/images/dsp_fourier_diagram_1791208364636.jpg',
+      img: LAB_IMAGES.dspFourier,
       title:
         lang === 'fa'
           ? 'تجزیه طیفی فوریه و زمان-فرکانس'
@@ -157,7 +158,7 @@ export const DocumentationPage: React.FC = () => {
           : 'Mapping composite time-domain waveforms into orthogonal harmonic phasors and wavelet scalograms.',
     },
     {
-      img: '/src/assets/images/telecom_modulation_diagram_1791208389939.jpg',
+      img: LAB_IMAGES.telecomModulation,
       title:
         lang === 'fa'
           ? 'مدولاسیون حامل و صورت فلکی IQ'
@@ -168,7 +169,7 @@ export const DocumentationPage: React.FC = () => {
           : 'Encoding baseband information onto passband RF carriers and quadrature QPSK/QAM symbol constellations.',
     },
     {
-      img: '/src/assets/images/eeg_cortical_map_1791208377997.jpg',
+      img: LAB_IMAGES.eegCortical,
       title:
         lang === 'fa'
           ? 'ریتم‌های قشری EEG و جداسازی آرتیفکت'
@@ -179,7 +180,7 @@ export const DocumentationPage: React.FC = () => {
           : 'Synthesizing brain frequency bands (δ, θ, α, β, γ) and suppressing physiological artifacts via DSP & ICA.',
     },
     {
-      img: '/src/assets/images/neural_dsp_architecture_1791208404112.jpg',
+      img: LAB_IMAGES.neuralDsp,
       title:
         lang === 'fa'
           ? 'یادگیری عمیق و فیلترهای کانولوشنی ۱ بعدی'

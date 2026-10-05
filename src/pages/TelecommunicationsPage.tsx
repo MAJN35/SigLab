@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { LAB_IMAGES } from '../assets/labImages';
 import { InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
 import { computeFFTSpectrum } from '../simulations/fft';
@@ -94,7 +95,7 @@ export const TelecommunicationsPage: React.FC = () => {
           <div className="lg:col-span-4">
             <div className="oscilloscope-frame overflow-hidden">
               <img
-                src="/src/assets/images/telecom_modulation_diagram_1791208389939.jpg"
+                src={LAB_IMAGES.telecomModulation}
                 alt={lang === 'fa' ? 'دیاگرام مدولاسیون مخابراتی' : 'Telecommunications Modulation Diagram'}
                 referrerPolicy="no-referrer"
                 className="w-full h-32 object-cover opacity-90"

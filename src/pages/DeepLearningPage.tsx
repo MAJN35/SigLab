@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Brain, Play, Square, Zap } from 'lucide-react';
+import { LAB_IMAGES } from '../assets/labImages';
 import { InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
 import {
@@ -319,7 +320,7 @@ export const DeepLearningPage: React.FC = () => {
           <div className="lg:col-span-4">
             <div className="oscilloscope-frame overflow-hidden">
               <img
-                src="/src/assets/images/neural_dsp_architecture_1791208404112.jpg"
+                src={LAB_IMAGES.neuralDsp}
                 alt={
                   lang === 'fa'
                     ? 'معماری شبکه عصبی کانولوشنی یک‌بعدی پردازش سیگنال'

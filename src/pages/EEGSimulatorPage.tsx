@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { LAB_IMAGES } from '../assets/labImages';
 import { InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
 import { EEG_PRESETS, simulateSyntheticEEG } from '../simulations/eeg';
@@ -118,7 +119,7 @@ export const EEGSimulatorPage: React.FC = () => {
         <div className="lg:col-span-4">
           <div className="oscilloscope-frame overflow-hidden">
             <img
-              src="/src/assets/images/eeg_cortical_map_1791208377997.jpg"
+              src={LAB_IMAGES.eegCortical}
               alt={lang === 'fa' ? 'نقشه قشر مغز و الکترودهای EEG' : 'Cortical EEG Electrode Montage'}
               referrerPolicy="no-referrer"
               className="w-full h-32 object-cover opacity-90"

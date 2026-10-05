@@ -1,4 +1,5 @@
 import React from 'react';
+import { LAB_IMAGES } from '../assets/labImages';
 import { InteractiveHeatmap, InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
 import { PipelineEditor } from '../components/PipelineEditor';
@@ -83,7 +84,7 @@ export const DashboardPage: React.FC = () => {
         <div className="lg:col-span-4">
           <div className="oscilloscope-frame overflow-hidden relative group">
             <img
-              src="/src/assets/images/dsp_fourier_diagram_1791208364636.jpg"
+              src={LAB_IMAGES.dspFourier}
               alt={
                 lang === 'fa'
                   ? 'تجزیه طیفی فوریه و هارمونیک‌های سیگنال'
