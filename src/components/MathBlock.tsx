@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import katex from 'katex';
 import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { useLab } from '../store/LabContext';
 
 interface MathFormulaProps {
   tex: string;
@@ -27,6 +28,7 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
 
   return (
     <span
+      dir="ltr"
       className={`inline-block max-w-full overflow-x-auto align-middle ${className}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -47,25 +49,40 @@ interface TheoryAccordionProps {
 }
 
 export const TheoryAccordion: React.FC<TheoryAccordionProps> = ({
-  title = 'How does this work? — Mathematical Formulation & Engineering Theory',
+  title,
   items,
   defaultOpen = false,
 }) => {
+  const { lang } = useLab();
   const [open, setOpen] = useState(defaultOpen);
+
+  const effectiveTitle =
+    title ||
+    (lang === 'fa'
+      ? 'این سیستم چگونه کار می‌کند؟ — فرمول‌بندی ریاضی و تئوری مهندسی'
+      : 'How does this work? — Mathematical Formulation & Engineering Theory');
 
   return (
     <div className="neu-card overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:opacity-90 cursor-pointer"
+        className="w-full flex items-center justify-between px-5 py-3.5 text-start transition-colors hover:opacity-90 cursor-pointer"
       >
         <div className="flex items-center gap-2.5">
           <BookOpen className="w-4 h-4 text-sky-500 shrink-0" />
-          <span className="text-sm font-semibold tracking-tight">{title}</span>
+          <span className="text-sm font-semibold tracking-tight">{effectiveTitle}</span>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
-          <span>{open ? 'Hide Derivations' : 'Expand LaTeX Equations'}</span>
+          <span>
+            {open
+              ? lang === 'fa'
+                ? 'بستن روابط ریاضی'
+                : 'Hide Derivations'
+              : lang === 'fa'
+              ? 'نمایش معادلات LaTeX'
+              : 'Expand LaTeX Equations'}
+          </span>
           {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
       </button>
@@ -82,7 +99,10 @@ export const TheoryAccordion: React.FC<TheoryAccordionProps> = ({
                   {item.explanation}
                 </p>
               </div>
-              <div className="py-2 px-3 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 overflow-x-auto">
+              <div
+                dir="ltr"
+                className="py-2 px-3 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 overflow-x-auto"
+              >
                 <MathFormula tex={item.formula} block={true} className="text-xs" />
               </div>
               {item.variables && (

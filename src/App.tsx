@@ -25,7 +25,6 @@ import {
   Save,
   Signal,
   Sun,
-  Waves,
   X,
 } from 'lucide-react';
 import { CustomSamplesPage } from './pages/CustomSamplesPage';
@@ -51,20 +50,20 @@ const NAV_ITEMS: {
   faLabel: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { id: 'dashboard', label: 'Dashboard', faLabel: 'داشبورد', icon: LayoutDashboard },
-  { id: 'signal-generator', label: 'Signal Generator', faLabel: 'تولید سیگنال', icon: Waves },
-  { id: 'telecommunications', label: 'Telecommunications', faLabel: 'مخابرات', icon: Radio },
-  { id: 'eeg-simulator', label: 'EEG Simulator', faLabel: 'شبیه‌ساز EEG', icon: Activity },
-  { id: 'fft-spectrum', label: 'FFT & Spectrum', faLabel: 'طیف و FFT', icon: BarChart3 },
-  { id: 'wavelet-analysis', label: 'Wavelet Analysis', faLabel: 'تحلیل موجک', icon: Layers },
+  { id: 'dashboard', label: 'Dashboard', faLabel: 'داشبورد فرماندهی', icon: LayoutDashboard },
+  { id: 'signal-generator', label: 'Signal Generator', faLabel: 'تولیدکننده سیگنال', icon: Activity },
+  { id: 'telecommunications', label: 'Telecommunications', faLabel: 'مخابرات و نویز', icon: Radio },
+  { id: 'eeg-simulator', label: 'EEG Simulator', faLabel: 'شبیه‌ساز نوار مغز (EEG)', icon: Activity },
+  { id: 'fft-spectrum', label: 'FFT & Spectrum', faLabel: 'طیف فوریه و FFT', icon: BarChart3 },
+  { id: 'wavelet-analysis', label: 'Wavelet Analysis', faLabel: 'تحلیل موجک (Wavelet)', icon: Layers },
   { id: 'filtering', label: 'Filtering', faLabel: 'فیلترینگ دیجیتال', icon: Filter },
-  { id: 'pca', label: 'PCA', faLabel: 'تحلیل مؤلفه‌های اصلی', icon: GitBranch },
-  { id: 'ica', label: 'ICA', faLabel: 'جداسازی منابع (ICA)', icon: Cpu },
-  { id: 'modulation-ber', label: 'Modulation & BER', faLabel: 'مدولاسیون و BER', icon: Signal },
-  { id: 'deep-learning', label: 'Deep Learning', faLabel: 'یادگیری عمیق', icon: Brain },
+  { id: 'pca', label: 'PCA', faLabel: 'تحلیل مؤلفه‌های اصلی (PCA)', icon: GitBranch },
+  { id: 'ica', label: 'ICA', faLabel: 'جداسازی منابع مستقل (ICA)', icon: Cpu },
+  { id: 'modulation-ber', label: 'Modulation & BER', faLabel: 'مدولاسیون دیجیتال و BER', icon: Signal },
+  { id: 'deep-learning', label: 'Deep Learning', faLabel: 'یادگیری عمیق (TF.js)', icon: Brain },
   { id: 'custom-samples', label: 'Custom Samples', faLabel: 'نمونه‌های سفارشی', icon: Database },
-  { id: 'experiments', label: 'Experiments', faLabel: 'آزمایش‌ها', icon: FlaskConical },
-  { id: 'documentation', label: 'Documentation', faLabel: 'مستندات علمی', icon: BookOpen },
+  { id: 'experiments', label: 'Experiments', faLabel: 'مدیریت آزمایش‌ها', icon: FlaskConical },
+  { id: 'documentation', label: 'Documentation', faLabel: 'مستندات و مرجع علمی', icon: BookOpen },
 ];
 
 const TOP_NAV_SHORTCUTS: { id: PageId; label: string; faLabel: string }[] = [
@@ -155,7 +154,7 @@ const LabShell: React.FC = () => {
               e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
             }}
             className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
-            title="Return to majn35.ir Portfolio"
+            title={lang === 'fa' ? 'بازگشت به پورتفولیو majn35.ir' : 'Return to majn35.ir Portfolio'}
           >
             <ArrowLeft className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             <span>{lang === 'fa' ? 'پورتفولیو' : 'Portfolio'}</span>
@@ -169,12 +168,15 @@ const LabShell: React.FC = () => {
             }}
             className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full"
           >
-            <span className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0284c7] to-[#22d3ee] text-white flex items-center justify-center shadow-md shrink-0">
-              <Waves className="w-4 h-4" />
-            </span>
+            <img
+              src="/src/assets/images/siglab_favicon_icon_1791208347926.jpg"
+              alt="SigLab Icon"
+              referrerPolicy="no-referrer"
+              className="w-8 h-8 rounded-full object-cover border border-sky-400/40 shadow-md shrink-0"
+            />
             <div className="flex flex-col leading-none">
               <span className="font-display text-sm sm:text-base font-extrabold tracking-tight whitespace-nowrap">
-                SigLab
+                {lang === 'fa' ? 'سیگ‌لب' : 'SigLab'}
               </span>
               <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 hidden sm:inline">
                 siglab.majn35.ir
@@ -207,7 +209,15 @@ const LabShell: React.FC = () => {
           <button
             type="button"
             onClick={handleQuickSave}
-            title={savedNotice ? 'Experiment Saved' : 'Quick Save Experiment to IndexedDB'}
+            title={
+              savedNotice
+                ? lang === 'fa'
+                  ? 'آزمایش ذخیره شد'
+                  : 'Experiment Saved'
+                : lang === 'fa'
+                ? 'ذخیره سریع آزمایش در مرورگر'
+                : 'Quick Save Experiment to IndexedDB'
+            }
             aria-label="Quick Save Experiment"
             className={`btn-circle-glass cursor-pointer ${
               savedNotice ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : ''
@@ -219,7 +229,11 @@ const LabShell: React.FC = () => {
           <button
             type="button"
             onClick={() => setLang((l) => (l === 'en' ? 'fa' : 'en'))}
-            title={lang === 'en' ? 'Switch to Persian / RTL (Vazirmatn)' : 'Switch to English / LTR'}
+            title={
+              lang === 'en'
+                ? 'تغییر زبان به فارسی (راست‌به‌چپ)'
+                : 'Switch to English (LTR)'
+            }
             aria-label="Toggle Language and Direction"
             className="btn-circle-glass text-[11px] font-bold font-mono cursor-pointer"
           >
@@ -230,7 +244,15 @@ const LabShell: React.FC = () => {
             type="button"
             onClick={() => setDarkMode((d) => !d)}
             aria-label="Toggle Light and Dark Theme"
-            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={
+              darkMode
+                ? lang === 'fa'
+                  ? 'تغییر به حالت روشن'
+                  : 'Switch to Light Mode'
+                : lang === 'fa'
+                ? 'تغییر به حالت تاریک'
+                : 'Switch to Dark Mode'
+            }
             className="btn-circle-glass cursor-pointer"
           >
             {darkMode ? (
@@ -336,17 +358,21 @@ const LabShell: React.FC = () => {
           <div>{renderPage()}</div>
 
           {/* Required Educational Simulation Disclaimer Footer */}
-          <footer className="neu-card p-5 text-center sm:text-left flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <footer className="neu-card p-5 text-center sm:text-start flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="text-xs font-bold tracking-tight">
-                Signal Processing Laboratory · Educational Simulation
+                {lang === 'fa'
+                  ? 'آزمایشگاه پردازش سیگنال · شبیه‌سازی آموزشی'
+                  : 'Signal Processing Laboratory · Educational Simulation'}
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Synthetic data only. Designed for academic education, visualization, and research experimentation. Not intended for clinical diagnosis or real-world telecommunications operation.
+                {lang === 'fa'
+                  ? 'داده‌های کاملاً مصنوعی و شبیه‌سازی‌شده برای آموزش دانشگاهی، مصورسازی و پژوهش‌های الگوریتمی. غیرقابل استفاده برای تشخیص بالینی یا عملیات مخابراتی واقعی.'
+                  : 'Synthetic data only. Designed for academic education, visualization, and research experimentation. Not intended for clinical diagnosis or real-world telecommunications operation.'}
               </p>
             </div>
             <div className="text-xs font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
-              by{' '}
+              {lang === 'fa' ? 'طراحی و توسعه توسط ' : 'by '}
               <a
                 href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
                 onClick={(e) => {
@@ -357,7 +383,7 @@ const LabShell: React.FC = () => {
                 rel="noopener noreferrer"
                 className="font-bold text-sky-700 dark:text-sky-400 hover:underline"
               >
-                Mohammadali Javadinasab
+                {lang === 'fa' ? 'محمدعلی جوادی‌نسب' : 'Mohammadali Javadinasab'}
               </a>
             </div>
           </footer>

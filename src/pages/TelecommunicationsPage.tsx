@@ -6,27 +6,27 @@ import { simulateAnalogModulation } from '../simulations/modulation';
 import { useLab } from '../store/LabContext';
 import { AnalogModType, NoiseType } from '../types';
 
-const ANALOG_MODS: { id: AnalogModType; label: string; desc: string }[] = [
-  { id: 'AM', label: 'AM (DSB-LC)', desc: 'Full Carrier Double-Sideband Amplitude Modulation' },
-  { id: 'DSB-SC', label: 'DSB-SC', desc: 'Double-Sideband Suppressed Carrier Modulation' },
-  { id: 'SSB', label: 'SSB-USB', desc: 'Single-Sideband Upper Sideband Hilbert Transform' },
-  { id: 'FM', label: 'FM', desc: 'Frequency Modulation (Carson Bandwidth Rule)' },
-  { id: 'PM', label: 'PM', desc: 'Phase Modulation (Instantaneous Phase Deviation)' },
+const ANALOG_MODS: { id: AnalogModType; label: string; faLabel: string }[] = [
+  { id: 'AM', label: 'AM (DSB-LC)', faLabel: 'مدولاسیون دامنه (AM)' },
+  { id: 'DSB-SC', label: 'DSB-SC', faLabel: 'دو باند جانبی بدون حامل (DSB-SC)' },
+  { id: 'SSB', label: 'SSB-USB', faLabel: 'تک باند جانبی (SSB)' },
+  { id: 'FM', label: 'FM', faLabel: 'مدولاسیون فرکانس (FM)' },
+  { id: 'PM', label: 'PM', faLabel: 'مدولاسیون فاز (PM)' },
 ];
 
-const NOISE_TYPES: { id: NoiseType; label: string }[] = [
-  { id: 'awgn', label: 'AWGN' },
-  { id: 'gaussian', label: 'Gaussian' },
-  { id: 'uniform', label: 'Uniform' },
-  { id: 'impulse', label: 'Impulse (Salt & Pepper)' },
-  { id: 'burst', label: 'Burst Noise' },
-  { id: 'powerline', label: 'Power-Line (50/60 Hz)' },
-  { id: 'sinusoidal', label: 'Sinusoidal Jammer' },
-  { id: 'custom', label: 'Custom Hybrid' },
+const NOISE_TYPES: { id: NoiseType; label: string; faLabel: string }[] = [
+  { id: 'awgn', label: 'AWGN', faLabel: 'نویز سفید گوسی (AWGN)' },
+  { id: 'gaussian', label: 'Gaussian', faLabel: 'گوسی (Gaussian)' },
+  { id: 'uniform', label: 'Uniform', faLabel: 'یکنواخت (Uniform)' },
+  { id: 'impulse', label: 'Impulse (Salt & Pepper)', faLabel: 'ضربه‌ای (Impulse)' },
+  { id: 'burst', label: 'Burst Noise', faLabel: 'نویز رگباری (Burst)' },
+  { id: 'powerline', label: 'Power-Line (50/60 Hz)', faLabel: 'برق شهر (50/60 Hz)' },
+  { id: 'sinusoidal', label: 'Sinusoidal Jammer', faLabel: 'تداخل سینوسی' },
+  { id: 'custom', label: 'Custom Hybrid', faLabel: 'نویز ترکیبی' },
 ];
 
 export const TelecommunicationsPage: React.FC = () => {
-  const { experiment, setExperiment, computed } = useLab();
+  const { experiment, setExperiment, computed, lang } = useLab();
   const analogCfg = experiment.modulation.analog;
   const noiseCfg = experiment.noise;
 
@@ -61,42 +61,88 @@ export const TelecommunicationsPage: React.FC = () => {
     <div className="flex flex-col gap-6">
       {/* Analog Modulation Section Header + Transceiver Block Diagram */}
       <div className="neu-card p-5 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              Telecommunications & Noise Laboratory
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              End-to-end Analog Transceiver chain (AM, DSB-SC, SSB, FM, PM) and multi-distribution Channel Noise Laboratory.
-            </p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+          <div className="lg:col-span-8 flex flex-col gap-3">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">
+                {lang === 'fa'
+                  ? 'آزمایشگاه مخابرات آنالوگ و مدل‌سازی نویز کانال'
+                  : 'Telecommunications & Noise Laboratory'}
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {lang === 'fa'
+                  ? 'شبیه‌سازی کامل زنجیره فرستنده-گیرنده مخابرات آنالوگ (AM, DSB-SC, SSB, FM, PM) و آزمایشگاه تزریق نویز و تداخل کانال.'
+                  : 'End-to-end Analog Transceiver chain (AM, DSB-SC, SSB, FM, PM) and multi-distribution Channel Noise Laboratory.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {ANALOG_MODS.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => updateAnalog({ type: m.id })}
+                  className={`neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer ${
+                    analogCfg.type === m.id ? 'btn-tool-pill' : ''
+                  }`}
+                >
+                  {lang === 'fa' ? m.faLabel : m.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {ANALOG_MODS.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => updateAnalog({ type: m.id })}
-                className={`neu-btn px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-                  analogCfg.type === m.id ? 'neu-btn-active text-sky-500' : ''
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
+
+          <div className="lg:col-span-4">
+            <div className="oscilloscope-frame overflow-hidden">
+              <img
+                src="/src/assets/images/telecom_modulation_diagram_1791208389939.jpg"
+                alt={lang === 'fa' ? 'دیاگرام مدولاسیون مخابراتی' : 'Telecommunications Modulation Diagram'}
+                referrerPolicy="no-referrer"
+                className="w-full h-32 object-cover opacity-90"
+              />
+              <div className="p-2 bg-slate-950/85 border-t border-sky-400/20 text-[10px] font-mono text-slate-300 flex justify-between">
+                <span>
+                  {lang === 'fa'
+                    ? 'طیف باند عبوری و حامل فرکانس رادیویی (RF)'
+                    : 'RF Passband Carrier & Sideband Architecture'}
+                </span>
+                <span className="text-sky-400">{analogCfg.type}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Visual Flow Chain requested in prompt: Message -> Carrier -> Modulator -> Modulated Signal -> Noise -> Demodulator -> Recovered Signal */}
+        {/* Visual Flow Chain */}
         <div className="neu-inset p-3.5 overflow-x-auto">
           <div className="flex items-center justify-between min-w-[680px] text-xs font-mono">
             {[
-              { step: '1. Message m(t)', detail: `${analogCfg.messageFreq} Hz Baseband` },
-              { step: '2. Carrier c(t)', detail: `${analogCfg.carrierFreq} Hz RF LO` },
-              { step: '3. Modulator', detail: `${analogCfg.type} (m=${analogCfg.modulationIndex})` },
-              { step: '4. Modulated s(t)', detail: 'Passband Signal' },
-              { step: '5. AWGN Channel', detail: `SNR = ${analogCfg.snrDb} dB` },
-              { step: '6. Demodulator', detail: analogCfg.type === 'AM' ? 'Envelope Det' : 'Coherent / Discrim' },
-              { step: '7. Recovered m̂(t)', detail: 'Low-Pass Reconstructed' },
+              {
+                step: lang === 'fa' ? '۱. پیام m(t)' : '1. Message m(t)',
+                detail: `${analogCfg.messageFreq} Hz Baseband`,
+              },
+              {
+                step: lang === 'fa' ? '۲. حامل c(t)' : '2. Carrier c(t)',
+                detail: `${analogCfg.carrierFreq} Hz RF LO`,
+              },
+              {
+                step: lang === 'fa' ? '۳. مدولاتور' : '3. Modulator',
+                detail: `${analogCfg.type} (m=${analogCfg.modulationIndex})`,
+              },
+              {
+                step: lang === 'fa' ? '۴. سیگنال مدوله‌شده s(t)' : '4. Modulated s(t)',
+                detail: lang === 'fa' ? 'سیگنال باند عبوری' : 'Passband Signal',
+              },
+              {
+                step: lang === 'fa' ? '۵. کانال AWGN' : '5. AWGN Channel',
+                detail: `SNR = ${analogCfg.snrDb} dB`,
+              },
+              {
+                step: lang === 'fa' ? '۶. دمدولاتور' : '6. Demodulator',
+                detail: analogCfg.type === 'AM' ? 'Envelope Det' : 'Coherent / Discrim',
+              },
+              {
+                step: lang === 'fa' ? '۷. پیام بازیابی‌شده m̂(t)' : '7. Recovered m̂(t)',
+                detail: lang === 'fa' ? 'خروجی فیلتر پایین‌گذر' : 'Low-Pass Reconstructed',
+              },
             ].map((node, idx, arr) => (
               <React.Fragment key={node.step}>
                 <div className="neu-card-sm px-3 py-2 text-center">
@@ -115,7 +161,7 @@ export const TelecommunicationsPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 pt-1">
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Message Freq (fm)</span>
+              <span>{lang === 'fa' ? 'فرکانس پیام (fm)' : 'Message Freq (fm)'}</span>
               <span className="text-sky-500 font-semibold">{analogCfg.messageFreq} Hz</span>
             </div>
             <input
@@ -131,7 +177,7 @@ export const TelecommunicationsPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Carrier Freq (fc)</span>
+              <span>{lang === 'fa' ? 'فرکانس حامل (fc)' : 'Carrier Freq (fc)'}</span>
               <span className="text-sky-500 font-semibold">{analogCfg.carrierFreq} Hz</span>
             </div>
             <input
@@ -147,7 +193,7 @@ export const TelecommunicationsPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Modulation Index (m / β)</span>
+              <span>{lang === 'fa' ? 'شاخص مدولاسیون (m / β)' : 'Modulation Index (m / β)'}</span>
               <span className="text-sky-500 font-semibold">
                 {analogCfg.modulationIndex.toFixed(2)}
               </span>
@@ -165,7 +211,7 @@ export const TelecommunicationsPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Carrier Amp (Ac)</span>
+              <span>{lang === 'fa' ? 'دامنه حامل (Ac)' : 'Carrier Amp (Ac)'}</span>
               <span className="text-sky-500 font-semibold">{analogCfg.carrierAmp.toFixed(1)} V</span>
             </div>
             <input
@@ -181,7 +227,7 @@ export const TelecommunicationsPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Channel SNR</span>
+              <span>{lang === 'fa' ? 'نسبت سیگنال به نویز کانال' : 'Channel SNR'}</span>
               <span className="text-amber-500 font-semibold">{analogCfg.snrDb} dB</span>
             </div>
             <input
@@ -200,8 +246,16 @@ export const TelecommunicationsPage: React.FC = () => {
       {/* Time-Domain Transceiver Plots & Passband Spectrum */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <InteractivePlot
-          title={`Modulated Passband Waveform s(t) & Noisy Received r(t) [${analogCfg.type}]`}
-          subtitle="Inspect carrier envelope / phase modulation and additive channel noise"
+          title={
+            lang === 'fa'
+              ? `شکل‌موج مدوله‌شده s(t) و سیگنال دریافتی نویزی r(t) [${analogCfg.type}]`
+              : `Modulated Passband Waveform s(t) & Noisy Received r(t) [${analogCfg.type}]`
+          }
+          subtitle={
+            lang === 'fa'
+              ? 'بررسی پوش حامل، تغییرات فاز/فرکانس و اثر نویز افزایشی کانال'
+              : 'Inspect carrier envelope / phase modulation and additive channel noise'
+          }
           xData={sim.time}
           xLabel="Time (s)"
           yLabel="Amplitude (V)"
@@ -209,14 +263,14 @@ export const TelecommunicationsPage: React.FC = () => {
           series={[
             {
               id: 'mod-clean',
-              label: `Modulated ${analogCfg.type}`,
+              label: lang === 'fa' ? `سیگنال مدوله‌شده ${analogCfg.type}` : `Modulated ${analogCfg.type}`,
               data: sim.modulated,
               color: '#0ea5e9',
               lineWidth: 1.8,
             },
             {
               id: 'mod-noisy',
-              label: 'Noisy Channel r(t)',
+              label: lang === 'fa' ? 'دریافتی نویزی r(t)' : 'Noisy Channel r(t)',
               data: sim.noisy,
               color: '#f59e0b',
               lineWidth: 1.1,
@@ -224,7 +278,7 @@ export const TelecommunicationsPage: React.FC = () => {
             },
             {
               id: 'carrier-ref',
-              label: 'Unmodulated Carrier',
+              label: lang === 'fa' ? 'موج حامل خام c(t)' : 'Unmodulated Carrier',
               data: sim.carrier,
               color: '#94a3b8',
               lineWidth: 1,
@@ -235,8 +289,16 @@ export const TelecommunicationsPage: React.FC = () => {
         />
 
         <InteractivePlot
-          title="Baseband Message m(t) vs. Demodulated Recovered Signal m̂(t)"
-          subtitle="Compare transmitted baseband waveform against receiver low-pass output"
+          title={
+            lang === 'fa'
+              ? 'مقایسه سیگنال پیام پایه m(t) و پیام دمدوله‌شده در گیرنده m̂(t)'
+              : 'Baseband Message m(t) vs. Demodulated Recovered Signal m̂(t)'
+          }
+          subtitle={
+            lang === 'fa'
+              ? 'مقایسه مستقیم شکل‌موج ارسالی با خروجی آشکارساز و فیلتر پایین‌گذر گیرنده'
+              : 'Compare transmitted baseband waveform against receiver low-pass output'
+          }
           xData={sim.time}
           xLabel="Time (s)"
           yLabel="Amplitude (V)"
@@ -244,14 +306,14 @@ export const TelecommunicationsPage: React.FC = () => {
           series={[
             {
               id: 'msg-orig',
-              label: 'Transmitted Message m(t)',
+              label: lang === 'fa' ? 'پیام ارسالی m(t)' : 'Transmitted Message m(t)',
               data: sim.message,
               color: '#0ea5e9',
               lineWidth: 2,
             },
             {
               id: 'msg-rec',
-              label: 'Demodulated Recovered m̂(t)',
+              label: lang === 'fa' ? 'پیام بازیابی‌شده m̂(t)' : 'Demodulated Recovered m̂(t)',
               data: sim.recovered,
               color: '#10b981',
               lineWidth: 2,
@@ -261,8 +323,16 @@ export const TelecommunicationsPage: React.FC = () => {
       </div>
 
       <InteractivePlot
-        title={`Passband Frequency Spectrum |S(f)| of ${analogCfg.type} Signal`}
-        subtitle={`Centered around Carrier Frequency fc = ${analogCfg.carrierFreq} Hz with sidebands at fc ± k·fm`}
+        title={
+          lang === 'fa'
+            ? `طیف فرکانسی باند عبوری |S(f)| برای مدولاسیون ${analogCfg.type}`
+            : `Passband Frequency Spectrum |S(f)| of ${analogCfg.type} Signal`
+        }
+        subtitle={
+          lang === 'fa'
+            ? `متمرکز حول فرکانس حامل fc = ${analogCfg.carrierFreq} Hz به همراه باندهای جانبی در fc ± k·fm`
+            : `Centered around Carrier Frequency fc = ${analogCfg.carrierFreq} Hz with sidebands at fc ± k·fm`
+        }
         xData={modSpectrum.frequencies.slice(0, 260)}
         xLabel="Frequency (Hz)"
         yLabel="Magnitude |S(f)|"
@@ -270,7 +340,7 @@ export const TelecommunicationsPage: React.FC = () => {
         series={[
           {
             id: 'mod-spec',
-            label: `${analogCfg.type} Passband Spectrum`,
+            label: lang === 'fa' ? `طیف فرکانسی ${analogCfg.type}` : `${analogCfg.type} Passband Spectrum`,
             data: modSpectrum.magnitude.slice(0, 260),
             color: '#8b5cf6',
             lineWidth: 2,
@@ -283,10 +353,14 @@ export const TelecommunicationsPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold tracking-tight">
-              Noise & Interference Laboratory (Clean → Noisy → Filtered)
+              {lang === 'fa'
+                ? 'آزمایشگاه نویز و تداخل (سیگنال تمیز ← نویزی ← فیلترشده)'
+                : 'Noise & Interference Laboratory (Clean → Noisy → Filtered)'}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Inject stochastic and deterministic interference models and evaluate real-time SNR degradation and filter recovery.
+              {lang === 'fa'
+                ? 'تزریق انواع مدل‌های نویز تصادفی و تداخل متناوب و بررسی افت SNR و بازیابی سیگنال با فیلتر.'
+                : 'Inject stochastic and deterministic interference models and evaluate real-time SNR degradation and filter recovery.'}
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -295,11 +369,11 @@ export const TelecommunicationsPage: React.FC = () => {
                 key={n.id}
                 type="button"
                 onClick={() => updateNoise({ type: n.id })}
-                className={`neu-btn px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
-                  noiseCfg.type === n.id ? 'neu-btn-active text-amber-500 font-semibold' : ''
+                className={`neu-btn px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer ${
+                  noiseCfg.type === n.id ? 'btn-tool-pill font-semibold' : ''
                 }`}
               >
-                {n.label}
+                {lang === 'fa' ? n.faLabel : n.label}
               </button>
             ))}
           </div>
@@ -308,7 +382,7 @@ export const TelecommunicationsPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Target SNR</span>
+              <span>{lang === 'fa' ? 'نسبت SNR هدف' : 'Target SNR'}</span>
               <span className="text-amber-500 font-semibold">{noiseCfg.snrDb} dB</span>
             </div>
             <input
@@ -324,7 +398,7 @@ export const TelecommunicationsPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Noise Amplitude</span>
+              <span>{lang === 'fa' ? 'دامنه نویز' : 'Noise Amplitude'}</span>
               <span className="text-amber-500 font-semibold">
                 {noiseCfg.amplitude.toFixed(2)} V
               </span>
@@ -342,7 +416,7 @@ export const TelecommunicationsPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Variance (σ²)</span>
+              <span>{lang === 'fa' ? 'واریانس (σ²)' : 'Variance (σ²)'}</span>
               <span className="text-amber-500 font-semibold">
                 {noiseCfg.variance.toFixed(2)}
               </span>
@@ -360,7 +434,7 @@ export const TelecommunicationsPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Interference Freq</span>
+              <span>{lang === 'fa' ? 'فرکانس تداخل' : 'Interference Freq'}</span>
               <span className="text-amber-500 font-semibold">
                 {noiseCfg.interferenceFreq} Hz
               </span>
@@ -378,7 +452,7 @@ export const TelecommunicationsPage: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono mb-1">
-              <span>Impulse Probability</span>
+              <span>{lang === 'fa' ? 'احتمال نویز ضربه‌ای' : 'Impulse Probability'}</span>
               <span className="text-amber-500 font-semibold">
                 {(noiseCfg.impulseProbability * 100).toFixed(1)}%
               </span>
@@ -396,8 +470,16 @@ export const TelecommunicationsPage: React.FC = () => {
         </div>
 
         <InteractivePlot
-          title={`Noise Progression: Clean → Noisy (${noiseCfg.type.toUpperCase()}) → Filtered Recovery`}
-          subtitle={`Input SNR = ${computed.empiricalSnrDb.toFixed(2)} dB → Output Filtered SNR = ${computed.filteredSnrDb.toFixed(2)} dB`}
+          title={
+            lang === 'fa'
+              ? `روند اثر نویز: تمیز ← نویزی (${noiseCfg.type.toUpperCase()}) ← بازیابی فیلترشده`
+              : `Noise Progression: Clean → Noisy (${noiseCfg.type.toUpperCase()}) → Filtered Recovery`
+          }
+          subtitle={
+            lang === 'fa'
+              ? `SNR ورودی = ${computed.empiricalSnrDb.toFixed(2)} dB ← SNR خروجی فیلتر = ${computed.filteredSnrDb.toFixed(2)} dB`
+              : `Input SNR = ${computed.empiricalSnrDb.toFixed(2)} dB → Output Filtered SNR = ${computed.filteredSnrDb.toFixed(2)} dB`
+          }
           xData={computed.time}
           xLabel="Time (s)"
           yLabel="Amplitude (V)"
@@ -405,21 +487,21 @@ export const TelecommunicationsPage: React.FC = () => {
           series={[
             {
               id: 'nl-clean',
-              label: 'Clean Signal',
+              label: lang === 'fa' ? 'سیگنال تمیز' : 'Clean Signal',
               data: computed.cleanSignal,
               color: '#0ea5e9',
               lineWidth: 2,
             },
             {
               id: 'nl-noisy',
-              label: `Noisy (${noiseCfg.type.toUpperCase()})`,
+              label: lang === 'fa' ? `نویزی (${noiseCfg.type.toUpperCase()})` : `Noisy (${noiseCfg.type.toUpperCase()})`,
               data: computed.noisySignal,
               color: '#f59e0b',
               lineWidth: 1.2,
             },
             {
               id: 'nl-filt',
-              label: 'Filtered Output',
+              label: lang === 'fa' ? 'خروجی فیلترشده' : 'Filtered Output',
               data: computed.filteredSignal,
               color: '#10b981',
               lineWidth: 2.2,
@@ -429,20 +511,37 @@ export const TelecommunicationsPage: React.FC = () => {
       </div>
 
       <TheoryAccordion
-        items={[
-          {
-            title: 'Amplitude Modulation (AM, DSB-SC, SSB)',
-            formula: 's_{\\text{AM}}(t) = A_c\\left[1 + m\\cdot x(t)\\right]\\cos(2\\pi f_c t), \\quad s_{\\text{SSB}}(t) = \\frac{A_c}{2}\\left[x(t)\\cos(\\omega_c t) \\mp \\hat{x}(t)\\sin(\\omega_c t)\\right]',
-            explanation:
-              'Standard AM embeds a large carrier component enabling simple non-coherent envelope detection, whereas DSB-SC suppresses the carrier and SSB uses the Hilbert transform x̂(t) to halve transmission bandwidth.',
-          },
-          {
-            title: 'Angle Modulation (FM & PM) & Carson Bandwidth Rule',
-            formula: 's_{\\text{FM}}(t) = A_c\\cos\\!\\left(2\\pi f_c t + 2\\pi k_f \\int_0^t m(\\tau)\\,d\\tau\\right), \\quad B_T \\approx 2(\\Delta f + f_m) = 2f_m(\\beta + 1)',
-            explanation:
-              'Frequency and Phase Modulation encode information in the instantaneous phase angle of the carrier, trading wider RF bandwidth BT for strong resilience against amplitude noise.',
-          },
-        ]}
+        items={
+          lang === 'fa'
+            ? [
+                {
+                  title: 'مدولاسیون دامنه (AM, DSB-SC, SSB)',
+                  formula: 's_{\\text{AM}}(t) = A_c\\left[1 + m\\cdot x(t)\\right]\\cos(2\\pi f_c t), \\quad s_{\\text{SSB}}(t) = \\frac{A_c}{2}\\left[x(t)\\cos(\\omega_c t) \\mp \\hat{x}(t)\\sin(\\omega_c t)\\right]',
+                  explanation:
+                    'در مدولاسیون استاندارد AM یک مؤلفه حامل قوی ارسال می‌شود که آشکارسازی پوش غیرهمدوس را ممکن می‌سازد، در حالی که DSB-SC حامل را حذف کرده و SSB با استفاده از تبدیل هیلبرت x̂(t) پهنای باند ارسالی را نصف می‌کند.',
+                },
+                {
+                  title: 'مدولاسیون زاویه (FM و PM) و قانون پهنای باند کارسون',
+                  formula: 's_{\\text{FM}}(t) = A_c\\cos\\!\\left(2\\pi f_c t + 2\\pi k_f \\int_0^t m(\\tau)\\,d\\tau\\right), \\quad B_T \\approx 2(\\Delta f + f_m) = 2f_m(\\beta + 1)',
+                  explanation:
+                    'مدولاسیون فرکانس و فاز اطلاعات پیام را در زاویه فاز لحظه‌ای حامل کدگذاری می‌کنند و با مصرف پهنای باند بیشتر، مقاومت بسیار بالایی در برابر نویز دامنه ایجاد می‌نمایند.',
+                },
+              ]
+            : [
+                {
+                  title: 'Amplitude Modulation (AM, DSB-SC, SSB)',
+                  formula: 's_{\\text{AM}}(t) = A_c\\left[1 + m\\cdot x(t)\\right]\\cos(2\\pi f_c t), \\quad s_{\\text{SSB}}(t) = \\frac{A_c}{2}\\left[x(t)\\cos(\\omega_c t) \\mp \\hat{x}(t)\\sin(\\omega_c t)\\right]',
+                  explanation:
+                    'Standard AM embeds a large carrier component enabling simple non-coherent envelope detection, whereas DSB-SC suppresses the carrier and SSB uses the Hilbert transform x̂(t) to halve transmission bandwidth.',
+                },
+                {
+                  title: 'Angle Modulation (FM & PM) & Carson Bandwidth Rule',
+                  formula: 's_{\\text{FM}}(t) = A_c\\cos\\!\\left(2\\pi f_c t + 2\\pi k_f \\int_0^t m(\\tau)\\,d\\tau\\right), \\quad B_T \\approx 2(\\Delta f + f_m) = 2f_m(\\beta + 1)',
+                  explanation:
+                    'Frequency and Phase Modulation encode information in the instantaneous phase angle of the carrier, trading wider RF bandwidth BT for strong resilience against amplitude noise.',
+                },
+              ]
+        }
       />
     </div>
   );

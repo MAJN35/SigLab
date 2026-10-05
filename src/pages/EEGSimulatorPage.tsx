@@ -7,8 +7,16 @@ import { computeFFTSpectrum } from '../simulations/fft';
 import { useLab } from '../store/LabContext';
 import { EEGBands } from '../types';
 
+const PRESET_FA_LABELS: Record<string, string> = {
+  relaxed_alpha: 'آرامش با چشمان بسته (غالب آلفا)',
+  focused_beta: 'تمرکز ذهنی فعال (غالب بتا)',
+  deep_sleep_delta: 'خواب عمیق مرحله ۳ (غالب دلتا)',
+  drowsy_theta: 'خواب‌آلودگی / مراقبه (غالب تتا)',
+  heavily_contaminated: 'آلوده به آرتیفکت شدید (پلک + عضله + برق)',
+};
+
 export const EEGSimulatorPage: React.FC = () => {
-  const { experiment, setExperiment } = useLab();
+  const { experiment, setExperiment, lang } = useLab();
   const eegCfg = experiment.eeg;
 
   const updateEEG = (patch: Partial<typeof eegCfg>) => {
@@ -57,47 +65,73 @@ export const EEGSimulatorPage: React.FC = () => {
   const BAND_META: {
     key: keyof EEGBands;
     name: string;
+    faName: string;
     range: string;
     minF: number;
     maxF: number;
     color: string;
   }[] = [
-    { key: 'delta', name: 'Delta (δ)', range: '0.5–4 Hz', minF: 0.5, maxF: 4.0, color: '#6366f1' },
-    { key: 'theta', name: 'Theta (θ)', range: '4–8 Hz', minF: 4.0, maxF: 8.0, color: '#0ea5e9' },
-    { key: 'alpha', name: 'Alpha (α)', range: '8–13 Hz', minF: 8.0, maxF: 13.0, color: '#10b981' },
-    { key: 'beta', name: 'Beta (β)', range: '13–30 Hz', minF: 13.0, maxF: 30.0, color: '#f59e0b' },
-    { key: 'gamma', name: 'Gamma (γ)', range: '30–80 Hz', minF: 30.0, maxF: 75.0, color: '#ec4899' },
+    { key: 'delta', name: 'Delta (δ)', faName: 'باند دلتا (δ)', range: '0.5–4 Hz', minF: 0.5, maxF: 4.0, color: '#6366f1' },
+    { key: 'theta', name: 'Theta (θ)', faName: 'باند تتا (θ)', range: '4–8 Hz', minF: 4.0, maxF: 8.0, color: '#0ea5e9' },
+    { key: 'alpha', name: 'Alpha (α)', faName: 'باند آلفا (α)', range: '8–13 Hz', minF: 8.0, maxF: 13.0, color: '#10b981' },
+    { key: 'beta', name: 'Beta (β)', faName: 'باند بتا (β)', range: '13–30 Hz', minF: 13.0, maxF: 30.0, color: '#f59e0b' },
+    { key: 'gamma', name: 'Gamma (γ)', faName: 'باند گاما (γ)', range: '30–80 Hz', minF: 30.0, maxF: 75.0, color: '#ec4899' },
   ];
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Mandatory Non-Clinical Synthetic Banner */}
-      <div className="neu-card p-4 border-l-4 border-l-amber-500 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-          <div>
-            <div className="text-sm font-bold tracking-tight">
-              Synthetic EEG — Not clinical data
+      {/* Mandatory Non-Clinical Synthetic Banner + Cortical Map Visual */}
+      <div className="neu-card p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center border-l-4 border-l-amber-500">
+        <div className="lg:col-span-8 flex flex-col gap-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <div className="text-sm font-bold tracking-tight">
+                {lang === 'fa'
+                  ? 'سیگنال EEG مصنوعی — غیربالینی (Synthetic EEG — Not clinical data)'
+                  : 'Synthetic EEG — Not clinical data'}
+              </div>
+              <div className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                {lang === 'fa'
+                  ? 'تمامی امواج مغزی و آرتیفکت‌ها به صورت ریاضی برای آموزش پردازش سیگنال و ارزیابی الگوریتم‌ها سنتز شده‌اند و هیچ کاربرد تشخیصی یا پزشکی ندارند.'
+                  : 'All waveforms and artifacts are mathematically synthesized for signal-processing education and algorithm testing. Not intended for clinical diagnosis.'}
+              </div>
             </div>
-            <div className="text-xs text-slate-600 dark:text-slate-300">
-              All waveforms and artifacts are mathematically synthesized for signal-processing education and algorithm testing. Not intended for clinical diagnosis.
-            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(EEG_PRESETS).map(([key, p]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => applyPreset(key)}
+                className={`neu-btn px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer ${
+                  eegCfg.preset === key ? 'btn-tool-pill' : ''
+                }`}
+              >
+                {lang === 'fa' ? PRESET_FA_LABELS[key] || p.label : p.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {Object.entries(EEG_PRESETS).map(([key, p]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => applyPreset(key)}
-              className={`neu-btn px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-                eegCfg.preset === key ? 'neu-btn-active text-sky-500' : ''
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div className="lg:col-span-4">
+          <div className="oscilloscope-frame overflow-hidden">
+            <img
+              src="/src/assets/images/eeg_cortical_map_1791208377997.jpg"
+              alt={lang === 'fa' ? 'نقشه قشر مغز و الکترودهای EEG' : 'Cortical EEG Electrode Montage'}
+              referrerPolicy="no-referrer"
+              className="w-full h-32 object-cover opacity-90"
+            />
+            <div className="p-2 bg-slate-950/85 border-t border-sky-400/20 text-[10px] font-mono text-slate-300 flex justify-between">
+              <span>
+                {lang === 'fa'
+                  ? 'مدل نوسانگرهای ریتمیک قشر مغز (۱۰-۲۰)'
+                  : '10-20 Cortical Rhythm Oscillator Model'}
+              </span>
+              <span className="text-emerald-400">fs={eegCfg.samplingRate}Hz</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -105,11 +139,26 @@ export const EEGSimulatorPage: React.FC = () => {
       <div className="neu-card p-4 overflow-x-auto">
         <div className="flex items-center justify-between min-w-[640px] text-xs font-mono">
           {[
-            { step: '1. Clean Cortical EEG', sub: 'Σ (δ, θ, α, β, γ) Rhythms' },
-            { step: '2. Artifact Generator', sub: 'EOG Blink + EMG + 50Hz + Drift' },
-            { step: '3. Contaminated EEG', sub: 'Raw Sensor Observation' },
-            { step: '4. Preprocessing Chain', sub: `HPF ${eegCfg.preprocessHighpass}Hz + Notch + LPF ${eegCfg.preprocessLowpass}Hz` },
-            { step: '5. Recovered EEG', sub: 'Cleaned Cortical Estimate' },
+            {
+              step: lang === 'fa' ? '۱. EEG قشری تمیز' : '1. Clean Cortical EEG',
+              sub: 'Σ (δ, θ, α, β, γ) Rhythms',
+            },
+            {
+              step: lang === 'fa' ? '۲. مولد آرتیفکت‌ها' : '2. Artifact Generator',
+              sub: 'EOG Blink + EMG + 50Hz + Drift',
+            },
+            {
+              step: lang === 'fa' ? '۳. EEG آلوده به آرتیفکت' : '3. Contaminated EEG',
+              sub: lang === 'fa' ? 'سیگنال خام سنسور' : 'Raw Sensor Observation',
+            },
+            {
+              step: lang === 'fa' ? '۴. زنجیره پیش‌پردازش' : '4. Preprocessing Chain',
+              sub: `HPF ${eegCfg.preprocessHighpass}Hz + Notch + LPF ${eegCfg.preprocessLowpass}Hz`,
+            },
+            {
+              step: lang === 'fa' ? '۵. EEG بازیابی‌شده' : '5. Recovered EEG',
+              sub: lang === 'fa' ? 'تخمین سیگنال مغزی پاکسازی‌شده' : 'Cleaned Cortical Estimate',
+            },
           ].map((item, i, arr) => (
             <React.Fragment key={item.step}>
               <div className="neu-inset px-3.5 py-2 text-center">
@@ -127,10 +176,14 @@ export const EEGSimulatorPage: React.FC = () => {
         <div className="lg:col-span-6 neu-card p-5 flex flex-col gap-4">
           <div>
             <h2 className="text-base font-bold tracking-tight">
-              Cortical Rhythm Spectral Bands (δ, θ, α, β, γ)
+              {lang === 'fa'
+                ? 'باندهای فرکانسی ریتم‌های قشر مغز (δ, θ, α, β, γ)'
+                : 'Cortical Rhythm Spectral Bands (δ, θ, α, β, γ)'}
             </h2>
             <p className="text-xs text-slate-500">
-              Independently adjust microvolt (μV) amplitude and center frequency for each neural oscillation band.
+              {lang === 'fa'
+                ? 'دامنه (برحسب میکروولت μV) و فرکانس مرکزی هر باند نوسانی مغز را به صورت مستقل تنظیم کنید.'
+                : 'Independently adjust microvolt (μV) amplitude and center frequency for each neural oscillation band.'}
             </p>
           </div>
 
@@ -145,14 +198,16 @@ export const EEGSimulatorPage: React.FC = () => {
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: b.color }}
                       />
-                      <span className="text-xs font-bold">{b.name}</span>
+                      <span className="text-xs font-bold">
+                        {lang === 'fa' ? b.faName : b.name}
+                      </span>
                     </div>
                     <div className="text-[11px] font-mono text-slate-500 mt-0.5">{b.range}</div>
                   </div>
 
                   <div className="sm:col-span-4">
                     <div className="flex justify-between text-[11px] font-mono mb-1">
-                      <span>Amplitude</span>
+                      <span>{lang === 'fa' ? 'دامنه' : 'Amplitude'}</span>
                       <span className="font-semibold">{val.amp.toFixed(0)} μV</span>
                     </div>
                     <input
@@ -168,7 +223,7 @@ export const EEGSimulatorPage: React.FC = () => {
 
                   <div className="sm:col-span-4">
                     <div className="flex justify-between text-[11px] font-mono mb-1">
-                      <span>Center Freq</span>
+                      <span>{lang === 'fa' ? 'فرکانس مرکزی' : 'Center Freq'}</span>
                       <span className="font-semibold">{val.freq.toFixed(1)} Hz</span>
                     </div>
                     <input
@@ -191,10 +246,14 @@ export const EEGSimulatorPage: React.FC = () => {
         <div className="lg:col-span-6 neu-card p-5 flex flex-col gap-4">
           <div>
             <h2 className="text-base font-bold tracking-tight">
-              Physiological & Instrumental Artifact Simulator
+              {lang === 'fa'
+                ? 'شبیه‌ساز آرتیفکت‌های فیزیولوژیک و محیطی'
+                : 'Physiological & Instrumental Artifact Simulator'}
             </h2>
             <p className="text-xs text-slate-500">
-              Toggle and scale non-cortical artifacts and configure the real-time preprocessing recovery filter.
+              {lang === 'fa'
+                ? 'آرتیفکت‌های غیرمغزی را فعال یا تنظیم کنید و فیلترهای پیش‌پردازش را برای بازیابی سیگنال پیکربندی نمایید.'
+                : 'Toggle and scale non-cortical artifacts and configure the real-time preprocessing recovery filter.'}
             </p>
           </div>
 
@@ -202,7 +261,7 @@ export const EEGSimulatorPage: React.FC = () => {
             {/* Eye Blink */}
             <div className="neu-inset p-3 flex flex-col gap-2">
               <label className="flex items-center justify-between text-xs font-semibold cursor-pointer">
-                <span>Ocular Eye Blink (EOG)</span>
+                <span>{lang === 'fa' ? 'پلک‌زدن چشم (EOG)' : 'Ocular Eye Blink (EOG)'}</span>
                 <input
                   type="checkbox"
                   checked={eegCfg.artifacts.eyeBlink}
@@ -211,7 +270,7 @@ export const EEGSimulatorPage: React.FC = () => {
                 />
               </label>
               <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>Peak Deflection</span>
+                <span>{lang === 'fa' ? 'دامنه جهش' : 'Peak Deflection'}</span>
                 <span>{eegCfg.artifacts.eyeBlinkAmp} μV</span>
               </div>
               <input
@@ -227,7 +286,7 @@ export const EEGSimulatorPage: React.FC = () => {
             {/* Muscle EMG */}
             <div className="neu-inset p-3 flex flex-col gap-2">
               <label className="flex items-center justify-between text-xs font-semibold cursor-pointer">
-                <span>Muscle Artifact (EMG)</span>
+                <span>{lang === 'fa' ? 'انقباض عضلانی (EMG)' : 'Muscle Artifact (EMG)'}</span>
                 <input
                   type="checkbox"
                   checked={eegCfg.artifacts.muscleArtifact}
@@ -236,7 +295,7 @@ export const EEGSimulatorPage: React.FC = () => {
                 />
               </label>
               <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>Burst Amplitude</span>
+                <span>{lang === 'fa' ? 'دامنه نویز عضله' : 'Burst Amplitude'}</span>
                 <span>{eegCfg.artifacts.muscleAmp} μV</span>
               </div>
               <input
@@ -252,7 +311,7 @@ export const EEGSimulatorPage: React.FC = () => {
             {/* Baseline Drift */}
             <div className="neu-inset p-3 flex flex-col gap-2">
               <label className="flex items-center justify-between text-xs font-semibold cursor-pointer">
-                <span>Baseline Drift (0.28 Hz)</span>
+                <span>{lang === 'fa' ? 'انحراف خط پایه (0.28Hz)' : 'Baseline Drift (0.28 Hz)'}</span>
                 <input
                   type="checkbox"
                   checked={eegCfg.artifacts.baselineDrift}
@@ -261,7 +320,7 @@ export const EEGSimulatorPage: React.FC = () => {
                 />
               </label>
               <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>Drift Sway</span>
+                <span>{lang === 'fa' ? 'دامنه نوسان پایه' : 'Drift Sway'}</span>
                 <span>{eegCfg.artifacts.driftAmp} μV</span>
               </div>
               <input
@@ -277,7 +336,11 @@ export const EEGSimulatorPage: React.FC = () => {
             {/* Power-line Interference */}
             <div className="neu-inset p-3 flex flex-col gap-2">
               <label className="flex items-center justify-between text-xs font-semibold cursor-pointer">
-                <span>Power-Line Hum ({eegCfg.artifacts.powerlineFreq} Hz)</span>
+                <span>
+                  {lang === 'fa'
+                    ? `نویز برق شهر (${eegCfg.artifacts.powerlineFreq} Hz)`
+                    : `Power-Line Hum (${eegCfg.artifacts.powerlineFreq} Hz)`}
+                </span>
                 <input
                   type="checkbox"
                   checked={eegCfg.artifacts.powerline}
@@ -286,7 +349,7 @@ export const EEGSimulatorPage: React.FC = () => {
                 />
               </label>
               <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>Mains Interference</span>
+                <span>{lang === 'fa' ? 'دامنه تداخل برق' : 'Mains Interference'}</span>
                 <span>{eegCfg.artifacts.powerlineAmp} μV</span>
               </div>
               <input
@@ -302,7 +365,7 @@ export const EEGSimulatorPage: React.FC = () => {
             {/* Movement Artifact */}
             <div className="neu-inset p-3 flex flex-col gap-2">
               <label className="flex items-center justify-between text-xs font-semibold cursor-pointer">
-                <span>Head Movement Artifact</span>
+                <span>{lang === 'fa' ? 'آرتیفکت حرکت سر' : 'Head Movement Artifact'}</span>
                 <input
                   type="checkbox"
                   checked={eegCfg.artifacts.movement}
@@ -311,7 +374,7 @@ export const EEGSimulatorPage: React.FC = () => {
                 />
               </label>
               <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>Sway Magnitude</span>
+                <span>{lang === 'fa' ? 'دامنه حرکت' : 'Sway Magnitude'}</span>
                 <span>{eegCfg.artifacts.movementAmp} μV</span>
               </div>
               <input
@@ -327,7 +390,7 @@ export const EEGSimulatorPage: React.FC = () => {
             {/* Electrode Noise */}
             <div className="neu-inset p-3 flex flex-col gap-2">
               <label className="flex items-center justify-between text-xs font-semibold cursor-pointer">
-                <span>Electrode Pop & Thermal</span>
+                <span>{lang === 'fa' ? 'نویز امپدانس الکترود' : 'Electrode Pop & Thermal'}</span>
                 <input
                   type="checkbox"
                   checked={eegCfg.artifacts.electrodeNoise}
@@ -336,7 +399,7 @@ export const EEGSimulatorPage: React.FC = () => {
                 />
               </label>
               <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>Impedance Noise</span>
+                <span>{lang === 'fa' ? 'نویز تماس الکترود' : 'Impedance Noise'}</span>
                 <span>{eegCfg.artifacts.electrodeAmp} μV</span>
               </div>
               <input
@@ -354,7 +417,7 @@ export const EEGSimulatorPage: React.FC = () => {
           <div className="neu-inset p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
             <div>
               <div className="flex justify-between text-[11px] font-mono mb-1">
-                <span>High-Pass Cutoff</span>
+                <span>{lang === 'fa' ? 'فرکانس قطع بالاگذر' : 'High-Pass Cutoff'}</span>
                 <span className="text-emerald-500">{eegCfg.preprocessHighpass} Hz</span>
               </div>
               <input
@@ -370,7 +433,7 @@ export const EEGSimulatorPage: React.FC = () => {
 
             <div>
               <div className="flex justify-between text-[11px] font-mono mb-1">
-                <span>Low-Pass Cutoff</span>
+                <span>{lang === 'fa' ? 'فرکانس قطع پایین‌گذر' : 'Low-Pass Cutoff'}</span>
                 <span className="text-emerald-500">{eegCfg.preprocessLowpass} Hz</span>
               </div>
               <input
@@ -385,7 +448,7 @@ export const EEGSimulatorPage: React.FC = () => {
             </div>
 
             <label className="flex items-center justify-between text-xs font-mono cursor-pointer px-2">
-              <span>50Hz Notch Filter</span>
+              <span>{lang === 'fa' ? 'فیلتر Notch برق شهر' : '50Hz Notch Filter'}</span>
               <input
                 type="checkbox"
                 checked={eegCfg.preprocessNotch}
@@ -399,8 +462,16 @@ export const EEGSimulatorPage: React.FC = () => {
 
       {/* Main EEG Progression Visualizations */}
       <InteractivePlot
-        title="Synthetic EEG Signal Progression — Clean → Artifact → Noisy → Recovered (Synthetic EEG — Not clinical data)"
-        subtitle="Toggle visibility to compare raw contaminated EEG against preprocessed cortical recovery"
+        title={
+          lang === 'fa'
+            ? 'روند پردازش سیگنال EEG مصنوعی — تمیز ← آرتیفکت ← آلوده ← بازیابی‌شده (غیربالینی)'
+            : 'Synthetic EEG Signal Progression — Clean → Artifact → Noisy → Recovered (Synthetic EEG — Not clinical data)'
+        }
+        subtitle={
+          lang === 'fa'
+            ? 'قابلیت روشن/خاموش کردن هر منحنی برای مقایسه سیگنال آلوده و سیگنال قشری بازیابی‌شده'
+            : 'Toggle visibility to compare raw contaminated EEG against preprocessed cortical recovery'
+        }
         xData={sim.time}
         xLabel="Time (s)"
         yLabel="Potential (μV)"
@@ -408,14 +479,14 @@ export const EEGSimulatorPage: React.FC = () => {
         series={[
           {
             id: 'eeg-clean',
-            label: 'Clean Cortical EEG',
+            label: lang === 'fa' ? 'EEG قشری تمیز' : 'Clean Cortical EEG',
             data: sim.cleanEEG,
             color: '#0ea5e9',
             lineWidth: 1.9,
           },
           {
             id: 'eeg-art',
-            label: 'Artifact Signal Only',
+            label: lang === 'fa' ? 'فقط سیگنال آرتیفکت' : 'Artifact Signal Only',
             data: sim.artifactSignal,
             color: '#f43f5e',
             lineWidth: 1.4,
@@ -424,14 +495,14 @@ export const EEGSimulatorPage: React.FC = () => {
           },
           {
             id: 'eeg-noisy',
-            label: 'Contaminated Noisy EEG',
+            label: lang === 'fa' ? 'EEG آلوده به آرتیفکت' : 'Contaminated Noisy EEG',
             data: sim.noisyEEG,
             color: '#f59e0b',
             lineWidth: 1.3,
           },
           {
             id: 'eeg-rec',
-            label: 'Preprocessed Recovered EEG',
+            label: lang === 'fa' ? 'EEG بازیابی‌شده پس از پیش‌پردازش' : 'Preprocessed Recovered EEG',
             data: sim.recoveredEEG,
             color: '#10b981',
             lineWidth: 2.2,
@@ -441,8 +512,16 @@ export const EEGSimulatorPage: React.FC = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <InteractivePlot
-          title="Individual Synthetic Cortical Band Decomposition (δ, θ, α, β, γ)"
-          subtitle="Underlying rhythmic generators prior to summation"
+          title={
+            lang === 'fa'
+              ? 'تجزیه باندهای فرکانسی قشر مغز (δ, θ, α, β, γ)'
+              : 'Individual Synthetic Cortical Band Decomposition (δ, θ, α, β, γ)'
+          }
+          subtitle={
+            lang === 'fa'
+              ? 'نوسانگرهای ریتمیک پایه پیش از ترکیب خطی'
+              : 'Underlying rhythmic generators prior to summation'
+          }
           xData={sim.time}
           xLabel="Time (s)"
           yLabel="Amplitude (μV)"
@@ -457,8 +536,16 @@ export const EEGSimulatorPage: React.FC = () => {
         />
 
         <InteractivePlot
-          title="Power Spectral Density / FFT of Recovered Synthetic EEG"
-          subtitle="Inspect spectral energy peaks across Delta (0.5–4), Theta (4–8), Alpha (8–13), and Beta (13–30) bands"
+          title={
+            lang === 'fa'
+              ? 'طیف فرکانسی فوریه (FFT) سیگنال EEG بازیابی‌شده'
+              : 'Power Spectral Density / FFT of Recovered Synthetic EEG'
+          }
+          subtitle={
+            lang === 'fa'
+              ? 'بررسی قله‌های انرژی در باندهای دلتا، تتا، آلفا و بتا'
+              : 'Inspect spectral energy peaks across Delta (0.5–4), Theta (4–8), Alpha (8–13), and Beta (13–30) bands'
+          }
           xData={eegSpectrum.frequencies.slice(0, 160)}
           xLabel="Frequency (Hz)"
           yLabel="Magnitude (μV)"
@@ -466,7 +553,7 @@ export const EEGSimulatorPage: React.FC = () => {
           series={[
             {
               id: 'eeg-spec',
-              label: 'Recovered EEG Spectrum',
+              label: lang === 'fa' ? 'طیف EEG بازیابی‌شده' : 'Recovered EEG Spectrum',
               data: eegSpectrum.magnitude.slice(0, 160),
               color: '#10b981',
               lineWidth: 2,
@@ -476,20 +563,37 @@ export const EEGSimulatorPage: React.FC = () => {
       </div>
 
       <TheoryAccordion
-        items={[
-          {
-            title: 'Synthetic Multi-Band Cortical Rhythm Superposition',
-            formula: 'v_{\\text{EEG}}(t) = \\sum_{b \\in \\{\\delta,\\theta,\\alpha,\\beta,\\gamma\\}} A_b(t)\\sin(2\\pi f_b t + \\phi_b) + \\eta_{1/f}(t)',
-            explanation:
-              'Educational EEG models represent surface scalp potentials as the superposition of band-limited rhythmic oscillators modulated by slow spindle envelopes plus 1/f background activity.',
-          },
-          {
-            title: 'Artifact Contamination & Linear Preprocessing Cascade',
-            formula: 'y(t) = \\left(h_{\\text{LPF}} * h_{\\text{Notch}} * h_{\\text{HPF}} * (v_{\\text{EEG}} + v_{\\text{EOG}} + v_{\\text{EMG}} + v_{\\text{mains}})\\right)(t)',
-            explanation:
-              'High-pass filtering (>0.5 Hz) eliminates baseline sweat/respiration drift, a narrowband 50/60 Hz notch removes power-line hum, and low-pass filtering (<40 Hz) suppresses cranial muscle EMG.',
-          },
-        ]}
+        items={
+          lang === 'fa'
+            ? [
+                {
+                  title: 'برهم‌نهی ریتم‌های چندبانده قشر مغز (مدل آموزشی)',
+                  formula: 'v_{\\text{EEG}}(t) = \\sum_{b \\in \\{\\delta,\\theta,\\alpha,\\beta,\\gamma\\}} A_b(t)\\sin(2\\pi f_b t + \\phi_b) + \\eta_{1/f}(t)',
+                  explanation:
+                    'در مدل‌های آموزشی EEG، پتانسیل‌های سطحی پوست سر به صورت برهم‌نهی نوسانگرهای باند-محدود (دلتا، تتا، آلفا، بتا و گاما) به همراه نویز پس‌زمینه 1/f مدل‌سازی می‌شوند.',
+                },
+                {
+                  title: 'آلودگی آرتیفکت و آبشار فیلترهای پیش‌پردازش خطی',
+                  formula: 'y(t) = \\left(h_{\\text{LPF}} * h_{\\text{Notch}} * h_{\\text{HPF}} * (v_{\\text{EEG}} + v_{\\text{EOG}} + v_{\\text{EMG}} + v_{\\text{mains}})\\right)(t)',
+                  explanation:
+                    'فیلتر بالاگذر (>0.5 Hz) انحراف خط پایه ناشی از تنفس و تعریق را حذف می‌کند، فیلتر شکاف (Notch) در ۵۰/۶۰ هرتز تداخل برق شهر را سرکوب می‌نماید و فیلتر پایین‌گذر (<40 Hz) نویز عضلانی فرکانس بالا (EMG) را تضعیف می‌کند.',
+                },
+              ]
+            : [
+                {
+                  title: 'Synthetic Multi-Band Cortical Rhythm Superposition',
+                  formula: 'v_{\\text{EEG}}(t) = \\sum_{b \\in \\{\\delta,\\theta,\\alpha,\\beta,\\gamma\\}} A_b(t)\\sin(2\\pi f_b t + \\phi_b) + \\eta_{1/f}(t)',
+                  explanation:
+                    'Educational EEG models represent surface scalp potentials as the superposition of band-limited rhythmic oscillators modulated by slow spindle envelopes plus 1/f background activity.',
+                },
+                {
+                  title: 'Artifact Contamination & Linear Preprocessing Cascade',
+                  formula: 'y(t) = \\left(h_{\\text{LPF}} * h_{\\text{Notch}} * h_{\\text{HPF}} * (v_{\\text{EEG}} + v_{\\text{EOG}} + v_{\\text{EMG}} + v_{\\text{mains}})\\right)(t)',
+                  explanation:
+                    'High-pass filtering (>0.5 Hz) eliminates baseline sweat/respiration drift, a narrowband 50/60 Hz notch removes power-line hum, and low-pass filtering (<40 Hz) suppresses cranial muscle EMG.',
+                },
+              ]
+        }
       />
     </div>
   );

@@ -55,7 +55,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
   showVisibilityControls = true,
   yDomainOverride,
 }) => {
-  const { darkMode } = useLab();
+  const { darkMode, lang } = useLab();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -475,12 +475,12 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
             {interactionMode === 'pan' ? (
               <>
                 <Move className="w-3.5 h-3.5" />
-                <span>Pan</span>
+                <span>{lang === 'fa' ? 'جابه‌جایی' : 'Pan'}</span>
               </>
             ) : (
               <>
                 <Maximize2 className="w-3.5 h-3.5" />
-                <span>Box Zoom</span>
+                <span>{lang === 'fa' ? 'بزرگ‌نمایی کادر' : 'Box Zoom'}</span>
               </>
             )}
           </button>
@@ -488,7 +488,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
           <button
             type="button"
             onClick={() => handleZoom(0.65)}
-            title="Zoom In"
+            title={lang === 'fa' ? 'بزرگ‌نمایی' : 'Zoom In'}
             className="neu-btn p-1.5 rounded-full cursor-pointer"
           >
             <ZoomIn className="w-3.5 h-3.5" />
@@ -496,7 +496,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
           <button
             type="button"
             onClick={() => handleZoom(1.45)}
-            title="Zoom Out"
+            title={lang === 'fa' ? 'کوچک‌نمایی' : 'Zoom Out'}
             className="neu-btn p-1.5 rounded-full cursor-pointer"
           >
             <ZoomOut className="w-3.5 h-3.5" />
@@ -504,7 +504,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
           <button
             type="button"
             onClick={resetView}
-            title="Reset Axes"
+            title={lang === 'fa' ? 'بازنشانی محورها' : 'Reset Axes'}
             className="neu-btn p-1.5 rounded-full cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -512,7 +512,7 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
           <button
             type="button"
             onClick={handleExportImage}
-            title="Export Plot as PNG"
+            title={lang === 'fa' ? 'ذخیره تصویر نمودار (PNG)' : 'Export Plot as PNG'}
             className="neu-btn px-2.5 py-1 rounded-full text-xs font-mono flex items-center gap-1 whitespace-nowrap cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
@@ -587,7 +587,7 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
   yLabel = 'Frequency (Hz)',
   height = 240,
 }) => {
-  const { darkMode } = useLab();
+  const { darkMode, lang } = useLab();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [probe, setProbe] = useState<{ x: number; y: number; val: number } | null>(null);
@@ -707,9 +707,9 @@ export const InteractiveHeatmap: React.FC<InteractiveHeatmapProps> = ({
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-slate-600 dark:text-slate-400">
-            <span>Low</span>
+            <span>{lang === 'fa' ? 'کم' : 'Low'}</span>
             <div className="w-20 h-2.5 rounded-sm bg-gradient-to-r from-[#001459] via-[#1f9e89] to-[#fde725]" />
-            <span>High Energy</span>
+            <span>{lang === 'fa' ? 'انرژی بالا' : 'High Energy'}</span>
           </div>
           <button
             type="button"

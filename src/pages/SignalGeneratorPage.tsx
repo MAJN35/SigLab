@@ -6,20 +6,20 @@ import { getSignalLatexExpression } from '../simulations/signals';
 import { useLab } from '../store/LabContext';
 import { SignalComponent, SignalWaveType } from '../types';
 
-const WAVE_TYPES: { id: SignalWaveType; label: string }[] = [
-  { id: 'sine', label: 'Sine' },
-  { id: 'cosine', label: 'Cosine' },
-  { id: 'square', label: 'Square' },
-  { id: 'triangle', label: 'Triangle' },
-  { id: 'sawtooth', label: 'Sawtooth' },
-  { id: 'pulse', label: 'Pulse Train' },
-  { id: 'chirp', label: 'Linear Chirp' },
-  { id: 'multitone', label: 'Multi-Tone' },
-  { id: 'composite', label: 'Custom Composite' },
+const WAVE_TYPES: { id: SignalWaveType; label: string; faLabel: string }[] = [
+  { id: 'sine', label: 'Sine', faLabel: 'سینوسی (Sine)' },
+  { id: 'cosine', label: 'Cosine', faLabel: 'کسینوسی (Cosine)' },
+  { id: 'square', label: 'Square', faLabel: 'مربعی (Square)' },
+  { id: 'triangle', label: 'Triangle', faLabel: 'مثلثی (Triangle)' },
+  { id: 'sawtooth', label: 'Sawtooth', faLabel: 'دندان‌اره‌ای (Sawtooth)' },
+  { id: 'pulse', label: 'Pulse Train', faLabel: 'قطار پالس (Pulse)' },
+  { id: 'chirp', label: 'Linear Chirp', faLabel: 'چرپ خطی (Chirp)' },
+  { id: 'multitone', label: 'Multi-Tone', faLabel: 'چندفرکانسه (Multi-Tone)' },
+  { id: 'composite', label: 'Custom Composite', faLabel: 'ترکیبی سفارشی (Composite)' },
 ];
 
 export const SignalGeneratorPage: React.FC = () => {
-  const { experiment, setExperiment, computed } = useLab();
+  const { experiment, setExperiment, computed, lang } = useLab();
   const sig = experiment.signal;
   const latexExpr = getSignalLatexExpression(sig);
 
@@ -67,14 +67,19 @@ export const SignalGeneratorPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-xl font-bold tracking-tight">
-              Precision Signal & Function Generator
+              {lang === 'fa'
+                ? 'تولیدکننده دقیق سیگنال و توابع پایه (Signal & Function Generator)'
+                : 'Precision Signal & Function Generator'}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Synthesize canonical waveforms, frequency-swept chirps, and multi-harmonic composite signals with live mathematical notation.
+              {lang === 'fa'
+                ? 'تولید شکل‌موج‌های استاندارد متناوب، سیگنال‌های چرپ (Chirp) با جاروب فرکانسی و سیگنال‌های ترکیبی چندهارمونیکی همراه با نمایش زنده رابطه ریاضی.'
+                : 'Synthesize canonical waveforms, frequency-swept chirps, and multi-harmonic composite signals with live mathematical notation.'}
             </p>
           </div>
           <div className="text-xs font-mono text-slate-500">
-            Total Samples: <strong className="text-sky-500">{numSamples}</strong> · Δt ={' '}
+            {lang === 'fa' ? 'تعداد کل نمونه‌ها:' : 'Total Samples:'}{' '}
+            <strong className="text-sky-500">{numSamples}</strong> · Δt ={' '}
             {(1000 / sig.samplingRate).toFixed(2)} ms
           </div>
         </div>
@@ -86,11 +91,11 @@ export const SignalGeneratorPage: React.FC = () => {
               key={w.id}
               type="button"
               onClick={() => updateSignal({ type: w.id })}
-              className={`neu-btn px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${
-                sig.type === w.id ? 'neu-btn-active text-sky-600 dark:text-sky-400' : ''
+              className={`neu-btn px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
+                sig.type === w.id ? 'btn-tool-pill' : ''
               }`}
             >
-              {w.label}
+              {lang === 'fa' ? w.faLabel : w.label}
             </button>
           ))}
         </div>
@@ -98,7 +103,7 @@ export const SignalGeneratorPage: React.FC = () => {
         {/* Live Mathematical Expression Display */}
         <div className="neu-inset p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-xs font-mono text-slate-500 shrink-0">
-            Analytical Governing Equation:
+            {lang === 'fa' ? 'معادله تحلیلی سیگنال:' : 'Analytical Governing Equation:'}
           </div>
           <div className="overflow-x-auto py-1">
             <MathFormula tex={latexExpr} block={false} className="text-sm" />
@@ -112,12 +117,14 @@ export const SignalGeneratorPage: React.FC = () => {
         <div className="lg:col-span-5 flex flex-col gap-5">
           <div className="neu-card p-5 flex flex-col gap-4">
             <h2 className="text-sm font-semibold tracking-tight">
-              Global Sampling & Timebase Parameters
+              {lang === 'fa'
+                ? 'پارامترهای سراسری نمونه‌برداری و پایه زمانی'
+                : 'Global Sampling & Timebase Parameters'}
             </h2>
 
             <div>
               <div className="flex justify-between text-xs font-mono mb-1">
-                <span>Sampling Rate (fs)</span>
+                <span>{lang === 'fa' ? 'نرخ نمونه‌برداری (fs)' : 'Sampling Rate (fs)'}</span>
                 <span className="text-sky-500 font-semibold">{sig.samplingRate} Hz</span>
               </div>
               <input
@@ -133,7 +140,7 @@ export const SignalGeneratorPage: React.FC = () => {
 
             <div>
               <div className="flex justify-between text-xs font-mono mb-1">
-                <span>Duration (T)</span>
+                <span>{lang === 'fa' ? 'مدت زمان سیگنال (T)' : 'Duration (T)'}</span>
                 <span className="text-sky-500 font-semibold">{sig.duration.toFixed(2)} s</span>
               </div>
               <input
@@ -149,7 +156,7 @@ export const SignalGeneratorPage: React.FC = () => {
 
             <div>
               <div className="flex justify-between text-xs font-mono mb-1">
-                <span>DC Offset (V_DC)</span>
+                <span>{lang === 'fa' ? 'مؤلفه مستقیم (DC Offset)' : 'DC Offset (V_DC)'}</span>
                 <span className="text-sky-500 font-semibold">{sig.dcOffset.toFixed(2)} V</span>
               </div>
               <input
@@ -167,12 +174,12 @@ export const SignalGeneratorPage: React.FC = () => {
               <>
                 <hr className="border-slate-200/60 dark:border-slate-800" />
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono">
-                  Primary Waveform Parameters
+                  {lang === 'fa' ? 'پارامترهای شکل‌موج اصلی' : 'Primary Waveform Parameters'}
                 </h3>
 
                 <div>
                   <div className="flex justify-between text-xs font-mono mb-1">
-                    <span>Amplitude (A)</span>
+                    <span>{lang === 'fa' ? 'دامنه (A)' : 'Amplitude (A)'}</span>
                     <span className="text-sky-500 font-semibold">{sig.amplitude.toFixed(2)} V</span>
                   </div>
                   <input
@@ -188,7 +195,7 @@ export const SignalGeneratorPage: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between text-xs font-mono mb-1">
-                    <span>Frequency (f0)</span>
+                    <span>{lang === 'fa' ? 'فرکانس پایه (f0)' : 'Frequency (f0)'}</span>
                     <span className="text-sky-500 font-semibold">{sig.frequency.toFixed(1)} Hz</span>
                   </div>
                   <input
@@ -204,7 +211,7 @@ export const SignalGeneratorPage: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between text-xs font-mono mb-1">
-                    <span>Phase Shift (φ)</span>
+                    <span>{lang === 'fa' ? 'اختلاف فاز اولیه (φ)' : 'Phase Shift (φ)'}</span>
                     <span className="text-sky-500 font-semibold">{sig.phase.toFixed(0)}°</span>
                   </div>
                   <input
@@ -221,7 +228,9 @@ export const SignalGeneratorPage: React.FC = () => {
                 {sig.type === 'chirp' && (
                   <div>
                     <div className="flex justify-between text-xs font-mono mb-1">
-                      <span>Target End Frequency (f1)</span>
+                      <span>
+                        {lang === 'fa' ? 'فرکانس پایانی جاروب (f1)' : 'Target End Frequency (f1)'}
+                      </span>
                       <span className="text-sky-500 font-semibold">
                         {sig.frequencyEnd.toFixed(1)} Hz
                       </span>
@@ -241,7 +250,7 @@ export const SignalGeneratorPage: React.FC = () => {
                 {sig.type === 'pulse' && (
                   <div>
                     <div className="flex justify-between text-xs font-mono mb-1">
-                      <span>Pulse Duty Cycle</span>
+                      <span>{lang === 'fa' ? 'چرخه کار پالس (Duty Cycle)' : 'Pulse Duty Cycle'}</span>
                       <span className="text-sky-500 font-semibold">
                         {(sig.dutyCycle * 100).toFixed(0)}%
                       </span>
@@ -266,19 +275,23 @@ export const SignalGeneratorPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold tracking-tight">
-                  Composite Signal Harmonic Mixer
+                  {lang === 'fa'
+                    ? 'ترکیب‌کننده هارمونیک‌های سیگنال مرکب'
+                    : 'Composite Signal Harmonic Mixer'}
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Combine multiple waveforms x(t) = Σ x_k(t)
+                  {lang === 'fa'
+                    ? 'جمع خطی چند شکل‌موج مستقل x(t) = Σ x_k(t)'
+                    : 'Combine multiple waveforms x(t) = Σ x_k(t)'}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={addComponent}
-                className="neu-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-500 flex items-center gap-1 cursor-pointer"
+                className="btn-primary-pill px-3.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Component</span>
+                <span>{lang === 'fa' ? 'افزودن مؤلفه' : 'Add Component'}</span>
               </button>
             </div>
 
@@ -297,7 +310,7 @@ export const SignalGeneratorPage: React.FC = () => {
                         className="rounded accent-sky-500 cursor-pointer"
                       />
                       <span className="text-xs font-semibold font-mono">
-                        Component #{idx + 1}
+                        {lang === 'fa' ? `مؤلفه #${idx + 1}` : `Component #${idx + 1}`}
                       </span>
                     </div>
 
@@ -310,14 +323,14 @@ export const SignalGeneratorPage: React.FC = () => {
                             type: e.target.value as Exclude<SignalWaveType, 'composite'>,
                           });
                         }}
-                        className="neu-btn px-2 py-1 rounded text-xs font-mono bg-transparent"
+                        className="neu-btn px-2.5 py-1 rounded-full text-xs font-mono bg-transparent"
                       >
-                        <option value="sine" className="bg-slate-900 text-white">Sine</option>
-                        <option value="cosine" className="bg-slate-900 text-white">Cosine</option>
-                        <option value="square" className="bg-slate-900 text-white">Square</option>
-                        <option value="triangle" className="bg-slate-900 text-white">Triangle</option>
-                        <option value="sawtooth" className="bg-slate-900 text-white">Sawtooth</option>
-                        <option value="chirp" className="bg-slate-900 text-white">Chirp</option>
+                        <option value="sine">{lang === 'fa' ? 'سینوسی' : 'Sine'}</option>
+                        <option value="cosine">{lang === 'fa' ? 'کسینوسی' : 'Cosine'}</option>
+                        <option value="square">{lang === 'fa' ? 'مربعی' : 'Square'}</option>
+                        <option value="triangle">{lang === 'fa' ? 'مثلثی' : 'Triangle'}</option>
+                        <option value="sawtooth">{lang === 'fa' ? 'دندان‌اره‌ای' : 'Sawtooth'}</option>
+                        <option value="chirp">{lang === 'fa' ? 'چرپ' : 'Chirp'}</option>
                       </select>
 
                       {sig.components.length > 1 && (
@@ -334,7 +347,9 @@ export const SignalGeneratorPage: React.FC = () => {
 
                   <div className="grid grid-cols-3 gap-2 text-[11px] font-mono">
                     <label className="flex flex-col gap-1">
-                      <span className="text-slate-500">Amp: {comp.amplitude.toFixed(2)}V</span>
+                      <span className="text-slate-500">
+                        {lang === 'fa' ? 'دامنه:' : 'Amp:'} {comp.amplitude.toFixed(2)}V
+                      </span>
                       <input
                         type="range"
                         min={0.1}
@@ -349,7 +364,9 @@ export const SignalGeneratorPage: React.FC = () => {
                       />
                     </label>
                     <label className="flex flex-col gap-1">
-                      <span className="text-slate-500">Freq: {comp.frequency.toFixed(1)}Hz</span>
+                      <span className="text-slate-500">
+                        {lang === 'fa' ? 'فرکانس:' : 'Freq:'} {comp.frequency.toFixed(1)}Hz
+                      </span>
                       <input
                         type="range"
                         min={1}
@@ -364,7 +381,9 @@ export const SignalGeneratorPage: React.FC = () => {
                       />
                     </label>
                     <label className="flex flex-col gap-1">
-                      <span className="text-slate-500">Phase: {comp.phase}°</span>
+                      <span className="text-slate-500">
+                        {lang === 'fa' ? 'فاز:' : 'Phase:'} {comp.phase}°
+                      </span>
                       <input
                         type="range"
                         min={-180}
@@ -388,8 +407,12 @@ export const SignalGeneratorPage: React.FC = () => {
         {/* Visual Plots Column */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           <InteractivePlot
-            title="Synthesized Waveform x(t)"
-            subtitle={`Sampling Rate fs = ${sig.samplingRate} Hz · Nyquist Limit = ${(sig.samplingRate / 2).toFixed(1)} Hz`}
+            title={lang === 'fa' ? 'شکل‌موج سنتزشده در حوزه زمان x(t)' : 'Synthesized Waveform x(t)'}
+            subtitle={
+              lang === 'fa'
+                ? `نرخ نمونه‌برداری fs = ${sig.samplingRate} Hz · حد فرکانسی نایکوئیست = ${(sig.samplingRate / 2).toFixed(1)} Hz`
+                : `Sampling Rate fs = ${sig.samplingRate} Hz · Nyquist Limit = ${(sig.samplingRate / 2).toFixed(1)} Hz`
+            }
             xData={computed.time}
             xLabel="Time (s)"
             yLabel="Amplitude (V)"
@@ -397,14 +420,14 @@ export const SignalGeneratorPage: React.FC = () => {
             series={[
               {
                 id: 'clean-gen',
-                label: 'Synthesized Clean Signal',
+                label: lang === 'fa' ? 'سیگنال تمیز سنتزشده' : 'Synthesized Clean Signal',
                 data: computed.cleanSignal,
                 color: '#0ea5e9',
                 lineWidth: 2.2,
               },
               {
                 id: 'noisy-gen',
-                label: 'With Channel Noise',
+                label: lang === 'fa' ? 'همراه با نویز کانال' : 'With Channel Noise',
                 data: computed.noisySignal,
                 color: '#f59e0b',
                 lineWidth: 1.2,
@@ -414,8 +437,16 @@ export const SignalGeneratorPage: React.FC = () => {
           />
 
           <InteractivePlot
-            title="Magnitude Spectrum |X(f)| of Synthesized Signal"
-            subtitle="Observe harmonic structure (e.g., odd harmonics 1/k in Square & Triangle waves, wideband sweep in Chirp)"
+            title={
+              lang === 'fa'
+                ? 'طیف اندازه فرکانسی |X(f)| سیگنال سنتزشده'
+                : 'Magnitude Spectrum |X(f)| of Synthesized Signal'
+            }
+            subtitle={
+              lang === 'fa'
+                ? 'مشاهده ساختار هارمونیک‌ها (مانند هارمونیک‌های فرد 1/k در موج مربعی و مثلثی یا طیف پهن‌باند در چرپ)'
+                : 'Observe harmonic structure (e.g., odd harmonics 1/k in Square & Triangle waves, wideband sweep in Chirp)'
+            }
             xData={computed.spectrum.frequencies}
             xLabel="Frequency (Hz)"
             yLabel="Magnitude"
@@ -428,7 +459,7 @@ export const SignalGeneratorPage: React.FC = () => {
             series={[
               {
                 id: 'gen-fft',
-                label: 'Spectral Magnitude',
+                label: lang === 'fa' ? 'اندازه طیف |X(f)|' : 'Spectral Magnitude',
                 data: computed.spectrum.magnitude,
                 color: '#10b981',
                 lineWidth: 2,
@@ -439,20 +470,37 @@ export const SignalGeneratorPage: React.FC = () => {
       </div>
 
       <TheoryAccordion
-        items={[
-          {
-            title: 'Fourier Series Synthesis & Harmonic Waveforms',
-            formula: 'x_{\\text{square}}(t) = \\frac{4A}{\\pi}\\sum_{k=1}^{\\infty} \\frac{\\sin\\!\\left(2\\pi(2k-1)f_0 t\\right)}{2k-1}',
-            explanation:
-              'Non-sinusoidal periodic waveforms such as square, triangle, and sawtooth waves are composed of a fundamental sinusoid at f0 plus infinite integer harmonics whose amplitudes decay at 1/k (square/sawtooth) or 1/k² (triangle).',
-          },
-          {
-            title: 'Nyquist-Shannon Sampling Theorem & Aliasing',
-            formula: 'f_s \\ge 2 f_{\\max}, \\quad f_{\\text{alias}} = \\left| f_0 - k f_s \\right|',
-            explanation:
-              'To reconstruct a bandlimited signal without spectral folding (aliasing), the sampling rate fs must be at least twice the highest frequency component fmax.',
-          },
-        ]}
+        items={
+          lang === 'fa'
+            ? [
+                {
+                  title: 'بسط سری فوریه و هارمونیک‌های شکل‌موج‌های متناوب',
+                  formula: 'x_{\\text{square}}(t) = \\frac{4A}{\\pi}\\sum_{k=1}^{\\infty} \\frac{\\sin\\!\\left(2\\pi(2k-1)f_0 t\\right)}{2k-1}',
+                  explanation:
+                    'موج‌های متناوب غیرسینوسی مانند موج مربعی، مثلثی و دندان‌اره‌ای از یک سینوسی پایه در فرکانس f0 به همراه بی‌نهایت هارمونیک مضرب صحیح تشکیل شده‌اند که دامنه آن‌ها با نرخ 1/k (در موج مربعی و دندان‌اره‌ای) یا 1/k² (در موج مثلثی) کاهش می‌یابد.',
+                },
+                {
+                  title: 'قضیه نمونه‌برداری نایکوئیست-شانون و پدیده Aliasing',
+                  formula: 'f_s \\ge 2 f_{\\max}, \\quad f_{\\text{alias}} = \\left| f_0 - k f_s \\right|',
+                  explanation:
+                    'برای بازسازی دقیق یک سیگنال باند-محدود بدون تاخوردگی طیفی (Aliasing)، نرخ نمونه‌برداری fs باید حداقل دو برابر بزرگ‌ترین فرکانس موجود در سیگنال باشد.',
+                },
+              ]
+            : [
+                {
+                  title: 'Fourier Series Synthesis & Harmonic Waveforms',
+                  formula: 'x_{\\text{square}}(t) = \\frac{4A}{\\pi}\\sum_{k=1}^{\\infty} \\frac{\\sin\\!\\left(2\\pi(2k-1)f_0 t\\right)}{2k-1}',
+                  explanation:
+                    'Non-sinusoidal periodic waveforms such as square, triangle, and sawtooth waves are composed of a fundamental sinusoid at f0 plus infinite integer harmonics whose amplitudes decay at 1/k (square/sawtooth) or 1/k² (triangle).',
+                },
+                {
+                  title: 'Nyquist-Shannon Sampling Theorem & Aliasing',
+                  formula: 'f_s \\ge 2 f_{\\max}, \\quad f_{\\text{alias}} = \\left| f_0 - k f_s \\right|',
+                  explanation:
+                    'To reconstruct a bandlimited signal without spectral folding (aliasing), the sampling rate fs must be at least twice the highest frequency component fmax.',
+                },
+              ]
+        }
       />
     </div>
   );
