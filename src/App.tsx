@@ -16,10 +16,9 @@ import {
   Filter,
   FlaskConical,
   GitBranch,
-  Globe,
-  Layers,
   LayoutDashboard,
-  Menu,
+  LayoutGrid,
+  Layers,
   Moon,
   Radio,
   Save,
@@ -51,31 +50,31 @@ const NAV_ITEMS: {
   faLabel: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { id: 'dashboard', label: 'Dashboard', faLabel: 'داشبورد فرماندهی', icon: LayoutDashboard },
+  { id: 'dashboard', label: 'Overview', faLabel: 'نمای کلی آزمایشگاه', icon: LayoutDashboard },
   { id: 'signal-generator', label: 'Signal Generator', faLabel: 'تولیدکننده سیگنال', icon: Activity },
-  { id: 'telecommunications', label: 'Telecommunications', faLabel: 'مخابرات و نویز', icon: Radio },
-  { id: 'eeg-simulator', label: 'EEG Simulator', faLabel: 'شبیه‌ساز نوار مغز (EEG)', icon: Activity },
   { id: 'fft-spectrum', label: 'FFT & Spectrum', faLabel: 'طیف فوریه و FFT', icon: BarChart3 },
+  { id: 'filtering', label: 'Digital Filtering', faLabel: 'فیلترینگ دیجیتال', icon: Filter },
   { id: 'wavelet-analysis', label: 'Wavelet Analysis', faLabel: 'تحلیل موجک (Wavelet)', icon: Layers },
-  { id: 'filtering', label: 'Filtering', faLabel: 'فیلترینگ دیجیتال', icon: Filter },
-  { id: 'pca', label: 'PCA', faLabel: 'تحلیل مؤلفه‌های اصلی (PCA)', icon: GitBranch },
-  { id: 'ica', label: 'ICA', faLabel: 'جداسازی منابع مستقل (ICA)', icon: Cpu },
-  { id: 'modulation-ber', label: 'Modulation & BER', faLabel: 'مدولاسیون دیجیتال و BER', icon: Signal },
+  { id: 'telecommunications', label: 'Analog Telecom', faLabel: 'مخابرات آنالوگ و نویز', icon: Radio },
+  { id: 'modulation-ber', label: 'Digital Mod & BER', faLabel: 'مدولاسیون دیجیتال و BER', icon: Signal },
+  { id: 'eeg-simulator', label: 'EEG Simulator', faLabel: 'شبیه‌ساز نوار مغز (EEG)', icon: Activity },
+  { id: 'pca', label: 'PCA Subspace', faLabel: 'تحلیل مؤلفه‌های اصلی (PCA)', icon: GitBranch },
+  { id: 'ica', label: 'FastICA Separation', faLabel: 'جداسازی منابع مستقل (ICA)', icon: Cpu },
   { id: 'deep-learning', label: 'Deep Learning', faLabel: 'یادگیری عمیق (TF.js)', icon: Brain },
   { id: 'custom-samples', label: 'Custom Samples', faLabel: 'نمونه‌های سفارشی', icon: Database },
-  { id: 'experiments', label: 'Experiments', faLabel: 'مدیریت آزمایش‌ها', icon: FlaskConical },
-  { id: 'documentation', label: 'Documentation', faLabel: 'مستندات و مرجع علمی', icon: BookOpen },
+  { id: 'experiments', label: 'Saved Experiments', faLabel: 'مدیریت آزمایش‌ها', icon: FlaskConical },
+  { id: 'documentation', label: 'Reference & Math', faLabel: 'مستندات و مرجع علمی', icon: BookOpen },
 ];
 
 const TOP_NAV_SHORTCUTS: { id: PageId; label: string; faLabel: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', faLabel: 'داشبورد' },
+  { id: 'dashboard', label: 'Overview', faLabel: 'نمای کلی' },
   { id: 'signal-generator', label: 'Waveforms', faLabel: 'شکل‌موج‌ها' },
+  { id: 'fft-spectrum', label: 'Spectrum', faLabel: 'طیف فوریه' },
   { id: 'filtering', label: 'Filters', faLabel: 'فیلترها' },
-  { id: 'fft-spectrum', label: 'Spectrogram', faLabel: 'طیف‌نگار' },
-  { id: 'eeg-simulator', label: 'EEG/BCI Tools', faLabel: 'ابزار EEG/BCI' },
-  { id: 'modulation-ber', label: 'Telecom & BER', faLabel: 'مخابرات' },
-  { id: 'deep-learning', label: 'Deep Learning', faLabel: 'یادگیری عمیق' },
-  { id: 'documentation', label: 'Docs', faLabel: 'مستندات' },
+  { id: 'eeg-simulator', label: 'EEG Lab', faLabel: 'آزمایشگاه EEG' },
+  { id: 'modulation-ber', label: 'Telecom', faLabel: 'مخابرات' },
+  { id: 'deep-learning', label: 'AI Lab', faLabel: 'یادگیری عمیق' },
+  { id: 'documentation', label: 'Docs', faLabel: 'مرجع علمی' },
 ];
 
 const LabShell: React.FC = () => {
@@ -88,7 +87,7 @@ const LabShell: React.FC = () => {
     setLang,
     saveCurrentExperiment,
   } = useLab();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
 
   const handleQuickSave = async () => {
@@ -132,22 +131,23 @@ const LabShell: React.FC = () => {
     }
   };
 
+  const activeNavMeta = NAV_ITEMS.find((i) => i.id === activePage) || NAV_ITEMS[0];
+
   return (
     <div className="min-h-screen flex flex-col relative">
-      {/* Ambient Liquid Refraction Orbs for High-Index Translucency */}
+      {/* Subtle Ambient Liquid Refraction Orbs */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 overflow-hidden z-0"
       >
-        <div className="absolute -top-28 left-1/4 w-[28rem] h-[28rem] rounded-full bg-sky-400/25 dark:bg-sky-500/15 blur-3xl" />
-        <div className="absolute top-1/3 -right-24 w-[26rem] h-[26rem] rounded-full bg-cyan-400/20 dark:bg-cyan-500/12 blur-3xl" />
-        <div className="absolute -bottom-28 left-1/3 w-[26rem] h-[26rem] rounded-full bg-blue-400/18 dark:bg-indigo-500/12 blur-3xl" />
+        <div className="absolute -top-36 left-1/4 w-[32rem] h-[32rem] rounded-full bg-sky-400/20 dark:bg-sky-500/12 blur-3xl" />
+        <div className="absolute top-1/2 -right-32 w-[28rem] h-[28rem] rounded-full bg-cyan-400/15 dark:bg-cyan-500/10 blur-3xl" />
       </div>
 
-      {/* Floating Pill Navbar: Fixed at top: 16px, left: 50%, translateX(-50%), width: min(96%, 1240px), height: 62px */}
-      <header className="floating-pill-navbar px-3.5 sm:px-5 flex items-center justify-between gap-2">
-        {/* Left: Laboratory Brand & Back Badge linking to https://majn35.ir */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+      {/* Floating Pill Navbar */}
+      <header className="floating-pill-navbar px-4 sm:px-6 flex items-center justify-between gap-3">
+        {/* Left: Portfolio Link + SigLab Brand */}
+        <div className="flex items-center gap-2.5 shrink-0">
           <a
             href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
             onClick={(e) => {
@@ -158,7 +158,7 @@ const LabShell: React.FC = () => {
             title={lang === 'fa' ? 'بازگشت به پورتفولیو majn35.ir' : 'Return to majn35.ir Portfolio'}
           >
             <ArrowLeft className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            <span>{lang === 'fa' ? 'پورتفولیو' : 'Portfolio'}</span>
+            <span className="hidden sm:inline">{lang === 'fa' ? 'پورتفولیو' : 'Portfolio'}</span>
           </a>
 
           <a
@@ -167,7 +167,7 @@ const LabShell: React.FC = () => {
               e.preventDefault();
               setActivePage('dashboard');
             }}
-            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full"
+            className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-full"
           >
             <img
               src={LAB_IMAGES.favicon}
@@ -176,21 +176,16 @@ const LabShell: React.FC = () => {
               onError={(e) => {
                 e.currentTarget.src = './favicon.svg';
               }}
-              className="w-8 h-8 rounded-full object-cover border border-sky-400/40 shadow-md shrink-0"
+              className="w-8 h-8 rounded-full object-cover border border-sky-400/40 shadow-sm shrink-0"
             />
-            <div className="flex flex-col leading-none">
-              <span className="font-display text-sm sm:text-base font-extrabold tracking-tight whitespace-nowrap">
-                {lang === 'fa' ? 'سیگ‌لب' : 'SigLab'}
-              </span>
-              <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 hidden sm:inline">
-                siglab.majn35.ir
-              </span>
-            </div>
+            <span className="font-display text-sm sm:text-base font-extrabold tracking-tight whitespace-nowrap">
+              {lang === 'fa' ? 'سیگ‌لب' : 'SigLab'}
+            </span>
           </a>
         </div>
 
-        {/* Center: Lab Section Links with Hover & Active 2px Indicator Underline (hidden on <= 860px) */}
-        <nav className="nav-center-links overflow-x-auto">
+        {/* Center: Clean Core Section Links */}
+        <nav className="nav-center-links">
           {TOP_NAV_SHORTCUTS.map((tab) => {
             const isActive = activePage === tab.id;
             return (
@@ -208,8 +203,20 @@ const LabShell: React.FC = () => {
           })}
         </nav>
 
-        {/* Right: Controls Cluster (Save, Language EN/FA, Theme Sun/Moon, and Mobile Hamburger on <= 860px) */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Right: Clean Controls Cluster (All Modules Drawer Button, Save, Language, Theme) */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setDrawerOpen((o) => !o)}
+            className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            title={lang === 'fa' ? 'مشاهده همه ۱۴ بخش آزمایشگاه' : 'Browse All 14 Lab Modules'}
+          >
+            <LayoutGrid className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <span className="hidden md:inline">
+              {lang === 'fa' ? 'همه بخش‌ها' : 'All Labs'}
+            </span>
+          </button>
+
           <button
             type="button"
             onClick={handleQuickSave}
@@ -220,7 +227,7 @@ const LabShell: React.FC = () => {
                   : 'Experiment Saved'
                 : lang === 'fa'
                 ? 'ذخیره سریع آزمایش در مرورگر'
-                : 'Quick Save Experiment to IndexedDB'
+                : 'Quick Save Experiment'
             }
             aria-label="Quick Save Experiment"
             className={`btn-circle-glass cursor-pointer ${
@@ -265,133 +272,131 @@ const LabShell: React.FC = () => {
               <Moon className="w-4 h-4 text-sky-700" />
             )}
           </button>
-
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((o) => !o)}
-            className="btn-circle-glass nav-mobile-toggle cursor-pointer"
-            aria-label="Toggle Navigation Drawer"
-          >
-            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
         </div>
       </header>
 
-      {/* Mobile Sliding Glass Drawer (<= 860px, backdrop-filter: blur(28px)) */}
-      {mobileMenuOpen && (
+      {/* Sliding Glass Drawer for All 14 Laboratory Modules */}
+      {drawerOpen && (
         <div className="fixed inset-0 z-40 flex">
           <div
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs"
-            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-slate-950/35 backdrop-blur-xs"
+            onClick={() => setDrawerOpen(false)}
           />
-          <aside className="relative z-50 w-76 max-w-[85vw] h-full pt-22 pb-6 px-4 overflow-y-auto mobile-glass-drawer flex flex-col gap-2">
-            <div className="px-3 py-2 text-[11px] font-mono font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between">
-              <span>{lang === 'fa' ? 'ماژول‌های آزمایشگاه · ۱۴' : 'Laboratory Modules · 14'}</span>
+          <aside className="relative z-50 w-80 max-w-[88vw] h-full pt-24 pb-8 px-5 overflow-y-auto mobile-glass-drawer flex flex-col gap-2">
+            <div className="px-2 pb-2 text-xs font-mono font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between border-b border-slate-300/40 dark:border-slate-800/60">
+              <span>{lang === 'fa' ? 'همه ماژول‌های آزمایشگاه (۱۴)' : 'All Laboratory Modules (14)'}</span>
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => setDrawerOpen(false)}
                 className="btn-circle-glass cursor-pointer"
                 aria-label="Close Drawer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            {NAV_ITEMS.map((item, index) => {
-              const Icon = item.icon;
-              const isActive = activePage === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setActivePage(item.id);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-                    isActive
-                      ? 'btn-tool-pill font-bold'
-                      : 'hover:bg-white/35 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">
-                    {String(index + 1).padStart(2, '0')} · {lang === 'fa' ? item.faLabel : item.label}
-                  </span>
-                </button>
-              );
-            })}
+            <div className="flex flex-col gap-1.5 pt-1">
+              {NAV_ITEMS.map((item, index) => {
+                const Icon = item.icon;
+                const isActive = activePage === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setActivePage(item.id);
+                      setDrawerOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                      isActive
+                        ? 'btn-tool-pill font-bold'
+                        : 'hover:bg-white/40 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate">
+                      {String(index + 1).padStart(2, '0')} · {lang === 'fa' ? item.faLabel : item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </aside>
         </div>
       )}
 
-      {/* Main Layout Container padded below Fixed Floating Pill Navbar */}
-      <div className="flex-1 flex relative z-10 max-w-[1600px] w-full mx-auto pt-22">
-        {/* Desktop Sidebar Navigation (14 Laboratories) */}
-        <aside className="hidden lg:block lg:w-64 shrink-0 p-4">
-          <div className="neu-card p-3 sticky top-24 flex flex-col gap-1">
-            <div className="px-3 py-2 text-[11px] font-mono font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between">
-              <span>{lang === 'fa' ? 'ماژول‌های آزمایشگاه · ۱۴' : 'Laboratory Modules · 14'}</span>
-              <Globe className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            </div>
-            {NAV_ITEMS.map((item, index) => {
-              const Icon = item.icon;
-              const isActive = activePage === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActivePage(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-                    isActive
-                      ? 'btn-tool-pill font-bold'
-                      : 'hover:bg-white/40 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">
-                    {String(index + 1).padStart(2, '0')} · {lang === 'fa' ? item.faLabel : item.label}
-                  </span>
-                </button>
-              );
-            })}
+      {/* Spacious Centered Main Stage (No Permanent Sidebar Clutter) */}
+      <div className="flex-1 flex flex-col relative z-10 max-w-[1220px] w-full mx-auto px-4 sm:px-8 pt-28 pb-16 gap-10">
+        {/* Subtle Secondary Module Pill Bar for Quick Switching */}
+        <div className="flex items-center justify-between gap-3 overflow-x-auto py-1 no-scrollbar">
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400 shrink-0">
+            <span className="text-sky-600 dark:text-sky-400 font-bold">
+              {lang === 'fa' ? activeNavMeta.faLabel : activeNavMeta.label}
+            </span>
+            <span>·</span>
+            <span>
+              {lang === 'fa' ? 'آزمایشگاه تعاملی سیگنال' : 'Interactive Signal Workspace'}
+            </span>
           </div>
-        </aside>
 
-        {/* Main Stage Content */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 flex flex-col justify-between gap-8 w-full">
-          <div>{renderPage()}</div>
-
-          {/* Required Educational Simulation Disclaimer Footer */}
-          <footer className="neu-card p-5 text-center sm:text-start flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-bold tracking-tight">
-                {lang === 'fa'
-                  ? 'آزمایشگاه پردازش سیگنال · شبیه‌سازی آموزشی'
-                  : 'Signal Processing Laboratory · Educational Simulation'}
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                {lang === 'fa'
-                  ? 'داده‌های کاملاً مصنوعی و شبیه‌سازی‌شده برای آموزش دانشگاهی، مصورسازی و پژوهش‌های الگوریتمی. غیرقابل استفاده برای تشخیص بالینی یا عملیات مخابراتی واقعی.'
-                  : 'Synthetic data only. Designed for academic education, visualization, and research experimentation. Not intended for clinical diagnosis or real-world telecommunications operation.'}
-              </p>
-            </div>
-            <div className="text-xs font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
-              {lang === 'fa' ? 'طراحی و توسعه توسط ' : 'by '}
-              <a
-                href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
-                onClick={(e) => {
-                  const currentTheme = darkMode ? 'dark' : 'light';
-                  e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
-                }}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-bold text-sky-700 dark:text-sky-400 hover:underline"
+          <div className="flex items-center gap-1.5 shrink-0">
+            {(
+              [
+                { id: 'wavelet-analysis', label: 'Wavelets', fa: 'موجک' },
+                { id: 'pca', label: 'PCA', fa: 'PCA' },
+                { id: 'ica', label: 'FastICA', fa: 'ICA' },
+                { id: 'telecommunications', label: 'Analog RF', fa: 'آنالوگ' },
+                { id: 'custom-samples', label: 'Samples', fa: 'نمونه‌ها' },
+                { id: 'experiments', label: 'Presets', fa: 'سناریوها' },
+              ] as { id: PageId; label: string; fa: string }[]
+            ).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setActivePage(m.id)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                  activePage === m.id
+                    ? 'btn-tool-pill font-semibold'
+                    : 'neu-btn opacity-80 hover:opacity-100'
+                }`}
               >
-                {lang === 'fa' ? 'محمدعلی جوادی‌نسب' : 'Mohammadali Javadinasab'}
-              </a>
-            </div>
-          </footer>
-        </main>
+                {lang === 'fa' ? m.fa : m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Active Module Content */}
+        <main className="flex-1 min-w-0 w-full">{renderPage()}</main>
+
+        {/* Clean, Spacious Educational Footer */}
+        <footer className="neu-card px-6 py-5 text-center sm:text-start flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-4">
+          <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            <span className="font-bold text-slate-800 dark:text-slate-200">
+              {lang === 'fa'
+                ? 'آزمایشگاه پردازش سیگنال (SigLab)'
+                : 'Signal Processing Laboratory (SigLab)'}
+            </span>{' '}
+            ·{' '}
+            {lang === 'fa'
+              ? 'شبیه‌سازی آموزشی و پژوهشی پردازش سیگنال، مخابرات، EEG مصنوعی و یادگیری ماشین.'
+              : 'Interactive educational simulation for DSP, telecommunications, synthetic EEG, and machine learning.'}
+          </div>
+          <div className="text-xs font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+            {lang === 'fa' ? 'توسعه توسط ' : 'by '}
+            <a
+              href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
+              onClick={(e) => {
+                const currentTheme = darkMode ? 'dark' : 'light';
+                e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
+              }}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-sky-700 dark:text-sky-400 hover:underline"
+            >
+              {lang === 'fa' ? 'محمدعلی جوادی‌نسب' : 'Mohammadali Javadinasab'}
+            </a>
+          </div>
+        </footer>
       </div>
     </div>
   );

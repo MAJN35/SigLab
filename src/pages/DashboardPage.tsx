@@ -2,7 +2,6 @@ import React from 'react';
 import { LAB_IMAGES } from '../assets/labImages';
 import { InteractiveHeatmap, InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
-import { PipelineEditor } from '../components/PipelineEditor';
 import { EDUCATIONAL_PRESETS, useLab } from '../store/LabContext';
 
 export const DashboardPage: React.FC = () => {
@@ -15,33 +14,31 @@ export const DashboardPage: React.FC = () => {
     lang,
   } = useLab();
 
-  const activeBlocksCount = experiment.processing.filter((b) => b.enabled).length;
-
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header & Quick Preset Bar */}
-      <div className="neu-card p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-        <div className="lg:col-span-8 flex flex-col gap-3">
-          <div>
-            <div className="text-xs font-mono text-sky-600 dark:text-sky-400 mb-1">
+    <div className="flex flex-col gap-8">
+      {/* Spacious Hero & Live Parameter Strip */}
+      <div className="neu-card p-6 sm:p-8 flex flex-col gap-7">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex flex-col gap-2 max-w-2xl">
+            <div className="text-xs font-mono text-sky-600 dark:text-sky-400">
               {lang === 'fa'
-                ? `آزمایش فعال · بذر تصادفی #${experiment.randomSeed} · موتور پردازش سیگنال تحت مرورگر`
-                : `Active Experiment · Seed #${experiment.randomSeed} · Client-Side DSP Engine`}
+                ? `آزمایش فعال · نرخ نمونه ${experiment.signal.samplingRate} Hz · بذر #${experiment.randomSeed}`
+                : `Active Workspace · fs = ${experiment.signal.samplingRate} Hz · Seed #${experiment.randomSeed}`}
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               {lang === 'fa' && experiment.id === 'exp-default-lab'
-                ? 'تحلیل طیفی و فیلترینگ سیگنال ترکیبی (آزمایش پیش‌فرض)'
+                ? 'آزمایشگاه تعاملی پردازش سیگنال و تحلیل طیفی'
                 : experiment.name}
             </h1>
-            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-3xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               {lang === 'fa'
-                ? 'محیط آزمایشگاهی تعاملی برای بررسی هم‌زمان سیگنال در حوزه زمان، طیف فرکانسی فوریه (FFT)، طیف‌نگار زمان-فرکانس (STFT)، مخابرات، سیگنال‌های مغزی (EEG) و یادگیری عمیق.'
+                ? 'محیط شبیه‌سازی زنده برای بررسی شکل‌موج در حوزه زمان، طیف فرکانسی فوریه (FFT)، طیف‌نگار زمان-فرکانس (STFT)، مخابرات، EEG و یادگیری عمیق.'
                 : experiment.description ||
                   'Interactive time-domain, spectral, and time-frequency laboratory workspace.'}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <select
               aria-label="Load Educational Preset"
               onChange={(e) => {
@@ -49,11 +46,11 @@ export const DashboardPage: React.FC = () => {
                 if (found) applyEducationalPreset(found);
               }}
               defaultValue=""
-              className="neu-inset px-3.5 py-2 text-xs font-medium rounded-full bg-transparent outline-none cursor-pointer"
+              className="neu-inset px-4 py-2.5 text-xs font-medium rounded-full bg-transparent outline-none cursor-pointer"
             >
               <option value="" disabled>
                 {lang === 'fa'
-                  ? 'بارگذاری سناریوی آموزشی آماده...'
+                  ? 'انتخاب سناریوی آموزشی آماده...'
                   : 'Load Educational Preset...'}
               </option>
               {EDUCATIONAL_PRESETS.map((p) => (
@@ -66,240 +63,137 @@ export const DashboardPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setActivePage('signal-generator')}
-              className="btn-primary-pill px-4 py-2 text-xs whitespace-nowrap cursor-pointer"
+              className="btn-primary-pill px-5 py-2.5 text-xs whitespace-nowrap cursor-pointer"
             >
-              {lang === 'fa' ? 'تنظیم سیگنال پایه' : 'Configure Signal'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActivePage('experiments')}
-              className="neu-btn px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer"
-            >
-              {lang === 'fa' ? 'ذخیره / خروجی JSON' : 'Save / Export JSON'}
+              {lang === 'fa' ? 'تنظیم سیگنال' : 'Configure Signal'}
             </button>
           </div>
         </div>
 
-        {/* Visual Educational Illustration */}
-        <div className="lg:col-span-4">
-          <div className="oscilloscope-frame overflow-hidden relative group">
-            <img
-              src={LAB_IMAGES.dspFourier}
-              alt={
-                lang === 'fa'
-                  ? 'تجزیه طیفی فوریه و هارمونیک‌های سیگنال'
-                  : 'Fourier Harmonic Decomposition Diagram'
-              }
-              referrerPolicy="no-referrer"
-              className="w-full h-36 sm:h-40 object-cover opacity-90 group-hover:scale-103 transition-transform duration-300"
-            />
-            <div className="p-2.5 bg-slate-950/85 border-t border-sky-400/20 text-[11px] font-mono text-slate-300 flex items-center justify-between">
-              <span>
-                {lang === 'fa'
-                  ? 'تجزیه حوزه زمان به فرکانس · تبدیل فوریه و موجک'
-                  : 'Time-Frequency Decomposition · FFT & Wavelets'}
+        {/* Clean 4-Slider Live Control Bar with Integrated Readouts */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-5 border-t border-slate-300/40 dark:border-slate-800/70">
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="text-slate-600 dark:text-slate-400">
+                {lang === 'fa' ? 'فرکانس اصلی (f0)' : 'Primary Frequency (f0)'}
               </span>
-              <span className="text-sky-400">DSP</span>
+              <span className="font-bold text-sky-600 dark:text-sky-400">
+                {experiment.signal.frequency.toFixed(1)} Hz
+              </span>
             </div>
+            <input
+              type="range"
+              min={1}
+              max={100}
+              step={0.5}
+              value={experiment.signal.frequency}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setExperiment((prev) => ({
+                  ...prev,
+                  signal: {
+                    ...prev.signal,
+                    frequency: val,
+                    components: prev.signal.components.map((c, idx) =>
+                      idx === 0 ? { ...c, frequency: val } : c
+                    ),
+                  },
+                }));
+              }}
+              className="sci-slider"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="text-slate-600 dark:text-slate-400">
+                {lang === 'fa' ? 'دامنه سیگنال (A)' : 'Signal Amplitude (A)'}
+              </span>
+              <span className="font-bold text-sky-600 dark:text-sky-400">
+                {experiment.signal.amplitude.toFixed(2)} V
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0.2}
+              max={5}
+              step={0.1}
+              value={experiment.signal.amplitude}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setExperiment((prev) => ({
+                  ...prev,
+                  signal: {
+                    ...prev.signal,
+                    amplitude: val,
+                    components: prev.signal.components.map((c, idx) =>
+                      idx === 0 ? { ...c, amplitude: val } : c
+                    ),
+                  },
+                }));
+              }}
+              className="sci-slider"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="text-slate-600 dark:text-slate-400">
+                {lang === 'fa' ? 'نسبت سیگنال به نویز (SNR)' : 'Channel SNR (AWGN)'}
+              </span>
+              <span className="font-bold text-amber-500">
+                {computed.empiricalSnrDb.toFixed(1)} dB
+              </span>
+            </div>
+            <input
+              type="range"
+              min={-5}
+              max={35}
+              step={1}
+              value={experiment.noise.snrDb}
+              onChange={(e) =>
+                setExperiment((prev) => ({
+                  ...prev,
+                  noise: { ...prev.noise, enabled: true, snrDb: Number(e.target.value) },
+                }))
+              }
+              className="sci-slider"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="text-slate-600 dark:text-slate-400">
+                {lang === 'fa' ? 'فرکانس قطع فیلتر (fH)' : 'Filter Cutoff (fH)'}
+              </span>
+              <span className="font-bold text-emerald-500">
+                {experiment.filter.cutoffHigh.toFixed(0)} Hz · SNR {computed.filteredSnrDb.toFixed(1)} dB
+              </span>
+            </div>
+            <input
+              type="range"
+              min={5}
+              max={120}
+              step={1}
+              value={experiment.filter.cutoffHigh}
+              onChange={(e) =>
+                setExperiment((prev) => ({
+                  ...prev,
+                  filter: {
+                    ...prev.filter,
+                    enabled: true,
+                    cutoffHigh: Number(e.target.value),
+                  },
+                }))
+              }
+              className="sci-slider"
+            />
           </div>
         </div>
       </div>
 
-      {/* Key Scientific Metrics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        <div className="neu-card-sm p-3.5">
-          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            {lang === 'fa' ? 'نوع سیگنال فعلی' : 'Current Signal / Type'}
-          </div>
-          <div className="text-base font-bold font-mono mt-1 capitalize truncate">
-            {experiment.signal.type}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
-            {experiment.signal.type === 'composite'
-              ? lang === 'fa'
-                ? `${experiment.signal.components.filter((c) => c.enabled).length} هارمونیک فعال`
-                : `${experiment.signal.components.filter((c) => c.enabled).length} Active Harmonics`
-              : lang === 'fa'
-              ? 'شکل‌موج پایه'
-              : 'Single Waveform'}
-          </div>
-        </div>
-
-        <div className="neu-card-sm p-3.5">
-          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            {lang === 'fa' ? 'نرخ نمونه‌برداری (fs)' : 'Sampling Rate (fs)'}
-          </div>
-          <div className="text-lg font-bold font-mono tabular-nums mt-1">
-            {experiment.signal.samplingRate}
-            <span className="text-xs font-normal text-slate-400 ml-1">Hz</span>
-          </div>
-          <div className="text-[11px] font-mono text-slate-500 mt-0.5">
-            {lang === 'fa' ? 'فرکانس نایکوئیست:' : 'Nyquist:'}{' '}
-            {(experiment.signal.samplingRate / 2).toFixed(0)} Hz
-          </div>
-        </div>
-
-        <div className="neu-card-sm p-3.5">
-          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            {lang === 'fa' ? 'فرکانس و دامنه پایه' : 'Fundamental Freq & Amp'}
-          </div>
-          <div className="text-lg font-bold font-mono tabular-nums mt-1">
-            {experiment.signal.frequency.toFixed(1)}
-            <span className="text-xs font-normal text-slate-400 ml-1">Hz</span>
-            <span className="mx-1.5 text-slate-400">·</span>
-            {experiment.signal.amplitude.toFixed(2)}
-            <span className="text-xs font-normal text-slate-400 ml-1">V</span>
-          </div>
-          <div className="text-[11px] font-mono text-slate-500 mt-0.5">
-            {lang === 'fa' ? 'قله غالب:' : 'Dominant Peak:'}{' '}
-            {computed.peaks[0]?.frequency.toFixed(1) ?? '—'} Hz
-          </div>
-        </div>
-
-        <div className="neu-card-sm p-3.5">
-          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            {lang === 'fa' ? 'نویز کانال و نسبت SNR' : 'Channel Noise & SNR'}
-          </div>
-          <div className="text-lg font-bold font-mono tabular-nums mt-1 text-amber-500">
-            {computed.empiricalSnrDb.toFixed(2)}
-            <span className="text-xs font-normal text-slate-400 ml-1">dB</span>
-          </div>
-          <div className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-            {lang === 'fa' ? 'SNR پس از فیلتر:' : 'Filtered SNR:'}{' '}
-            {computed.filteredSnrDb.toFixed(2)} dB
-          </div>
-        </div>
-
-        <div className="neu-card-sm p-3.5">
-          <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            {lang === 'fa' ? 'نرخ خطای بیت (BER) و نمونه‌ها' : 'Modulation BER & Samples'}
-          </div>
-          <div className="text-lg font-bold font-mono tabular-nums mt-1 text-sky-500">
-            {computed.currentBer.toExponential(2)}
-          </div>
-          <div className="text-[11px] font-mono text-slate-500 mt-0.5">
-            {lang === 'fa'
-              ? `N = ${computed.time.length} نمونه · ${activeBlocksCount} مرحله پردازش`
-              : `N = ${computed.time.length} samples · ${activeBlocksCount} DSP stages`}
-          </div>
-        </div>
-      </div>
-
-      {/* Live Quick Scrubbers */}
-      <div className="neu-card p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <div className="flex justify-between text-xs font-mono mb-1.5">
-            <span>{lang === 'fa' ? 'فرکانس اصلی (f0)' : 'Primary Frequency'}</span>
-            <span className="font-semibold text-sky-500">
-              {experiment.signal.frequency.toFixed(1)} Hz
-            </span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={100}
-            step={0.5}
-            value={experiment.signal.frequency}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setExperiment((prev) => ({
-                ...prev,
-                signal: {
-                  ...prev.signal,
-                  frequency: val,
-                  components: prev.signal.components.map((c, idx) =>
-                    idx === 0 ? { ...c, frequency: val } : c
-                  ),
-                },
-              }));
-            }}
-            className="sci-slider"
-          />
-        </div>
-
-        <div>
-          <div className="flex justify-between text-xs font-mono mb-1.5">
-            <span>{lang === 'fa' ? 'دامنه سیگنال (A)' : 'Signal Amplitude'}</span>
-            <span className="font-semibold text-sky-500">
-              {experiment.signal.amplitude.toFixed(2)} V
-            </span>
-          </div>
-          <input
-            type="range"
-            min={0.2}
-            max={5}
-            step={0.1}
-            value={experiment.signal.amplitude}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setExperiment((prev) => ({
-                ...prev,
-                signal: {
-                  ...prev.signal,
-                  amplitude: val,
-                  components: prev.signal.components.map((c, idx) =>
-                    idx === 0 ? { ...c, amplitude: val } : c
-                  ),
-                },
-              }));
-            }}
-            className="sci-slider"
-          />
-        </div>
-
-        <div>
-          <div className="flex justify-between text-xs font-mono mb-1.5">
-            <span>{lang === 'fa' ? 'نسبت سیگنال به نویز (SNR)' : 'Channel SNR (AWGN)'}</span>
-            <span className="font-semibold text-amber-500">
-              {experiment.noise.snrDb.toFixed(0)} dB
-            </span>
-          </div>
-          <input
-            type="range"
-            min={-5}
-            max={35}
-            step={1}
-            value={experiment.noise.snrDb}
-            onChange={(e) =>
-              setExperiment((prev) => ({
-                ...prev,
-                noise: { ...prev.noise, enabled: true, snrDb: Number(e.target.value) },
-              }))
-            }
-            className="sci-slider"
-          />
-        </div>
-
-        <div>
-          <div className="flex justify-between text-xs font-mono mb-1.5">
-            <span>{lang === 'fa' ? 'فرکانس قطع بالا فیلتر (fH)' : 'Filter High Cutoff'}</span>
-            <span className="font-semibold text-emerald-500">
-              {experiment.filter.cutoffHigh.toFixed(0)} Hz
-            </span>
-          </div>
-          <input
-            type="range"
-            min={5}
-            max={120}
-            step={1}
-            value={experiment.filter.cutoffHigh}
-            onChange={(e) =>
-              setExperiment((prev) => ({
-                ...prev,
-                filter: {
-                  ...prev.filter,
-                  enabled: true,
-                  cutoffHigh: Number(e.target.value),
-                },
-              }))
-            }
-            className="sci-slider"
-          />
-        </div>
-      </div>
-
-      {/* Primary Time-Domain & Frequency Spectrum Plots */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* Primary Time-Domain & Frequency Spectrum Plots with Generous Spacing */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <InteractivePlot
           title={
             lang === 'fa'
@@ -308,31 +202,31 @@ export const DashboardPage: React.FC = () => {
           }
           subtitle={
             lang === 'fa'
-              ? 'کادر بکشید تا بزرگ‌نمایی شود · نشانگر موس را حرکت دهید تا مقادیر لحظه‌ای خوانده شوند'
-              : 'Drag a box to zoom · Hover to inspect exact sample values · Toggle trace visibility'
+              ? 'برای بزرگ‌نمایی روی نمودار کادر بکشید'
+              : 'Drag on the canvas to zoom · Hover to inspect sample values'
           }
           xData={computed.time}
-          xLabel="Time (s)"
-          yLabel="Amplitude (V)"
-          height={275}
+          xLabel={lang === 'fa' ? 'زمان (s)' : 'Time (s)'}
+          yLabel={lang === 'fa' ? 'دامنه (V)' : 'Amplitude (V)'}
+          height={290}
           series={[
             {
               id: 'clean',
-              label: lang === 'fa' ? 'سیگنال تمیز x(t)' : 'Clean Signal x(t)',
+              label: lang === 'fa' ? 'تمیز x(t)' : 'Clean x(t)',
               data: computed.cleanSignal,
               color: '#0ea5e9',
               lineWidth: 2,
             },
             {
               id: 'noisy',
-              label: lang === 'fa' ? 'سیگنال نویزی x(t)+n(t)' : 'Noisy Signal x(t)+n(t)',
+              label: lang === 'fa' ? 'نویزی' : 'Noisy',
               data: computed.noisySignal,
               color: '#f59e0b',
-              lineWidth: 1.25,
+              lineWidth: 1.2,
             },
             {
               id: 'filtered',
-              label: lang === 'fa' ? 'خروجی فیلترشده y(t)' : 'Filtered Output y(t)',
+              label: lang === 'fa' ? 'فیلترشده y(t)' : 'Filtered y(t)',
               data: computed.filteredSignal,
               color: '#10b981',
               lineWidth: 2.2,
@@ -343,34 +237,34 @@ export const DashboardPage: React.FC = () => {
         <InteractivePlot
           title={
             lang === 'fa'
-              ? `طیف اندازه تبدیل فوریه سریع (N=${experiment.analysis.fft.fftSize}، پنجره ${experiment.analysis.fft.windowType})`
-              : `FFT Magnitude Spectrum (N=${experiment.analysis.fft.fftSize}, ${experiment.analysis.fft.windowType} window)`
+              ? `طیف دامنه تبدیل فوریه سریع (N=${experiment.analysis.fft.fftSize})`
+              : `FFT Magnitude Spectrum (N=${experiment.analysis.fft.fftSize})`
           }
           subtitle={
             lang === 'fa'
-              ? 'تشخیص خودکار قله‌های فرکانسی غالب و مقایسه طیف نویزی و فیلترشده'
-              : 'Automatic harmonic peak detection annotated on spectrum'
+              ? 'قله‌های هارمونیکی غالب و پاسخ فرکانسی فیلتر'
+              : 'Automatic harmonic peak detection & filter response |H(f)|'
           }
           xData={computed.spectrum.frequencies}
-          xLabel="Frequency (Hz)"
-          yLabel="Magnitude |X(f)|"
-          height={275}
+          xLabel={lang === 'fa' ? 'فرکانس (Hz)' : 'Frequency (Hz)'}
+          yLabel={lang === 'fa' ? 'دامنه |X(f)|' : 'Magnitude |X(f)|'}
+          height={290}
           peaks={computed.peaks.map((pk) => ({
             x: pk.frequency,
             y: pk.magnitude,
-            label: `${pk.frequency.toFixed(1)}Hz (${pk.magnitude.toFixed(2)})`,
+            label: `${pk.frequency.toFixed(1)}Hz`,
           }))}
           series={[
             {
               id: 'fft-noisy',
-              label: lang === 'fa' ? 'طیف سیگنال نویزی' : 'Noisy Spectrum',
+              label: lang === 'fa' ? 'طیف سیگنال' : 'Spectrum |X(f)|',
               data: computed.spectrum.magnitude,
               color: '#f59e0b',
-              lineWidth: 1.4,
+              lineWidth: 1.5,
             },
             {
               id: 'fft-filt',
-              label: lang === 'fa' ? 'پاسخ فرکانسی فیلتر |H(f)|' : 'Filter Response |H(f)|',
+              label: lang === 'fa' ? 'پاسخ فیلتر |H(f)|' : 'Filter |H(f)|',
               data: computed.filterMagResponse.slice(
                 0,
                 computed.spectrum.frequencies.length
@@ -383,31 +277,77 @@ export const DashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* STFT Spectrogram + Visual Processing Pipeline */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-5">
+      {/* STFT Spectrogram + Concept Visual Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        <div className="lg:col-span-8">
           <InteractiveHeatmap
             title={
               lang === 'fa'
-                ? 'طیف‌نگار زمان-فرکانس تبدیل فوریه زمان‌کوتاه (STFT)'
-                : 'Short-Time Fourier Transform (STFT) Spectrogram'
+                ? 'طیف‌نگار زمان-فرکانس (STFT Spectrogram)'
+                : 'Time-Frequency Spectrogram (STFT)'
             }
             subtitle={
               lang === 'fa'
-                ? 'توزیع انرژی زمان-فرکانس سیگنال با پنجره لغزان Hann'
-                : 'Time-frequency energy localization across sliding Hann windows'
+                ? 'توزیع انرژی فرکانسی سیگنال در طول زمان با پنجره Hann'
+                : 'Localized spectral energy across sliding Hann time windows'
             }
             xValues={computed.spectrogram.times}
             yValues={computed.spectrogram.frequencies}
             matrix={computed.spectrogram.matrix}
-            xLabel="Time (s)"
-            yLabel="Frequency (Hz)"
-            height={255}
+            xLabel={lang === 'fa' ? 'زمان (s)' : 'Time (s)'}
+            yLabel={lang === 'fa' ? 'فرکانس (Hz)' : 'Frequency (Hz)'}
+            height={260}
           />
         </div>
 
-        <div className="xl:col-span-7">
-          <PipelineEditor compact={true} />
+        <div className="lg:col-span-4 neu-card p-6 flex flex-col justify-between gap-4">
+          <div className="oscilloscope-frame overflow-hidden">
+            <img
+              src={LAB_IMAGES.dspFourier}
+              alt={
+                lang === 'fa'
+                  ? 'تجزیه طیفی فوریه و هارمونیک‌های سیگنال'
+                  : 'Fourier Harmonic Decomposition Diagram'
+              }
+              referrerPolicy="no-referrer"
+              className="w-full h-44 object-cover opacity-90"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-bold tracking-tight">
+              {lang === 'fa'
+                ? 'کاوش در ۱۴ ماژول تخصصی آزمایشگاه'
+                : 'Explore Specialized Lab Modules'}
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              {lang === 'fa'
+                ? 'از نوار بالا می‌توانید وارد بخش‌های تخصصی موجک، فیلترینگ، مخابرات دیجیتال، شبیه‌ساز نوار مغز (EEG)، جداسازی کور منابع (ICA) و شبکه عصبی شوید.'
+                : 'Jump directly into Wavelet Scalograms, Digital Filter Design, QPSK/QAM Constellations, Synthetic EEG, FastICA, or In-Browser Neural Networks.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setActivePage('eeg-simulator')}
+              className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer"
+            >
+              {lang === 'fa' ? 'شبیه‌ساز EEG' : 'EEG Lab'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePage('modulation-ber')}
+              className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer"
+            >
+              {lang === 'fa' ? 'صورت فلکی و BER' : 'Modulation & BER'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePage('deep-learning')}
+              className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer"
+            >
+              {lang === 'fa' ? 'یادگیری عمیق' : 'Deep Learning'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -418,14 +358,16 @@ export const DashboardPage: React.FC = () => {
             ? [
                 {
                   title: 'نمونه‌برداری زمان‌گسسته و قضیه نایکوئیست-شانون',
-                  formula: 'x[n] = x(n T_s) = x\\!\\left(\\frac{n}{f_s}\\right), \\quad f_{\\text{Nyquist}} = \\frac{f_s}{2}',
+                  formula:
+                    'x[n] = x(n T_s) = x\\!\\left(\\frac{n}{f_s}\\right), \\quad f_{\\text{Nyquist}} = \\frac{f_s}{2}',
                   explanation:
                     'یک سیگنال پیوسته در زمان x(t) با نرخ fs هرتز نمونه‌برداری می‌شود. برای جلوگیری از پدیده تداخل طیفی (Aliasing)، نرخ نمونه‌برداری fs باید حداقل دو برابر بیشترین مؤلفه فرکانسی سیگنال باشد.',
                   variables: 'fs: نرخ نمونه‌برداری (Hz) · Ts: دوره تناوب نمونه‌برداری (s)',
                 },
                 {
                   title: 'نسبت سیگنال به نویز (SNR) و تبدیل فوریه گسسته (DFT)',
-                  formula: '\\text{SNR}_{\\text{dB}} = 10 \\log_{10}\\!\\left(\\frac{\\sum_{n=0}^{N-1} |x[n]|^2}{\\sum_{n=0}^{N-1} |w[n]|^2}\\right), \\quad X[k] = \\sum_{n=0}^{N-1} x[n] e^{-j\\frac{2\\pi}{N}kn}',
+                  formula:
+                    '\\text{SNR}_{\\text{dB}} = 10 \\log_{10}\\!\\left(\\frac{\\sum_{n=0}^{N-1} |x[n]|^2}{\\sum_{n=0}^{N-1} |w[n]|^2}\\right), \\quad X[k] = \\sum_{n=0}^{N-1} x[n] e^{-j\\frac{2\\pi}{N}kn}',
                   explanation:
                     'نسبت سیگنال به نویز (SNR) توان سیگنال مطلوب را به توان نویز مقایسه می‌کند. تبدیل فوریه گسسته (DFT) سیگنال را به مؤلفه‌های فرکانسی f_k = k · fs / N تجزیه می‌نماید.',
                   variables: 'X[k]: ضریب طیفی فوریه · w[n]: دنباله نویز افزایشی',
@@ -434,14 +376,16 @@ export const DashboardPage: React.FC = () => {
             : [
                 {
                   title: 'Discrete-Time Signal Representation & Nyquist Sampling',
-                  formula: 'x[n] = x(n T_s) = x\\!\\left(\\frac{n}{f_s}\\right), \\quad f_{\\text{Nyquist}} = \\frac{f_s}{2}',
+                  formula:
+                    'x[n] = x(n T_s) = x\\!\\left(\\frac{n}{f_s}\\right), \\quad f_{\\text{Nyquist}} = \\frac{f_s}{2}',
                   explanation:
                     'A continuous-time waveform x(t) sampled at rate fs (Hz) yields discrete sequence x[n]. To prevent spectral aliasing, the sampling rate fs must strictly exceed twice the highest frequency component.',
                   variables: 'fs: Sampling Rate (Hz) · Ts = 1/fs: Sample Period (s) · N: Number of Samples',
                 },
                 {
                   title: 'Empirical Signal-to-Noise Ratio (SNR) & Spectral Decomposition',
-                  formula: '\\text{SNR}_{\\text{dB}} = 10 \\log_{10}\\!\\left(\\frac{\\sum_{n=0}^{N-1} |x[n]|^2}{\\sum_{n=0}^{N-1} |w[n]|^2}\\right), \\quad X[k] = \\sum_{n=0}^{N-1} x[n] e^{-j\\frac{2\\pi}{N}kn}',
+                  formula:
+                    '\\text{SNR}_{\\text{dB}} = 10 \\log_{10}\\!\\left(\\frac{\\sum_{n=0}^{N-1} |x[n]|^2}{\\sum_{n=0}^{N-1} |w[n]|^2}\\right), \\quad X[k] = \\sum_{n=0}^{N-1} x[n] e^{-j\\frac{2\\pi}{N}kn}',
                   explanation:
                     'SNR measures the logarithmic ratio of clean signal power to additive noise power. The Discrete Fourier Transform (DFT) projects the time-domain signal onto orthogonal complex exponential basis functions.',
                   variables: 'X[k]: Complex Fourier bin at f_k = k·fs/N · w[n]: Noise sequence',

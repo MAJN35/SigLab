@@ -425,12 +425,12 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
   };
 
   return (
-    <div className="neu-card p-4 flex flex-col gap-3" ref={containerRef}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="neu-card p-5 sm:p-6 flex flex-col gap-4" ref={containerRef}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+          <h3 className="text-sm sm:text-base font-bold tracking-tight">{title}</h3>
           {subtitle && (
-            <p className="text-xs text-slate-600 dark:text-slate-400">{subtitle}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{subtitle}</p>
           )}
         </div>
 
@@ -461,50 +461,10 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
               );
             })}
 
-          <div className="h-4 w-px bg-slate-300/60 dark:bg-slate-700/60 mx-1" />
-
-          <button
-            type="button"
-            onClick={() =>
-              setInteractionMode((m) => (m === 'select-zoom' ? 'pan' : 'select-zoom'))
-            }
-            className={`neu-btn px-3 py-1 rounded-full text-xs font-mono flex items-center gap-1 whitespace-nowrap cursor-pointer ${
-              interactionMode === 'pan' ? 'btn-tool-pill' : ''
-            }`}
-          >
-            {interactionMode === 'pan' ? (
-              <>
-                <Move className="w-3.5 h-3.5" />
-                <span>{lang === 'fa' ? 'جابه‌جایی' : 'Pan'}</span>
-              </>
-            ) : (
-              <>
-                <Maximize2 className="w-3.5 h-3.5" />
-                <span>{lang === 'fa' ? 'بزرگ‌نمایی کادر' : 'Box Zoom'}</span>
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleZoom(0.65)}
-            title={lang === 'fa' ? 'بزرگ‌نمایی' : 'Zoom In'}
-            className="neu-btn p-1.5 rounded-full cursor-pointer"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleZoom(1.45)}
-            title={lang === 'fa' ? 'کوچک‌نمایی' : 'Zoom Out'}
-            className="neu-btn p-1.5 rounded-full cursor-pointer"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
           <button
             type="button"
             onClick={resetView}
-            title={lang === 'fa' ? 'بازنشانی محورها' : 'Reset Axes'}
+            title={lang === 'fa' ? 'بازنشانی بزرگ‌نمایی' : 'Reset Zoom'}
             className="neu-btn p-1.5 rounded-full cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -513,15 +473,14 @@ export const InteractivePlot: React.FC<InteractivePlotProps> = ({
             type="button"
             onClick={handleExportImage}
             title={lang === 'fa' ? 'ذخیره تصویر نمودار (PNG)' : 'Export Plot as PNG'}
-            className="neu-btn px-2.5 py-1 rounded-full text-xs font-mono flex items-center gap-1 whitespace-nowrap cursor-pointer"
+            className="neu-btn p-1.5 rounded-full cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>PNG</span>
           </button>
         </div>
       </div>
 
-      <div className="relative oscilloscope-frame overflow-hidden p-1">
+      <div className="relative oscilloscope-frame overflow-hidden p-1.5">
         <canvas
           ref={canvasRef}
           onMouseMove={handleMouseMove}
