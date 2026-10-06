@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Activity,
   ArrowLeft,
+  ArrowUp,
   BarChart3,
   BookOpen,
   Brain,
@@ -141,9 +142,26 @@ const LabShell: React.FC = () => {
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
   const [studyTasks, setStudyTasks] = useState<StudyTask[]>(INITIAL_STUDY_TASKS);
+  const [scrollPct, setScrollPct] = useState(0);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const completedCount = studyTasks.filter((t) => t.completed).length;
   const progressPct = Math.round((completedCount / studyTasks.length) * 100);
+
+  // Passive scroll progress indicator & floating Scroll-to-Top visibility
+  useEffect(() => {
+    const onScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const docHeight =
+        document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const pct = docHeight > 20 ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)) : 0;
+      setScrollPct(pct);
+      setShowScrollTop(scrollTop > 260);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [activePage]);
 
   // Performant IntersectionObserver for subtle scroll-reveal and staggered card animations
   useEffect(() => {
@@ -233,6 +251,17 @@ const LabShell: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col relative">
+      {/* Top Viewport Scroll Progress Bar */}
+      <div
+        aria-hidden="true"
+        className="fixed top-0 left-0 right-0 h-[2.5px] z-[60] pointer-events-none bg-transparent"
+      >
+        <div
+          className="h-full bg-gradient-to-r from-sky-500 via-cyan-400 to-[#7FD141] shadow-[0_0_10px_rgba(56,189,248,0.65)] transition-[width] duration-100 ease-out"
+          style={{ width: `${scrollPct}%` }}
+        />
+      </div>
+
       {/* Subtle Ambient Liquid Refraction Orbs */}
       <div
         aria-hidden="true"
@@ -731,6 +760,25 @@ const LabShell: React.FC = () => {
           </div>
         </footer>
       </div>
+
+      {/* Floating Glass Scroll-to-Top Pill Button */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 12, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.9 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-5 right-5 z-40 neu-btn px-3.5 py-2 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 shadow-lg cursor-pointer"
+            title={lang === 'fa' ? 'بازگشت به بالای صفحه' : 'Scroll to Top'}
+          >
+            <ArrowUp className="w-3.5 h-3.5 text-sky-500" />
+            <span className="tabular-nums">{Math.round(scrollPct)}%</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

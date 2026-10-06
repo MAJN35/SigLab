@@ -2106,14 +2106,40 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               </span>
             </button>
 
-            <label className="flex items-center gap-1.5 text-xs font-mono cursor-pointer pl-1">
-              <input
-                type="checkbox"
-                checked={scrollingWaterfall}
-                onChange={(e) => setScrollingWaterfall(e.target.checked)}
-              />
+            {/* Sleek Animated Toggle Switch for Live Waterfall Scroll vs Static Timeline */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={scrollingWaterfall}
+              onClick={() => setScrollingWaterfall((s) => !s)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 cursor-pointer ${
+                scrollingWaterfall ? 'btn-tool-pill' : 'neu-btn'
+              }`}
+              title={
+                lang === 'fa'
+                  ? 'تغییر حالت پیمایش زنده طیف‌نگار'
+                  : 'Toggle real-time scrolling waterfall vs. fixed timeline'
+              }
+            >
+              <span
+                className={`w-7 h-4 rounded-full p-0.5 flex items-center transition-colors duration-200 ${
+                  scrollingWaterfall
+                    ? 'bg-sky-500/30 border border-sky-400 justify-end'
+                    : 'bg-slate-400/25 border border-slate-400/40 justify-start'
+                }`}
+              >
+                <motion.span
+                  layout
+                  transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    scrollingWaterfall
+                      ? 'bg-[#7FD141] shadow-[0_0_6px_#7FD141]'
+                      : 'bg-slate-400'
+                  }`}
+                />
+              </span>
               <span>{lang === 'fa' ? 'پیمایش زنده' : 'Live Scroll'}</span>
-            </label>
+            </button>
           </div>
         </div>
 
@@ -2187,8 +2213,29 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               />
             </div>
 
-            {/* Clean Single-Row Coordinate & Sonification Readout Bar */}
-            <div className="neu-inset px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+            {/* Sleek Timeline Scroll / Scrubber Bar & Coordinate Readout */}
+            <div className="neu-inset px-4 py-3 flex flex-col gap-2.5 text-xs font-mono">
+              {/* Interactive Time Scroll / Scrubber Bar */}
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-slate-500 shrink-0">
+                  {lang === 'fa' ? 'پیمایش زمان:' : 'Time Scroll:'}
+                </span>
+                <span className="tabular-nums text-sky-600 dark:text-sky-400 font-bold w-24 shrink-0">
+                  {currentTime.toFixed(2)}s / {totalDuration.toFixed(1)}s
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(0.1, totalDuration)}
+                  step={0.02}
+                  value={currentTime}
+                  onChange={(e) => handleSeek(Number(e.target.value))}
+                  aria-label="Spectrogram Timeline Scroll"
+                  className="sci-slider flex-1"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1.5 border-t border-slate-300/30 dark:border-slate-800/60">
               {selectedPoint && (
                 <div className="flex flex-wrap items-center gap-4">
                   <span>
@@ -2260,6 +2307,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                   />
                   <span>{lang === 'fa' ? 'پخش با کلیک' : 'Auto-play click'}</span>
                 </label>
+              </div>
               </div>
             </div>
           </div>
