@@ -212,7 +212,7 @@ html[dir="rtl"] .mobile-glass-drawer {
   border-left: 1px solid var(--glass-border);
 }
 
-/* Glass Cards & Metric Tiles (border-radius: 22px, 1px border, inner meniscus highlight, hover -2px & accent glow) */
+/* Glass Cards & Metric Tiles (border-radius: 22px, 1px border, inner meniscus highlight, hover -2px & scale 1.01) */
 .neu-card {
   background: var(--glass-surface);
   backdrop-filter: blur(26px) saturate(190%);
@@ -220,12 +220,18 @@ html[dir="rtl"] .mobile-glass-drawer {
   border: 1px solid var(--glass-border);
   border-radius: 22px;
   box-shadow: var(--glass-shadow);
-  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease;
+  transition:
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease;
+  will-change: transform;
 }
 
-.neu-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+@media (hover: hover) {
+  .neu-card:hover {
+    transform: translateY(-2px) scale(1.006);
+    box-shadow: 0 14px 32px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  }
 }
 
 .neu-card-sm {
@@ -235,12 +241,25 @@ html[dir="rtl"] .mobile-glass-drawer {
   border: 1px solid var(--glass-border);
   border-radius: 20px;
   box-shadow: var(--glass-shadow);
-  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease,
+    opacity 200ms ease;
+  will-change: transform;
 }
 
-.neu-card-sm:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+@media (hover: hover) {
+  .neu-card-sm:hover {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 12px 30px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  }
+}
+
+@media (hover: none) {
+  .neu-card-sm:active {
+    transform: scale(0.99);
+  }
 }
 
 .neu-inset {
@@ -250,6 +269,10 @@ html[dir="rtl"] .mobile-glass-drawer {
   border: 1px solid var(--glass-border);
   border-radius: 18px;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45);
+  transition:
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Dark-mode-first Oscilloscope & Spectrogram Frame */
@@ -260,9 +283,10 @@ html[dir="rtl"] .mobile-glass-drawer {
   box-shadow:
     inset 0 0 28px rgba(2, 6, 23, 0.85),
     0 4px 20px rgba(2, 132, 199, 0.12);
+  transition: border-color 220ms ease, box-shadow 220ms ease;
 }
 
-/* Button System */
+/* Button System with Responsive Hover (1.02) & Immediate Press (0.98) Micro-Interactions */
 /* 1. Primary Action Pill */
 .btn-primary-pill {
   background: var(--accent);
@@ -271,7 +295,12 @@ html[dir="rtl"] .mobile-glass-drawer {
   border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 0 6px 18px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
   font-weight: 600;
-  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms ease, filter 150ms ease;
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms ease,
+    filter 180ms ease;
+  will-change: transform;
 }
 
 .dark .btn-primary-pill {
@@ -279,10 +308,17 @@ html[dir="rtl"] .mobile-glass-drawer {
   font-weight: 700;
 }
 
-.btn-primary-pill:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.06);
-  box-shadow: 0 12px 30px var(--accent-glow);
+@media (hover: hover) {
+  .btn-primary-pill:hover:not(:disabled) {
+    transform: translateY(-1.5px) scale(1.02);
+    filter: brightness(1.06);
+    box-shadow: 0 12px 28px var(--accent-glow);
+  }
+}
+
+.btn-primary-pill:active:not(:disabled) {
+  transform: translateY(0) scale(0.975);
+  transition-duration: 75ms;
 }
 
 /* 2. Secondary / Tool Pill */
@@ -294,12 +330,24 @@ html[dir="rtl"] .mobile-glass-drawer {
   border-radius: 999px;
   box-shadow: 0 4px 16px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.35);
   font-weight: 600;
-  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms ease;
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease;
+  will-change: transform;
 }
 
-.btn-tool-pill:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px var(--accent-glow);
+@media (hover: hover) {
+  .btn-tool-pill:hover:not(:disabled) {
+    transform: translateY(-1.5px) scale(1.02);
+    box-shadow: 0 12px 28px var(--accent-glow);
+  }
+}
+
+.btn-tool-pill:active:not(:disabled),
+.neu-btn-active:active:not(:disabled) {
+  transform: translateY(0) scale(0.975);
+  transition-duration: 75ms;
 }
 
 /* 3. Circular Icon Buttons (38px x 38px glass circles) */
@@ -318,13 +366,25 @@ html[dir="rtl"] .mobile-glass-drawer {
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   color: var(--text-main);
-  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 180ms ease;
+  will-change: transform;
 }
 
-.btn-circle-glass:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent);
-  box-shadow: 0 12px 30px var(--accent-glow);
+@media (hover: hover) {
+  .btn-circle-glass:hover:not(:disabled) {
+    transform: translateY(-1.5px) scale(1.03);
+    border-color: var(--accent);
+    box-shadow: 0 12px 28px var(--accent-glow);
+  }
+}
+
+.btn-circle-glass:active:not(:disabled) {
+  transform: translateY(0) scale(0.96);
+  transition-duration: 75ms;
 }
 
 /* Standard Interactive Glass Pill Button */
@@ -336,13 +396,95 @@ html[dir="rtl"] .mobile-glass-drawer {
   border-radius: 999px;
   box-shadow: var(--glass-shadow);
   color: var(--text-main);
-  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms ease,
+    color 180ms ease;
+  will-change: transform;
 }
 
-.neu-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: var(--accent);
-  box-shadow: 0 12px 30px var(--accent-glow);
+@media (hover: hover) {
+  .neu-btn:hover:not(:disabled) {
+    transform: translateY(-1.5px) scale(1.02);
+    border-color: var(--accent);
+    box-shadow: 0 12px 28px var(--accent-glow);
+  }
+}
+
+.neu-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.975);
+  transition-duration: 75ms;
+}
+
+/* 10. Forms & Inputs: Smooth #7FD141 Focus State, Elevation & Subtle Validation */
+input[type="text"],
+input[type="number"],
+input[type="search"],
+textarea,
+select {
+  transition:
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms ease;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+textarea:focus,
+select:focus,
+input[type="text"]:focus-visible,
+input[type="number"]:focus-visible,
+select:focus-visible {
+  outline: none !important;
+  border-color: #7FD141 !important;
+  box-shadow:
+    0 0 0 3px rgba(127, 209, 65, 0.24),
+    0 6px 16px rgba(127, 209, 65, 0.14) !important;
+  transform: translateY(-1px);
+}
+
+/* Animated Checkboxes with #7FD141 Completion State */
+input[type="checkbox"] {
+  accent-color: #7FD141;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms ease;
+}
+
+input[type="checkbox"]:hover {
+  transform: scale(1.08);
+}
+
+input[type="checkbox"]:active {
+  transform: scale(0.92);
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid #7FD141;
+  outline-offset: 2px;
+}
+
+@keyframes subtleInvalidShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+.input-invalid {
+  border-color: #f43f5e !important;
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.2) !important;
+  animation: subtleInvalidShake 220ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.input-valid {
+  border-color: #7FD141 !important;
+  box-shadow: 0 0 0 2px rgba(127, 209, 65, 0.2) !important;
 }
 
 /* Custom Liquid Glass Slider Tracks & Glowing Cyan Thumb Handles */
@@ -358,6 +500,12 @@ input[type="range"].sci-slider {
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.15);
   outline: none;
   cursor: pointer;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+input[type="range"].sci-slider:focus-visible {
+  border-color: #7FD141;
+  box-shadow: 0 0 0 3px rgba(127, 209, 65, 0.24);
 }
 
 input[type="range"].sci-slider::-webkit-slider-thumb {
@@ -370,10 +518,138 @@ input[type="range"].sci-slider::-webkit-slider-thumb {
   box-shadow: 0 0 14px rgba(34, 211, 238, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.8);
   border: 2px solid #ffffff;
   cursor: grab;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 140ms ease;
 }
 
 input[type="range"].sci-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.18);
+  transform: scale(1.15);
   box-shadow: 0 0 20px rgba(56, 189, 248, 0.9), 0 2px 8px rgba(15, 23, 42, 0.3);
+}
+
+input[type="range"].sci-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(0.96);
+}
+
+/* 2. Page Load Stagger Animation Sequence (400–700ms total, non-blocking) */
+@keyframes pageFadeSlideUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes navbarLoadIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.anim-load-header {
+  animation: navbarLoadIn 420ms cubic-bezier(0.16, 1, 0.3, 1) 0ms both;
+}
+
+.anim-load-hero {
+  animation: pageFadeSlideUp 440ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
+}
+
+.anim-load-main {
+  animation: pageFadeSlideUp 460ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+}
+
+.anim-load-footer {
+  animation: pageFadeSlideUp 460ms cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
+}
+
+/* 3. Scroll Reveal & Staggered Card Animations (IntersectionObserver driven) */
+.scroll-reveal {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0) scale(0.985);
+  transition:
+    opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--stagger-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal.is-revealed {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* 11. Skeleton Loader & Shimmer Animation (Slow & Subtle) */
+@keyframes subtleShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.10) 25%,
+    rgba(56, 189, 248, 0.18) 50%,
+    rgba(148, 163, 184, 0.10) 75%
+  );
+  background-size: 200% 100%;
+  animation: subtleShimmer 2.2s ease-in-out infinite;
+  border-radius: 12px;
+}
+
+/* 12. Task / Action Completion Transition */
+.task-item-row {
+  transition:
+    background-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.task-item-completed {
+  border-color: rgba(127, 209, 65, 0.45) !important;
+  background: rgba(127, 209, 65, 0.07) !important;
+}
+
+.task-text-completed {
+  opacity: 0.62;
+  text-decoration: line-through;
+  text-decoration-color: rgba(127, 209, 65, 0.7);
+  transition: opacity 220ms ease, color 220ms ease;
+}
+
+/* 13. Smooth Progress Bar & Circular Progress Animations */
+.progress-fill-smooth {
+  transition: width 280ms cubic-bezier(0.16, 1, 0.3, 1), background-color 220ms ease;
+}
+
+.circular-progress-ring {
+  transition: stroke-dashoffset 320ms cubic-bezier(0.16, 1, 0.3, 1), stroke 220ms ease;
+}
+
+/* Respect Reduced Motion Accessibility Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .scroll-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import katex from 'katex';
-import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, ChevronDown } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useLab } from '../store/LabContext';
 
 interface MathFormulaProps {
@@ -83,37 +84,61 @@ export const TheoryAccordion: React.FC<TheoryAccordionProps> = ({
               ? 'نمایش معادلات LaTeX'
               : 'Expand LaTeX Equations'}
           </span>
-          {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          <ChevronDown
+            className={`w-4 h-4 transition-transform duration-200 ease-out ${
+              open ? 'rotate-180 text-sky-500' : ''
+            }`}
+          />
         </div>
       </button>
 
-      {open && (
-        <div className="px-5 pb-5 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map((item, idx) => (
-            <div key={idx} className="neu-inset p-4 flex flex-col justify-between gap-2.5">
-              <div>
-                <h4 className="text-xs font-semibold text-sky-600 dark:text-sky-400 mb-1">
-                  {idx + 1}. {item.title}
-                </h4>
-                <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                  {item.explanation}
-                </p>
-              </div>
-              <div
-                dir="ltr"
-                className="py-2 px-3 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 overflow-x-auto"
-              >
-                <MathFormula tex={item.formula} block={true} className="text-xs" />
-              </div>
-              {item.variables && (
-                <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                  {item.variables}
-                </p>
-              )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 pb-5 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {items.map((item, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 10, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{
+                    duration: 0.26,
+                    delay: idx * 0.06,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                  className="neu-inset p-4 flex flex-col justify-between gap-2.5"
+                >
+                  <div>
+                    <h4 className="text-xs font-semibold text-sky-600 dark:text-sky-400 mb-1">
+                      {idx + 1}. {item.title}
+                    </h4>
+                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                      {item.explanation}
+                    </p>
+                  </div>
+                  <div
+                    dir="ltr"
+                    className="py-2 px-3 rounded-lg bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 overflow-x-auto"
+                  >
+                    <MathFormula tex={item.formula} block={true} className="text-xs" />
+                  </div>
+                  {item.variables && (
+                    <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                      {item.variables}
+                    </p>
+                  )}
+                </motion.div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
