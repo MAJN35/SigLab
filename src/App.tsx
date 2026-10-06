@@ -74,12 +74,10 @@ const NAV_ITEMS: {
 
 const TOP_NAV_SHORTCUTS: { id: PageId; label: string; faLabel: string }[] = [
   { id: 'dashboard', label: 'Overview', faLabel: 'نمای کلی' },
-  { id: 'audio-lab', label: 'Audio & Spectrogram', faLabel: 'پخش صوت و طیف‌نگار' },
-  { id: 'signal-generator', label: 'Waveforms', faLabel: 'شکل‌موج‌ها' },
+  { id: 'audio-lab', label: 'Audio Lab', faLabel: 'آزمایشگاه صوت' },
+  { id: 'signal-generator', label: 'Waveforms', faLabel: 'شکل‌موج' },
   { id: 'fft-spectrum', label: 'Spectrum', faLabel: 'طیف فوریه' },
   { id: 'filtering', label: 'Filters', faLabel: 'فیلترها' },
-  { id: 'eeg-simulator', label: 'EEG Lab', faLabel: 'آزمایشگاه EEG' },
-  { id: 'modulation-ber', label: 'Telecom', faLabel: 'مخابرات' },
   { id: 'documentation', label: 'Docs', faLabel: 'مرجع علمی' },
 ];
 
@@ -245,20 +243,20 @@ const LabShell: React.FC = () => {
       </div>
 
       {/* 1. Header with Page-Load Animation & Sliding Active Indicator */}
-      <header className="floating-pill-navbar anim-load-header px-4 sm:px-6 flex items-center justify-between gap-3">
+      <header className="floating-pill-navbar anim-load-header px-3 sm:px-5 flex items-center justify-between gap-2">
         {/* Left: Portfolio Link + SigLab Brand */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <a
             href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
             onClick={(e) => {
               const currentTheme = darkMode ? 'dark' : 'light';
               e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
             }}
-            className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+            className="neu-btn px-2.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
             title={lang === 'fa' ? 'بازگشت به پورتفولیو majn35.ir' : 'Return to majn35.ir Portfolio'}
           >
             <ArrowLeft className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            <span className="hidden sm:inline">{lang === 'fa' ? 'پورتفولیو' : 'Portfolio'}</span>
+            <span className="hidden md:inline">{lang === 'fa' ? 'پورتفولیو' : 'Portfolio'}</span>
           </a>
 
           <a
@@ -267,7 +265,7 @@ const LabShell: React.FC = () => {
               e.preventDefault();
               setActivePage('dashboard');
             }}
-            className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-full transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 pl-1 pr-1.5 py-1 rounded-full transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
           >
             <img
               src={LAB_IMAGES.favicon}
@@ -276,7 +274,7 @@ const LabShell: React.FC = () => {
               onError={(e) => {
                 e.currentTarget.src = './favicon.svg';
               }}
-              className="w-8 h-8 rounded-full object-cover border border-sky-400/40 shadow-sm shrink-0"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-sky-400/40 shadow-sm shrink-0"
             />
             <span className="font-display text-sm sm:text-base font-extrabold tracking-tight whitespace-nowrap">
               {lang === 'fa' ? 'سیگ‌لب' : 'SigLab'}
@@ -293,7 +291,7 @@ const LabShell: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActivePage(tab.id)}
-                className={`relative h-10 inline-flex items-center px-3 text-[13px] transition-colors duration-200 whitespace-nowrap cursor-pointer ${
+                className={`relative h-9 inline-flex items-center px-2.5 text-xs transition-colors duration-200 whitespace-nowrap shrink-0 cursor-pointer ${
                   isActive
                     ? 'text-sky-600 dark:text-sky-400 font-bold'
                     : 'text-slate-600 dark:text-slate-300 font-semibold hover:text-slate-900 dark:hover:text-white'
@@ -304,7 +302,7 @@ const LabShell: React.FC = () => {
                   <motion.span
                     layoutId="top-nav-active-underline"
                     transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                    className="absolute bottom-1.5 left-2.5 right-2.5 h-[2px] rounded-full bg-sky-500 dark:bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"
+                    className="absolute bottom-1 left-2 right-2 h-[2px] rounded-full bg-sky-500 dark:bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"
                   />
                 )}
               </button>
@@ -313,15 +311,15 @@ const LabShell: React.FC = () => {
         </nav>
 
         {/* Right: Clean Controls Cluster (Study Progress Modal, All Labs Drawer, Save, Language, Theme) */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* Interactive Study Session / Lab Tasks Button with Circular Progress */}
           <button
             type="button"
             onClick={() => setChecklistOpen(true)}
-            className="neu-btn px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            className="btn-circle-glass cursor-pointer"
             title={lang === 'fa' ? 'چک‌لیست تمرین‌های آزمایشگاه' : 'Lab Study Checklist & Progress'}
           >
-            <svg className="w-6 h-6 -rotate-90 shrink-0" viewBox="0 0 28 28">
+            <svg className="w-5 h-5 -rotate-90 shrink-0" viewBox="0 0 28 28">
               <circle
                 cx="14"
                 cy="14"
@@ -344,19 +342,16 @@ const LabShell: React.FC = () => {
                 className="circular-progress-ring"
               />
             </svg>
-            <span className="hidden xl:inline font-mono text-[11px] tabular-nums">
-              {completedCount}/{studyTasks.length}
-            </span>
           </button>
 
           <button
             type="button"
             onClick={() => setDrawerOpen((o) => !o)}
-            className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
             title={lang === 'fa' ? 'مشاهده همه ۱۵ بخش آزمایشگاه' : 'Browse All 15 Lab Modules'}
           >
             <LayoutGrid className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            <span className="hidden md:inline">
+            <span className="hidden sm:inline">
               {lang === 'fa' ? 'همه بخش‌ها' : 'All Labs'}
             </span>
           </button>
