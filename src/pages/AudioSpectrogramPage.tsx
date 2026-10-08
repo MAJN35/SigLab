@@ -4,8 +4,12 @@ import {
   AudioLines,
   BoxSelect,
   Info,
+  Layers,
+  Mic,
+  MicOff,
   MousePointerClick,
   Pause,
+  Pin,
   Play,
   Plus,
   Repeat,
@@ -36,7 +40,7 @@ export type LiveWaveType =
   | 'mixed';
 
 export type VisualizationTab = 'combined' | 'spectrogram' | 'waveform' | 'spectrum';
-export type SpectrogramInteractMode = 'click-tone' | 'box-select';
+export type SpectrogramInteractMode = 'click-tone' | 'multi-click' | 'box-select';
 
 export interface MixLayer {
   id: string;
@@ -52,6 +56,12 @@ interface SelectedPoint {
   magnitudeDb: number;
   normX: number;
   normY: number;
+}
+
+interface PinnedSignalPoint extends SelectedPoint {
+  id: string;
+  enabled: boolean;
+  waveType: OscillatorType;
 }
 
 interface SelectedRegion {
@@ -138,7 +148,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const { lang } = useLab();
 
   // Generator & Audio state
-  const [sourceMode, setSourceMode] = useState<'generator' | 'uploaded'>('generator');
+  const [sourceMode, setSourceMode] = useState<'generator' | 'uploaded' | 'microphone'>('generator');
   const [waveType, setWaveType] = useState<LiveWaveType>('sine');
   const [frequency, setFrequency] = useState<number>(20);
   const [sweepEndFreq, setSweepEndFreq] = useState<number>(12000);
@@ -148,6 +158,17 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const [fftSize, setFftSize] = useState<number>(4096);
   const [maxFreqDisplay, setMaxFreqDisplay] = useState<number>(20000);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+
+  // Microphone live spectrum state
+  const [isMicActive, setIsMicActive] = useState<boolean>(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [micPeakFreq, setMicPeakFreq] = useState<number>(0);
+  const [micRmsDb, setMicRmsDb] = useState<number>(-95);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const micRafRef = useRef<number | null>(null);
+  const micStartTimeRef = useRef<number>(0);
 
   // Custom Mixed Signal layers (default: 20 Hz sine + 100 Hz sine + white noise)
   const [mixLayers, setMixLayers] = useState<MixLayer[]>([
@@ -178,6 +199,49 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     normX: 0.3,
     normY: freqToNormYLog(20, 20000),
   });
+
+  // Multi-Click Pinned Signals & Frequency Range Synthesizer state
+  const [pinnedPoints, setPinnedPoints] = useState<PinnedSignalPoint[]>([
+    {
+      id: 'pin-1',
+      time: 1.8,
+      frequency: 220,
+      magnitudeDb: -12.0,
+      normX: 0.22,
+      normY: freqToNormYLog(220, 20000),
+      enabled: true,
+      waveType: 'sine',
+    },
+    {
+      id: 'pin-2',
+      time: 3.4,
+      frequency: 440,
+      magnitudeDb: -9.5,
+      normX: 0.42,
+      normY: freqToNormYLog(440, 20000),
+      enabled: true,
+      waveType: 'sine',
+    },
+    {
+      id: 'pin-3',
+      time: 5.1,
+      frequency: 880,
+      magnitudeDb: -14.2,
+      normX: 0.64,
+      normY: freqToNormYLog(880, 20000),
+      enabled: true,
+      waveType: 'sine',
+    },
+  ]);
+  const [isPlayingMulti, setIsPlayingMulti] = useState<boolean>(false);
+  const [activeSeqPinId, setActiveSeqPinId] = useState<string | null>(null);
+  const [rangeStartFreq, setRangeStartFreq] = useState<number>(200);
+  const [rangeEndFreq, setRangeEndFreq] = useState<number>(1600);
+  const [rangeToneCount, setRangeToneCount] = useState<number>(8);
+  const [isPlayingRange, setIsPlayingRange] = useState<boolean>(false);
+  const multiOscsRef = useRef<{ osc: OscillatorNode; gain: GainNode }[]>([]);
+  const seqTimersRef = useRef<number[]>([]);
+
   const [selectedRegion, setSelectedRegion] = useState<SelectedRegion | null>(null);
   const [dragBox, setDragBox] = useState<{
     x1: number;
@@ -204,6 +268,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const previewOscRef = useRef<OscillatorNode | null>(null);
   const previewGainRef = useRef<GainNode | null>(null);
   const isPointerDownRef = useRef<boolean>(false);
+  const dragStartFreqRef = useRef<number | null>(null);
 
   // Direct DOM Tooltip Ref (avoids React re-renders on mouse move)
   const tooltipRef = useRef<HTMLDivElement | null>(null);
@@ -798,6 +863,43 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
           ctx.fillText('0dB', barX + 13, padT + 5);
           ctx.fillText('-95', barX + 13, padT + ph - 2);
 
+          // Draw Pinned Multi-Click Signals on Logarithmic Y-Axis
+          if (pinnedPoints.length > 0) {
+            pinnedPoints.forEach((pt, idx) => {
+              const px = padL + Math.max(0, Math.min(1, pt.normX)) * pw;
+              const py = padT + (1 - freqToNormYLog(pt.frequency, maxFreqDisplay)) * ph;
+              const isSeqActive = activeSeqPinId === pt.id;
+
+              ctx.strokeStyle = pt.enabled
+                ? isSeqActive
+                  ? '#f59e0b'
+                  : 'rgba(127, 209, 65, 0.65)'
+                : 'rgba(148, 163, 184, 0.3)';
+              ctx.setLineDash([3, 3]);
+              ctx.lineWidth = isSeqActive ? 2 : 1.1;
+              ctx.beginPath();
+              ctx.moveTo(padL, py);
+              ctx.lineTo(padL + pw, py);
+              ctx.stroke();
+              ctx.setLineDash([]);
+
+              ctx.fillStyle = pt.enabled ? (isSeqActive ? '#f59e0b' : '#7FD141') : '#64748b';
+              ctx.strokeStyle = '#050912';
+              ctx.lineWidth = 1.8;
+              ctx.beginPath();
+              ctx.arc(px, py, isSeqActive ? 7.5 : 6, 0, 2 * Math.PI);
+              ctx.fill();
+              ctx.stroke();
+
+              // Draw badge label (#1, #2, ...)
+              ctx.fillStyle = '#f8fafc';
+              ctx.font = 'bold 9px "IBM Plex Mono", monospace';
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(`#${idx + 1} ${Math.round(pt.frequency)}Hz`, Math.min(padL + pw - 58, px + 8), Math.max(padT + 12, py - 4));
+            });
+          }
+
           // Draw Selected Point Crosshair Marker on Logarithmic Y-Axis
           if (selectedPoint) {
             const sx = padL + Math.max(0, Math.min(1, selectedPoint.normX)) * pw;
@@ -849,7 +951,17 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         }
       }
     },
-    [maxFreqDisplay, scrollingWaterfall, selectedPoint, selectedRegion, dragBox, totalDuration, vizTab]
+    [
+      activeSeqPinId,
+      dragBox,
+      maxFreqDisplay,
+      pinnedPoints,
+      scrollingWaterfall,
+      selectedPoint,
+      selectedRegion,
+      totalDuration,
+      vizTab,
+    ]
   );
 
   // Instantaneous (<0.2ms) visual preview update on any frequency/waveform/button change
@@ -1114,9 +1226,185 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     }
   }, [isLooping, playbackRate]);
 
+  // Stop active microphone stream & analyser loop
+  const stopMicrophone = useCallback(() => {
+    if (micRafRef.current) {
+      cancelAnimationFrame(micRafRef.current);
+      micRafRef.current = null;
+    }
+    if (micSourceRef.current) {
+      try {
+        micSourceRef.current.disconnect();
+      } catch {
+        // ignore
+      }
+      micSourceRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+    }
+    micAnalyserRef.current = null;
+    setIsMicActive(false);
+  }, []);
+
+  // Start Live Microphone Spectrum, Waveform & Scrolling Spectrogram
+  const startMicrophone = useCallback(async () => {
+    setMicError(null);
+    stopSourceNode();
+    setIsPlaying(false);
+    stopMicrophone();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
+      const ctx = getOrCreateAudioContext();
+      const micSource = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 4096;
+      analyser.smoothingTimeConstant = 0.52;
+      analyser.minDecibels = -95;
+      analyser.maxDecibels = 0;
+
+      // Connect microphone to AnalyserNode only (not ctx.destination) to avoid speaker feedback loop
+      micSource.connect(analyser);
+
+      micStreamRef.current = stream;
+      micSourceRef.current = micSource;
+      micAnalyserRef.current = analyser;
+      micStartTimeRef.current = ctx.currentTime;
+      setSourceMode('microphone');
+      setIsMicActive(true);
+      setScrollingWaterfall(true);
+
+      const timeData = new Float32Array(analyser.fftSize);
+      const freqData = new Float32Array(analyser.frequencyBinCount);
+      const nyquist = ctx.sampleRate / 2;
+
+      const tickMic = () => {
+        if (!micAnalyserRef.current || !audioCtxRef.current) return;
+        const an = micAnalyserRef.current;
+        an.getFloatTimeDomainData(timeData);
+        an.getFloatFrequencyData(freqData);
+
+        // 1. Update live time-domain waveform slice & compute RMS dB
+        const waveOut = new Float32Array(512);
+        let sumSq = 0;
+        for (let i = 0; i < 512; i++) {
+          const v = timeData[i * 2] ?? 0;
+          waveOut[i] = v;
+          sumSq += v * v;
+        }
+        liveWaveSliceRef.current = waveOut;
+        const rms = Math.sqrt(sumSq / 512);
+        const rmsDb = Math.max(-95, Math.min(0, 20 * Math.log10(rms + 1e-6)));
+
+        // 2. Map linear FFT bins from AnalyserNode onto SPEC_ROWS logarithmic frequency rows (10 Hz .. maxFreqDisplay)
+        const specCol = new Float32Array(SPEC_ROWS);
+        const binCount = freqData.length;
+        for (let r = 0; r < SPEC_ROWS; r++) {
+          const fLow = normYToFreqLog(r / SPEC_ROWS, maxFreqDisplay);
+          const fHigh = normYToFreqLog((r + 1) / SPEC_ROWS, maxFreqDisplay);
+          const fCenter = normYToFreqLog((r + 0.5) / SPEC_ROWS, maxFreqDisplay);
+          const b0 = Math.max(0, Math.min(binCount - 1, Math.floor((fLow / nyquist) * binCount)));
+          const b1 = Math.max(b0, Math.min(binCount - 1, Math.ceil((fHigh / nyquist) * binCount)));
+
+          if (b1 <= b0 + 1) {
+            // Fractional bin interpolation for smooth low-frequency logarithmic rows
+            const exactBin = Math.max(0, Math.min(binCount - 1.001, (fCenter / nyquist) * binCount));
+            const bi = Math.floor(exactBin);
+            const frac = exactBin - bi;
+            const v0 = Number.isFinite(freqData[bi]) ? freqData[bi] : -95;
+            const v1 = Number.isFinite(freqData[bi + 1]) ? freqData[bi + 1] : -95;
+            specCol[r] = Math.max(-95, Math.min(0, v0 * (1 - frac) + v1 * frac));
+          } else {
+            let maxBinDb = -95;
+            for (let b = b0; b <= b1; b++) {
+              const val = Number.isFinite(freqData[b]) ? freqData[b] : -95;
+              if (val > maxBinDb) maxBinDb = val;
+            }
+            specCol[r] = Math.max(-95, Math.min(0, maxBinDb));
+          }
+        }
+        liveSpecRowRef.current = specCol;
+
+        // Find dominant peak frequency in audible range
+        let maxDbVal = -95;
+        let maxBinIdx = 1;
+        for (let b = 1; b < binCount; b++) {
+          if (freqData[b] > maxDbVal) {
+            maxDbVal = freqData[b];
+            maxBinIdx = b;
+          }
+        }
+        const dominantHz = (maxBinIdx / binCount) * nyquist;
+
+        const elapsed = audioCtxRef.current.currentTime - micStartTimeRef.current;
+        specMatrixRef.current.shift();
+        specMatrixRef.current.push(specCol);
+        const nextTimes = new Float32Array(SPEC_COLS);
+        for (let c = 0; c < SPEC_COLS - 1; c++) {
+          nextTimes[c] = specTimesRef.current[c + 1];
+        }
+        nextTimes[SPEC_COLS - 1] = elapsed;
+        specTimesRef.current = nextTimes;
+
+        const nowMs = performance.now();
+        if (nowMs - lastUiTimeUpdateRef.current > 90) {
+          lastUiTimeUpdateRef.current = nowMs;
+          setCurrentTime(elapsed);
+          setTotalDuration(Math.max(8, elapsed));
+          setMicPeakFreq(Math.round(dominantHz));
+          setMicRmsDb(rmsDb);
+        }
+
+        renderCanvases(elapsed);
+        micRafRef.current = requestAnimationFrame(tickMic);
+      };
+
+      micRafRef.current = requestAnimationFrame(tickMic);
+    } catch {
+      setMicError(
+        lang === 'fa'
+          ? 'دسترسی به میکروفون امکان‌پذیر نشد. لطفاً مجوز میکروفون مرورگر را فعال کنید.'
+          : 'Microphone access denied or unavailable. Please allow microphone permission in your browser.'
+      );
+      setIsMicActive(false);
+    }
+  }, [getOrCreateAudioContext, lang, maxFreqDisplay, renderCanvases, stopMicrophone, stopSourceNode]);
+
+  // Stop multi-signal or range oscillators
+  const stopMultiSignals = useCallback(() => {
+    seqTimersRef.current.forEach((id) => window.clearTimeout(id));
+    seqTimersRef.current = [];
+    setActiveSeqPinId(null);
+
+    if (multiOscsRef.current.length > 0 && audioCtxRef.current) {
+      const ctx = audioCtxRef.current;
+      multiOscsRef.current.forEach(({ osc, gain }) => {
+        try {
+          gain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.02);
+          osc.stop(ctx.currentTime + 0.06);
+        } catch {
+          // ignore
+        }
+      });
+      multiOscsRef.current = [];
+    }
+    setIsPlayingMulti(false);
+    setIsPlayingRange(false);
+  }, []);
+
   useEffect(() => {
     return () => {
       stopSourceNode();
+      stopMicrophone();
+      stopMultiSignals();
       if (previewOscRef.current) {
         try {
           previewOscRef.current.stop();
@@ -1125,15 +1413,18 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         }
       }
     };
-  }, [stopSourceNode]);
+  }, [stopMicrophone, stopMultiSignals, stopSourceNode]);
 
   const handlePause = () => {
     stopSourceNode();
+    stopMicrophone();
     setIsPlaying(false);
   };
 
   const handleStop = () => {
     stopSourceNode();
+    stopMicrophone();
+    stopMultiSignals();
     pauseOffsetRef.current = 0;
     setCurrentTime(0);
     setIsPlaying(false);
@@ -1141,6 +1432,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   };
 
   const handleSeek = (newTime: number) => {
+    if (isMicActive) return;
     pauseOffsetRef.current = newTime;
     setCurrentTime(newTime);
     if (isPlaying) {
@@ -1335,18 +1627,172 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const getSpectrogramCoords = (e: React.MouseEvent<HTMLCanvasElement>) =>
     getSpectrogramCoordsFromClient(e.currentTarget, e.clientX, e.clientY);
 
+  // Play all enabled pinned signals simultaneously (Polyphonic Chord / Harmonic Bank)
+  const playPinnedSignalsSimultaneous = useCallback(
+    (durationMs = 1400) => {
+      const activePins = pinnedPoints.filter((p) => p.enabled);
+      if (activePins.length === 0) return;
+
+      if (isPlayingMulti) {
+        stopMultiSignals();
+        return;
+      }
+
+      stopMultiSignals();
+      const ctx = getOrCreateAudioContext();
+      setIsPlayingMulti(true);
+
+      const masterGain = (isMuted ? 0.28 : Math.max(0.18, volume)) * (0.65 / Math.sqrt(activePins.length));
+      const created: { osc: OscillatorNode; gain: GainNode }[] = [];
+
+      activePins.forEach((pt) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = pt.waveType || 'sine';
+        osc.frequency.setValueAtTime(Math.max(16, Math.min(20000, pt.frequency)), ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.0005, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(masterGain, ctx.currentTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          ctx.currentTime + durationMs / 1000
+        );
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + durationMs / 1000 + 0.04);
+        created.push({ osc, gain });
+      });
+
+      multiOscsRef.current = created;
+      const timerId = window.setTimeout(() => {
+        setIsPlayingMulti(false);
+        multiOscsRef.current = [];
+      }, durationMs + 50);
+      seqTimersRef.current.push(timerId);
+    },
+    [getOrCreateAudioContext, isMuted, isPlayingMulti, pinnedPoints, stopMultiSignals, volume]
+  );
+
+  // Play all enabled pinned signals sequentially (Arpeggio / Step Sequence)
+  const playPinnedSignalsSequence = useCallback(() => {
+    const activePins = pinnedPoints.filter((p) => p.enabled);
+    if (activePins.length === 0) return;
+
+    stopMultiSignals();
+    setIsPlayingMulti(true);
+    const stepMs = 360;
+
+    activePins.forEach((pt, idx) => {
+      const tId = window.setTimeout(() => {
+        setActiveSeqPinId(pt.id);
+        playFrequencyTone(pt.frequency, stepMs - 30);
+      }, idx * stepMs);
+      seqTimersRef.current.push(tId);
+    });
+
+    const endId = window.setTimeout(() => {
+      setActiveSeqPinId(null);
+      setIsPlayingMulti(false);
+    }, activePins.length * stepMs + 40);
+    seqTimersRef.current.push(endId);
+  }, [pinnedPoints, playFrequencyTone, stopMultiSignals]);
+
+  // Play a continuous or multi-tone Range of Signals [fStart .. fEnd]
+  const playFrequencyRangeSignal = useCallback(
+    (mode: 'harmonic-bank' | 'sweep', customF1?: number, customF2?: number) => {
+      const f1 = Math.max(16, Math.min(20000, Math.min(customF1 ?? rangeStartFreq, customF2 ?? rangeEndFreq)));
+      const f2 = Math.max(f1 + 5, Math.min(20000, Math.max(customF1 ?? rangeStartFreq, customF2 ?? rangeEndFreq)));
+
+      stopMultiSignals();
+      const ctx = getOrCreateAudioContext();
+      setIsPlayingRange(true);
+      const durSec = 1.6;
+
+      if (mode === 'sweep') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f1, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(f2, ctx.currentTime + durSec);
+
+        const peak = (isMuted ? 0.28 : Math.max(0.18, volume)) * 0.5;
+        gain.gain.setValueAtTime(0.001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(peak, ctx.currentTime + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durSec);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + durSec + 0.04);
+        multiOscsRef.current = [{ osc, gain }];
+      } else {
+        // Multi-Tone Harmonic Bank across [f1 .. f2]
+        const count = Math.max(2, Math.min(16, rangeToneCount));
+        const perOscGain = (isMuted ? 0.28 : Math.max(0.18, volume)) * (0.6 / Math.sqrt(count));
+        const created: { osc: OscillatorNode; gain: GainNode }[] = [];
+
+        for (let i = 0; i < count; i++) {
+          const ratio = count === 1 ? 0.5 : i / (count - 1);
+          const freq = f1 * Math.pow(f2 / f1, ratio);
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+          gain.gain.setValueAtTime(0.001, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(perOscGain, ctx.currentTime + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durSec);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + durSec + 0.04);
+          created.push({ osc, gain });
+        }
+        multiOscsRef.current = created;
+      }
+
+      const endTimer = window.setTimeout(() => {
+        setIsPlayingRange(false);
+        multiOscsRef.current = [];
+      }, durSec * 1000 + 60);
+      seqTimersRef.current.push(endTimer);
+    },
+    [getOrCreateAudioContext, isMuted, rangeEndFreq, rangeStartFreq, rangeToneCount, stopMultiSignals, volume]
+  );
+
+  // Pin a point to the Multi-Signal Bank
+  const addPinnedPoint = useCallback((pt: SelectedPoint) => {
+    setPinnedPoints((prev) => [
+      ...prev.slice(-9), // keep up to 10 pinned signals clean
+      {
+        ...pt,
+        id: `pin-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        enabled: true,
+        waveType: 'sine',
+      },
+    ]);
+  }, []);
+
   const handleSpecMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getSpectrogramCoords(e);
     isPointerDownRef.current = true;
+    dragStartFreqRef.current = coords.frequency;
 
-    if (interactMode === 'click-tone') {
-      setSelectedPoint({
+    if (interactMode === 'click-tone' || interactMode === 'multi-click') {
+      const newPt: SelectedPoint = {
         time: coords.time,
         frequency: coords.frequency,
         magnitudeDb: coords.magnitudeDb,
         normX: coords.normX,
         normY: coords.normY,
-      });
+      };
+      setSelectedPoint(newPt);
+      if (interactMode === 'multi-click') {
+        addPinnedPoint(newPt);
+      }
       if (autoPlayClick) {
         startOrUpdateDragTone(coords.frequency);
       }
@@ -1377,7 +1823,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
     if (!isPointerDownRef.current) return;
 
-    if (interactMode === 'click-tone') {
+    if (interactMode === 'click-tone' || interactMode === 'multi-click') {
       setSelectedPoint({
         time: coords.time,
         frequency: coords.frequency,
@@ -1397,8 +1843,19 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     if (!isPointerDownRef.current) return;
     isPointerDownRef.current = false;
 
-    if (interactMode === 'click-tone') {
+    if (interactMode === 'click-tone' || interactMode === 'multi-click') {
       stopDragTone();
+      const coords = getSpectrogramCoords(e);
+      if (
+        dragStartFreqRef.current !== null &&
+        Math.abs(coords.frequency - dragStartFreqRef.current) > 25
+      ) {
+        const fMin = Math.round(Math.min(dragStartFreqRef.current, coords.frequency));
+        const fMax = Math.round(Math.max(dragStartFreqRef.current, coords.frequency));
+        setRangeStartFreq(Math.max(16, fMin));
+        setRangeEndFreq(Math.min(20000, fMax));
+      }
+      dragStartFreqRef.current = null;
     } else if (dragBox) {
       const canvas = e.currentTarget;
       const padL = 62;
@@ -1437,14 +1894,18 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             count++;
           }
         }
+        const safeF1 = Math.max(MIN_LOG_FREQ, f1);
+        const safeF2 = Math.max(MIN_LOG_FREQ + 5, f2);
         setSelectedRegion({
           t1,
           t2,
-          f1: Math.max(MIN_LOG_FREQ, f1),
-          f2: Math.max(MIN_LOG_FREQ + 5, f2),
+          f1: safeF1,
+          f2: safeF2,
           peakDb,
           meanDb: count > 0 ? sumDb / count : -80,
         });
+        setRangeStartFreq(Math.round(safeF1));
+        setRangeEndFreq(Math.round(safeF2));
       }
       setDragBox(null);
     }
@@ -1599,7 +2060,11 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             {!isPlaying ? (
               <button
                 type="button"
-                onClick={() => startPlayback(pauseOffsetRef.current)}
+                onClick={() => {
+                  stopMicrophone();
+                  if (sourceMode === 'microphone') setSourceMode('generator');
+                  startPlayback(pauseOffsetRef.current);
+                }}
                 className="btn-primary-pill px-5 py-2.5 text-xs flex items-center gap-2 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-current" />
@@ -1615,6 +2080,40 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 <span>{lang === 'fa' ? 'مکث (Pause)' : 'Pause'}</span>
               </button>
             )}
+
+            {/* Live Microphone Spectrum & Spectrogram Toggle Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isMicActive) {
+                  stopMicrophone();
+                } else {
+                  startMicrophone();
+                }
+              }}
+              className={`px-4 py-2.5 rounded-full text-xs font-semibold flex items-center gap-2 cursor-pointer ${
+                isMicActive
+                  ? 'bg-rose-500/20 border border-rose-500 text-rose-500 shadow-[0_0_16px_rgba(244,63,94,0.35)]'
+                  : 'neu-btn'
+              }`}
+              title={
+                lang === 'fa'
+                  ? 'مشاهده طیف فرکانسی و طیف‌نگار زنده میکروفون'
+                  : 'Stream live microphone audio into FFT Spectrum & Spectrogram'
+              }
+            >
+              {isMicActive ? (
+                <>
+                  <MicOff className="w-3.5 h-3.5 animate-pulse" />
+                  <span>{lang === 'fa' ? 'توقف میکروفون (Live Mic)' : 'Stop Mic Spectrum'}</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="w-3.5 h-3.5 text-rose-500" />
+                  <span>{lang === 'fa' ? 'طیف میکروفون (Mic)' : 'Live Mic Spectrum'}</span>
+                </>
+              )}
+            </button>
 
             <button
               type="button"
@@ -1704,6 +2203,47 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             <span>{lang === 'fa' ? 'تصادفی' : 'Random'}</span>
           </button>
         </div>
+
+        {/* Live Microphone Telemetry Banner */}
+        {isMicActive && (
+          <div className="neu-inset px-4 py-3 flex flex-wrap items-center justify-between gap-3 border border-rose-500/30">
+            <div className="flex items-center gap-2.5 text-xs font-mono">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+              <span className="font-bold text-rose-500">
+                {lang === 'fa'
+                  ? 'ورودی زنده میکروفون فعال است (بدون اکو/فیدبک روی بلندگو)'
+                  : 'LIVE MICROPHONE ANALYSER ACTIVE (Real-Time FFT Spectrum & Waterfall)'}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
+              <span>
+                <span className="text-slate-500">
+                  {lang === 'fa' ? 'فرکانس غالب: ' : 'Dominant Peak: '}
+                </span>
+                <strong className="text-sky-500">{micPeakFreq.toLocaleString()} Hz</strong>
+              </span>
+              <span>
+                <span className="text-slate-500">
+                  {lang === 'fa' ? 'سطح صدا: ' : 'Input Level: '}
+                </span>
+                <strong className="text-emerald-500">{micRmsDb.toFixed(1)} dB</strong>
+              </span>
+              <button
+                type="button"
+                onClick={stopMicrophone}
+                className="neu-btn px-3 py-1 rounded-full text-[11px] font-semibold cursor-pointer"
+              >
+                {lang === 'fa' ? 'تثبیت تصویر طیف (Freeze)' : 'Freeze & Inspect'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {micError && (
+          <div className="neu-inset px-4 py-2.5 text-xs font-mono text-rose-500 border border-rose-500/30">
+            {micError}
+          </div>
+        )}
 
         {/* Row 3: Simple 3-Control Generator Strip (Waveform Type + Frequency + Amplitude) */}
         {sourceMode === 'generator' && (
@@ -2095,6 +2635,26 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
             <button
               type="button"
+              onClick={() => setInteractMode('multi-click')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
+                interactMode === 'multi-click' ? 'btn-tool-pill' : 'neu-btn'
+              }`}
+              title={
+                lang === 'fa'
+                  ? 'با هر کلیک روی طیف‌نگار، یک فرکانس به لیست پخش چندگانه اضافه می‌شود'
+                  : 'Click multiple spots on the spectrogram to pin & play multiple signals together'
+              }
+            >
+              <Pin className="w-3.5 h-3.5" />
+              <span>
+                {lang === 'fa'
+                  ? `چند سیگنال (${pinnedPoints.length})`
+                  : `Multi-Click Signals (${pinnedPoints.length})`}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setInteractMode('box-select')}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
                 interactMode === 'box-select' ? 'btn-tool-pill' : 'neu-btn'
@@ -2102,7 +2662,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             >
               <BoxSelect className="w-3.5 h-3.5" />
               <span>
-                {lang === 'fa' ? 'انتخاب ناحیه' : 'Select Region'}
+                {lang === 'fa' ? 'انتخاب ناحیه / بازه' : 'Select Range'}
               </span>
             </button>
 
@@ -2265,18 +2825,33 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
               <div className="flex flex-wrap items-center gap-2.5">
                 {selectedPoint && (
-                  <button
-                    type="button"
-                    onClick={() => playFrequencyTone(selectedPoint.frequency, 650)}
-                    className="btn-primary-pill px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                    <span>
-                      {lang === 'fa'
-                        ? `پخش فرکانس (${Math.round(selectedPoint.frequency)} Hz)`
-                        : `Play Frequency (${Math.round(selectedPoint.frequency)} Hz)`}
-                    </span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => playFrequencyTone(selectedPoint.frequency, 650)}
+                      className="btn-primary-pill px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>
+                        {lang === 'fa'
+                          ? `پخش فرکانس (${Math.round(selectedPoint.frequency)} Hz)`
+                          : `Play (${Math.round(selectedPoint.frequency)} Hz)`}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addPinnedPoint(selectedPoint)}
+                      className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      title={
+                        lang === 'fa'
+                          ? 'افزودن این نقطه به بانک پخش چند سیگنال'
+                          : 'Pin this clicked frequency to the Multi-Signal Bank'
+                      }
+                    >
+                      <Plus className="w-3.5 h-3.5 text-[#7FD141]" />
+                      <span>{lang === 'fa' ? 'سنجاق به چندسیگنال' : 'Pin Signal'}</span>
+                    </button>
+                  </>
                 )}
 
                 {selectedRegion && (
@@ -2308,6 +2883,197 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                   <span>{lang === 'fa' ? 'پخش با کلیک' : 'Auto-play click'}</span>
                 </label>
               </div>
+              </div>
+
+              {/* Multi-Clicked Signals Bank & Frequency Range Synthesizer Panel */}
+              <div className="pt-2.5 border-t border-slate-300/30 dark:border-slate-800/60 flex flex-col gap-3">
+                {/* Sub-row A: Pinned Multi-Clicked Signals */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 mr-1">
+                      <Layers className="w-3.5 h-3.5 text-[#7FD141]" />
+                      <span>
+                        {lang === 'fa' ? 'سیگنال‌های کلیک‌شده:' : 'Clicked Signals:'}
+                      </span>
+                    </span>
+                    {pinnedPoints.length === 0 ? (
+                      <span className="text-[11px] text-slate-400">
+                        {lang === 'fa'
+                          ? 'حالت «چند سیگنال» را انتخاب کنید و روی طیف‌نگار کلیک کنید'
+                          : 'Select "Multi-Click Signals" mode & click points on the spectrogram'}
+                      </span>
+                    ) : (
+                      pinnedPoints.map((pt, idx) => (
+                        <div
+                          key={pt.id}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] border transition-all ${
+                            activeSeqPinId === pt.id
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-300 scale-105'
+                              : pt.enabled
+                              ? 'bg-slate-900/50 dark:bg-slate-900/80 border-[#7FD141]/50 text-slate-800 dark:text-slate-100'
+                              : 'opacity-45 border-slate-400/30'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={pt.enabled}
+                            onChange={(e) =>
+                              setPinnedPoints((prev) =>
+                                prev.map((item) =>
+                                  item.id === pt.id ? { ...item, enabled: e.target.checked } : item
+                                )
+                              )
+                            }
+                            aria-label={`Toggle signal ${idx + 1}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => playFrequencyTone(pt.frequency, 450)}
+                            className="font-bold text-sky-500 hover:underline cursor-pointer"
+                            title="Click to preview this frequency"
+                          >
+                            #{idx + 1} {Math.round(pt.frequency)} Hz
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPinnedPoints((prev) => prev.filter((item) => item.id !== pt.id))
+                            }
+                            className="text-slate-400 hover:text-rose-500 cursor-pointer ml-0.5"
+                            title="Remove signal"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => playPinnedSignalsSimultaneous(1600)}
+                      disabled={pinnedPoints.filter((p) => p.enabled).length === 0}
+                      className="btn-primary-pill px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>
+                        {isPlayingMulti
+                          ? lang === 'fa'
+                            ? 'توقف پخش چندگانه'
+                            : 'Stop Multi-Play'
+                          : lang === 'fa'
+                          ? `پخش هم‌زمان (${pinnedPoints.filter((p) => p.enabled).length} سیگنال)`
+                          : `Play All Together (${pinnedPoints.filter((p) => p.enabled).length})`}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={playPinnedSignalsSequence}
+                      disabled={pinnedPoints.filter((p) => p.enabled).length === 0}
+                      className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                    >
+                      <AudioLines className="w-3.5 h-3.5 text-sky-500" />
+                      <span>
+                        {lang === 'fa' ? 'پخش متوالی (Sequence)' : 'Play Sequence'}
+                      </span>
+                    </button>
+
+                    {pinnedPoints.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          stopMultiSignals();
+                          setPinnedPoints([]);
+                        }}
+                        className="neu-btn px-2.5 py-1.5 rounded-full text-xs text-rose-500 flex items-center gap-1 cursor-pointer"
+                        title={lang === 'fa' ? 'پاک کردن همه نقاط' : 'Clear all pinned signals'}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sub-row B: Frequency Range Player (Play a Range of Signals as Multi-Tone Bank or Sweep) */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-2 border-t border-slate-300/20 dark:border-slate-800/40">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                      {lang === 'fa' ? 'پخش بازه فرکانسی (Range):' : 'Frequency Range Player:'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={10}
+                        max={19900}
+                        value={rangeStartFreq}
+                        onChange={(e) =>
+                          setRangeStartFreq(Math.max(10, Math.min(19900, Number(e.target.value))))
+                        }
+                        className="neu-inset w-20 px-2 py-0.5 rounded text-right font-bold text-sky-500 bg-transparent"
+                        aria-label="Range Start Frequency Hz"
+                      />
+                      <span className="text-slate-400">Hz →</span>
+                      <input
+                        type="number"
+                        min={20}
+                        max={20000}
+                        value={rangeEndFreq}
+                        onChange={(e) =>
+                          setRangeEndFreq(Math.max(20, Math.min(20000, Number(e.target.value))))
+                        }
+                        className="neu-inset w-20 px-2 py-0.5 rounded text-right font-bold text-emerald-500 bg-transparent"
+                        aria-label="Range End Frequency Hz"
+                      />
+                      <span className="text-slate-400">Hz</span>
+                    </div>
+
+                    <select
+                      value={rangeToneCount}
+                      onChange={(e) => setRangeToneCount(Number(e.target.value))}
+                      className="neu-inset px-2 py-0.5 rounded text-[11px] bg-transparent"
+                      title="Number of simultaneous tones in range"
+                    >
+                      <option value={4}>4 Tones</option>
+                      <option value={8}>8 Tones</option>
+                      <option value={12}>12 Tones</option>
+                      <option value={16}>16 Tones</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => playFrequencyRangeSignal('harmonic-bank')}
+                      className="btn-tool-pill px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>
+                        {isPlayingRange
+                          ? lang === 'fa'
+                            ? 'در حال پخش بازه...'
+                            : 'Playing Range...'
+                          : lang === 'fa'
+                          ? `پخش هم‌زمان بازه (${rangeToneCount} فرکانس)`
+                          : `Play Range Bank (${rangeToneCount} Tones)`}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => playFrequencyRangeSignal('sweep')}
+                      className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>
+                        {lang === 'fa'
+                          ? `جاروب بازه (${rangeStartFreq}→${rangeEndFreq} Hz)`
+                          : `Sweep Range (${rangeStartFreq}→${rangeEndFreq} Hz)`}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
