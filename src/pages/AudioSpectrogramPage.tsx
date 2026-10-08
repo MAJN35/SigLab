@@ -2035,1108 +2035,851 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Clean, Streamlined Audio Generator & Control Card */}
-      <div className="neu-card p-5 sm:p-6 flex flex-col gap-5">
-        {/* Row 1: Title + Play / Stop / Upload / Volume */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="text-xs font-mono text-sky-600 dark:text-sky-400 flex items-center gap-2">
-              <AudioLines className="w-3.5 h-3.5" />
-              <span>
-                {lang === 'fa'
-                  ? 'پخش زنده صوت و طیف‌نگار لگاریتمی (۱۰ هرتز تا ۲۰ کیلوهرتز)'
-                  : 'Live Web Audio Synthesizer & Logarithmic Spectrogram (10 Hz – 20 kHz)'}
-              </span>
-            </div>
-            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight mt-0.5">
-              {lang === 'fa'
-                ? 'پخش‌کننده زنده سیگنال صوتی و طیف‌نگار تعاملی'
-                : 'Live Audio Signal Player & Interactive Spectrogram'}
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            {!isPlaying ? (
-              <button
-                type="button"
-                onClick={() => {
-                  stopMicrophone();
-                  if (sourceMode === 'microphone') setSourceMode('generator');
-                  startPlayback(pauseOffsetRef.current);
-                }}
-                className="btn-primary-pill px-5 py-2.5 text-xs flex items-center gap-2 cursor-pointer"
-              >
-                <Play className="w-4 h-4 fill-current" />
-                <span>{lang === 'fa' ? 'پخش زنده صدا (Play)' : 'Generate & Play'}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handlePause}
-                className="btn-tool-pill px-5 py-2.5 text-xs flex items-center gap-2 cursor-pointer"
-              >
-                <Pause className="w-4 h-4" />
-                <span>{lang === 'fa' ? 'مکث (Pause)' : 'Pause'}</span>
-              </button>
-            )}
-
-            {/* Live Microphone Spectrum & Spectrogram Toggle Button */}
+    <div className="neu-card p-4 sm:p-6 flex flex-col gap-5">
+      {/* Row 1: Minimal Transport, Mic, Upload, Preset Dropdown & Volume */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {!isPlaying ? (
             <button
               type="button"
               onClick={() => {
-                if (isMicActive) {
-                  stopMicrophone();
-                } else {
-                  startMicrophone();
-                }
+                stopMicrophone();
+                if (sourceMode === 'microphone') setSourceMode('generator');
+                startPlayback(pauseOffsetRef.current);
               }}
-              className={`px-4 py-2.5 rounded-full text-xs font-semibold flex items-center gap-2 cursor-pointer ${
-                isMicActive
-                  ? 'bg-rose-500/20 border border-rose-500 text-rose-500 shadow-[0_0_16px_rgba(244,63,94,0.35)]'
-                  : 'neu-btn'
-              }`}
-              title={
-                lang === 'fa'
-                  ? 'مشاهده طیف فرکانسی و طیف‌نگار زنده میکروفون'
-                  : 'Stream live microphone audio into FFT Spectrum & Spectrogram'
-              }
+              className="btn-primary-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
             >
-              {isMicActive ? (
-                <>
-                  <MicOff className="w-3.5 h-3.5 animate-pulse" />
-                  <span>{lang === 'fa' ? 'توقف میکروفون (Live Mic)' : 'Stop Mic Spectrum'}</span>
-                </>
-              ) : (
-                <>
-                  <Mic className="w-3.5 h-3.5 text-rose-500" />
-                  <span>{lang === 'fa' ? 'طیف میکروفون (Mic)' : 'Live Mic Spectrum'}</span>
-                </>
-              )}
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>{lang === 'fa' ? 'پخش' : 'Play'}</span>
             </button>
-
+          ) : (
             <button
               type="button"
-              onClick={handleStop}
-              className="neu-btn px-3.5 py-2.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              onClick={handlePause}
+              className="btn-tool-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
             >
-              <Square className="w-3.5 h-3.5" />
-              <span>{lang === 'fa' ? 'توقف' : 'Stop'}</span>
+              <Pause className="w-3.5 h-3.5" />
+              <span>{lang === 'fa' ? 'مکث' : 'Pause'}</span>
             </button>
+          )}
 
-            <label className="neu-btn px-3.5 py-2.5 rounded-full text-xs font-semibold flex items-center gap-2 cursor-pointer">
-              <Upload className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span>
-                {uploadedFileName
-                  ? uploadedFileName.slice(0, 16)
-                  : lang === 'fa'
-                  ? 'بارگذاری فایل صوتی'
-                  : 'Upload Audio'}
-              </span>
-              <input
-                type="file"
-                accept="audio/*,.wav,.mp3,.ogg,.m4a"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
-
-            <div className="flex items-center gap-1.5 pl-1">
-              <button
-                type="button"
-                onClick={() => setIsMuted((m) => !m)}
-                className="btn-circle-glass cursor-pointer"
-                title={isMuted ? 'Unmute' : 'Mute'}
-              >
-                {isMuted ? (
-                  <VolumeX className="w-4 h-4 text-rose-500" />
-                ) : (
-                  <Volume2 className="w-4 h-4 text-sky-500" />
-                )}
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={isMuted ? 0 : volume}
-                onChange={(e) => {
-                  setIsMuted(false);
-                  setVolume(Number(e.target.value));
-                }}
-                aria-label="Volume"
-                className="sci-slider w-20"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2: One-Click Preset Strip */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-300/40 dark:border-slate-800/70">
-          <span className="text-xs font-mono text-slate-500 mr-1">
-            {lang === 'fa' ? 'پیش‌تنظیم‌ها:' : 'Presets:'}
-          </span>
-          {[
-            { id: '20hz', label: '20 Hz Tone', fa: '۲۰ هرتز' },
-            { id: '100hz', label: '100 Hz Tone', fa: '۱۰۰ هرتز' },
-            { id: '1khz', label: '1 kHz Tone', fa: '۱ کیلوهرتز' },
-            { id: 'chirp', label: 'Chirp', fa: 'جاروب (Chirp)' },
-            { id: 'white', label: 'White Noise', fa: 'نویز سفید' },
-            { id: 'pink', label: 'Pink Noise', fa: 'نویز صورتی' },
-            { id: 'mixed', label: 'Mixed Signal', fa: 'ترکیبی' },
-          ].map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => applyQuickPreset(p.id as any)}
-              className="neu-btn px-3 py-1 rounded-full text-xs font-medium cursor-pointer"
-            >
-              {lang === 'fa' ? p.fa : p.label}
-            </button>
-          ))}
           <button
             type="button"
-            onClick={() => applyQuickPreset('random')}
-            className="neu-btn px-3 py-1 rounded-full text-xs font-semibold text-sky-600 dark:text-sky-400 flex items-center gap-1 cursor-pointer"
+            onClick={handleStop}
+            className="neu-btn px-3 py-2 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer"
           >
-            <Shuffle className="w-3 h-3" />
-            <span>{lang === 'fa' ? 'تصادفی' : 'Random'}</span>
+            <Square className="w-3.5 h-3.5" />
+            <span>{lang === 'fa' ? 'توقف' : 'Stop'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (isMicActive) stopMicrophone();
+              else startMicrophone();
+            }}
+            className={`px-3.5 py-2 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer ${
+              isMicActive
+                ? 'bg-rose-500/20 border border-rose-500 text-rose-500'
+                : 'neu-btn'
+            }`}
+          >
+            {isMicActive ? (
+              <>
+                <MicOff className="w-3.5 h-3.5 animate-pulse" />
+                <span>{lang === 'fa' ? 'توقف میکروفون' : 'Stop Mic'}</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-3.5 h-3.5 text-rose-500" />
+                <span>{lang === 'fa' ? 'میکروفون' : 'Live Mic'}</span>
+              </>
+            )}
+          </button>
+
+          <label className="neu-btn px-3.5 py-2 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+            <Upload className="w-3.5 h-3.5 text-sky-500" />
+            <span>
+              {uploadedFileName
+                ? uploadedFileName.slice(0, 14)
+                : lang === 'fa'
+                ? 'فایل صوتی'
+                : 'Upload'}
+            </span>
+            <input
+              type="file"
+              accept="audio/*,.wav,.mp3,.ogg,.m4a"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {/* Right: Quick Preset Select + Volume + Settings */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <select
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) {
+                applyQuickPreset(e.target.value as any);
+                e.target.value = '';
+              }
+            }}
+            className="neu-inset px-3 py-1.5 rounded-full text-xs font-medium bg-transparent cursor-pointer"
+            aria-label="Quick Signal Presets"
+          >
+            <option value="" disabled>
+              {lang === 'fa' ? 'پیش‌تنظیم سریع...' : 'Quick Preset...'}
+            </option>
+            <option value="20hz">{lang === 'fa' ? '۲۰ هرتز' : '20 Hz Tone'}</option>
+            <option value="100hz">{lang === 'fa' ? '۱۰۰ هرتز' : '100 Hz Tone'}</option>
+            <option value="1khz">{lang === 'fa' ? '۱ کیلوهرتز' : '1 kHz Tone'}</option>
+            <option value="chirp">{lang === 'fa' ? 'جاروب فرکانس' : 'Chirp Sweep'}</option>
+            <option value="white">{lang === 'fa' ? 'نویز سفید' : 'White Noise'}</option>
+            <option value="pink">{lang === 'fa' ? 'نویز صورتی' : 'Pink Noise'}</option>
+            <option value="mixed">{lang === 'fa' ? 'سیگنال ترکیبی' : 'Mixed Signal'}</option>
+            <option value="random">{lang === 'fa' ? 'تصادفی' : 'Random Signal'}</option>
+          </select>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setIsMuted((m) => !m)}
+              className="btn-circle-glass cursor-pointer"
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? (
+                <VolumeX className="w-3.5 h-3.5 text-rose-500" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5 text-sky-500" />
+              )}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={isMuted ? 0 : volume}
+              onChange={(e) => {
+                setIsMuted(false);
+                setVolume(Number(e.target.value));
+              }}
+              aria-label="Volume"
+              className="sci-slider w-16"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((s) => !s)}
+            className={`btn-circle-glass cursor-pointer ${
+              showAdvanced ? 'border-sky-500 text-sky-500' : ''
+            }`}
+            title={lang === 'fa' ? 'تنظیمات' : 'Settings'}
+          >
+            <Settings2
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                showAdvanced ? 'rotate-90' : ''
+              }`}
+            />
           </button>
         </div>
-
-        {/* Live Microphone Telemetry Banner */}
-        {isMicActive && (
-          <div className="neu-inset px-4 py-3 flex flex-wrap items-center justify-between gap-3 border border-rose-500/30">
-            <div className="flex items-center gap-2.5 text-xs font-mono">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
-              <span className="font-bold text-rose-500">
-                {lang === 'fa'
-                  ? 'ورودی زنده میکروفون فعال است (بدون اکو/فیدبک روی بلندگو)'
-                  : 'LIVE MICROPHONE ANALYSER ACTIVE (Real-Time FFT Spectrum & Waterfall)'}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
-              <span>
-                <span className="text-slate-500">
-                  {lang === 'fa' ? 'فرکانس غالب: ' : 'Dominant Peak: '}
-                </span>
-                <strong className="text-sky-500">{micPeakFreq.toLocaleString()} Hz</strong>
-              </span>
-              <span>
-                <span className="text-slate-500">
-                  {lang === 'fa' ? 'سطح صدا: ' : 'Input Level: '}
-                </span>
-                <strong className="text-emerald-500">{micRmsDb.toFixed(1)} dB</strong>
-              </span>
-              <button
-                type="button"
-                onClick={stopMicrophone}
-                className="neu-btn px-3 py-1 rounded-full text-[11px] font-semibold cursor-pointer"
-              >
-                {lang === 'fa' ? 'تثبیت تصویر طیف (Freeze)' : 'Freeze & Inspect'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {micError && (
-          <div className="neu-inset px-4 py-2.5 text-xs font-mono text-rose-500 border border-rose-500/30">
-            {micError}
-          </div>
-        )}
-
-        {/* Row 3: Simple 3-Control Generator Strip (Waveform Type + Frequency + Amplitude) */}
-        {sourceMode === 'generator' && (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-3 border-t border-slate-300/40 dark:border-slate-800/70">
-            <div className="md:col-span-4">
-              <label className="block text-xs font-mono text-slate-500 mb-1">
-                {lang === 'fa' ? 'نوع شکل‌موج (Signal Type)' : 'Signal Waveform'}
-              </label>
-              <select
-                value={waveType}
-                onChange={(e) => setWaveType(e.target.value as LiveWaveType)}
-                className="neu-inset w-full px-3.5 py-2 rounded-xl text-xs font-semibold bg-transparent cursor-pointer"
-              >
-                {WAVE_OPTIONS.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {lang === 'fa' ? w.faLabel : w.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-4">
-              <div className="flex items-center justify-between text-xs font-mono mb-1">
-                <span>{lang === 'fa' ? 'فرکانس (Frequency)' : 'Frequency (Hz)'}</span>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min={10}
-                    max={20000}
-                    step={1}
-                    value={Math.round(frequency)}
-                    onChange={(e) => {
-                      const raw = Number(e.target.value);
-                      if (raw < 10 || raw > 20000) {
-                        setFreqInvalid(true);
-                        window.setTimeout(() => setFreqInvalid(false), 320);
-                      }
-                      setFrequency(Math.max(10, Math.min(20000, raw)));
-                    }}
-                    className={`neu-inset w-20 px-2 py-0.5 rounded text-right font-bold text-sky-500 bg-transparent ${
-                      freqInvalid ? 'input-invalid' : ''
-                    }`}
-                  />
-                  <span className="text-slate-400">Hz</span>
-                </div>
-              </div>
-              {/* Logarithmic slider feel: maps 0..1000 slider steps logarithmically from 10 Hz to 20,000 Hz */}
-              <input
-                type="range"
-                min={0}
-                max={1000}
-                step={1}
-                value={Math.round(freqToNormYLog(frequency, 20000) * 1000)}
-                onChange={(e) => {
-                  const norm = Number(e.target.value) / 1000;
-                  const f = Math.round(normYToFreqLog(norm, 20000));
-                  setFrequency(f);
-                }}
-                className="sci-slider"
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <div className="flex justify-between text-xs font-mono mb-1">
-                <span>{lang === 'fa' ? 'دامنه (Amplitude)' : 'Amplitude'}</span>
-                <span className="font-bold text-emerald-500">{amplitude.toFixed(2)}</span>
-              </div>
-              <input
-                type="range"
-                min={0.05}
-                max={1.0}
-                step={0.05}
-                value={amplitude}
-                onChange={(e) => setAmplitude(Number(e.target.value))}
-                className="sci-slider"
-              />
-            </div>
-
-            <div className="md:col-span-1 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((s) => !s)}
-                className={`btn-circle-glass cursor-pointer ${
-                  showAdvanced ? 'border-sky-500 text-sky-500' : ''
-                }`}
-                title={lang === 'fa' ? 'تنظیمات پیشرفته' : 'Advanced Settings'}
-              >
-                <Settings2
-                  className={`w-4 h-4 transition-transform duration-200 ${
-                    showAdvanced ? 'rotate-90' : ''
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Skeleton Shimmer Loading State when decoding uploaded audio */}
-        {isDecodingUpload && (
-          <div className="neu-inset p-4 flex flex-col gap-2.5">
-            <div className="text-xs font-mono text-sky-500">
-              {lang === 'fa'
-                ? 'در حال رمزگشایی فایل صوتی و محاسبه طیف‌نگار لگاریتمی...'
-                : 'Decoding audio stream & computing logarithmic spectrogram...'}
-            </div>
-            <div className="w-full h-8 skeleton-shimmer" />
-          </div>
-        )}
-
-        {/* Custom Mixed Signal Builder (animated dropdown panel) */}
-        <AnimatePresence initial={false}>
-          {sourceMode === 'generator' && waveType === 'mixed' && (
-            <motion.div
-              initial={{ opacity: 0, y: -6, scale: 0.985 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.985 }}
-              transition={{ duration: 0.19, ease: [0.16, 1, 0.3, 1] }}
-              className="neu-inset p-4 flex flex-col gap-3"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-mono font-bold text-sky-600 dark:text-sky-400">
-                  {lang === 'fa'
-                    ? 'ترکیب‌کننده چند سیگنال (۲۰ هرتز + ۱۰۰ هرتز + نویز سفید)'
-                    : 'Custom Signal Mixer (e.g., 20 Hz Sine + 100 Hz Sine + White Noise)'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMixLayers((prev) => [
-                      ...prev,
-                      {
-                        id: `m-${Date.now()}`,
-                        type: 'sine',
-                        frequency: 440,
-                        amplitude: 0.25,
-                        enabled: true,
-                      },
-                    ])
-                  }
-                  className="btn-primary-pill px-3 py-1 text-xs flex items-center gap-1 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{lang === 'fa' ? 'افزودن لایه' : 'Add Layer'}</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {mixLayers.map((lyr, idx) => (
-                  <div
-                    key={lyr.id}
-                    className={`neu-card-sm p-3 flex flex-col gap-2 task-item-row ${
-                      !lyr.enabled ? 'opacity-55' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={lyr.enabled}
-                          onChange={(e) =>
-                            setMixLayers((prev) =>
-                              prev.map((item, i) =>
-                                i === idx ? { ...item, enabled: e.target.checked } : item
-                              )
-                            )
-                          }
-                        />
-                        <span>{lang === 'fa' ? `لایه #${idx + 1}` : `Layer #${idx + 1}`}</span>
-                      </label>
-                      <select
-                        value={lyr.type}
-                        onChange={(e) =>
-                          setMixLayers((prev) =>
-                            prev.map((item, i) =>
-                              i === idx
-                                ? { ...item, type: e.target.value as MixLayer['type'] }
-                                : item
-                            )
-                          )
-                        }
-                        className="neu-inset px-2 py-0.5 rounded text-xs font-mono bg-transparent"
-                      >
-                        <option value="sine">Sine</option>
-                        <option value="square">Square</option>
-                        <option value="triangle">Triangle</option>
-                        <option value="sawtooth">Sawtooth</option>
-                        <option value="white-noise">White Noise</option>
-                        <option value="pink-noise">Pink Noise</option>
-                      </select>
-                      {mixLayers.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setMixLayers((prev) => prev.filter((_, i) => i !== idx))
-                          }
-                          className="text-rose-500 hover:opacity-80 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    {lyr.type !== 'white-noise' && lyr.type !== 'pink-noise' && (
-                      <div>
-                        <div className="flex justify-between text-[11px] font-mono">
-                          <span>{lang === 'fa' ? 'فرکانس' : 'Freq'}</span>
-                          <span className="text-sky-500 font-bold">{lyr.frequency} Hz</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={1000}
-                          step={1}
-                          value={Math.round(freqToNormYLog(lyr.frequency, 20000) * 1000)}
-                          onChange={(e) => {
-                            const f = Math.round(
-                              normYToFreqLog(Number(e.target.value) / 1000, 20000)
-                            );
-                            setMixLayers((prev) =>
-                              prev.map((item, i) =>
-                                i === idx ? { ...item, frequency: f } : item
-                              )
-                            );
-                          }}
-                          className="sci-slider"
-                        />
-                      </div>
-                    )}
-
-                    <div>
-                      <div className="flex justify-between text-[11px] font-mono">
-                        <span>{lang === 'fa' ? 'دامنه' : 'Amplitude'}</span>
-                        <span className="text-emerald-500 font-bold">
-                          {lyr.amplitude.toFixed(2)}
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0.02}
-                        max={0.9}
-                        step={0.02}
-                        value={lyr.amplitude}
-                        onChange={(e) =>
-                          setMixLayers((prev) =>
-                            prev.map((item, i) =>
-                              i === idx
-                                ? { ...item, amplitude: Number(e.target.value) }
-                                : item
-                            )
-                          )
-                        }
-                        className="sci-slider"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Collapsible Advanced Audio & Transport Settings (smooth 180ms dropdown transition) */}
-        <AnimatePresence initial={false}>
-          {(showAdvanced || sourceMode === 'uploaded') && (
-            <motion.div
-              initial={{ opacity: 0, y: -6, scale: 0.985 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.985 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="neu-inset p-3.5 flex flex-wrap items-center justify-between gap-4 text-xs font-mono"
-            >
-              <div className="flex items-center gap-3 flex-1 min-w-[220px]">
-                <span className="tabular-nums text-sky-500 font-bold w-24 shrink-0">
-                  {currentTime.toFixed(1)}s / {totalDuration.toFixed(1)}s
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={Math.max(0.1, totalDuration)}
-                  step={0.05}
-                  value={currentTime}
-                  onChange={(e) => handleSeek(Number(e.target.value))}
-                  className="sci-slider flex-1"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5">
-                <select
-                  value={sampleRate}
-                  onChange={(e) => setSampleRate(Number(e.target.value))}
-                  className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
-                  title="Sample Rate"
-                >
-                  <option value={22050}>fs: 22.05 kHz</option>
-                  <option value={44100}>fs: 44.1 kHz</option>
-                  <option value={48000}>fs: 48.0 kHz</option>
-                </select>
-
-                <select
-                  value={fftSize}
-                  onChange={(e) => setFftSize(Number(e.target.value))}
-                  className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
-                  title="FFT Size"
-                >
-                  <option value={2048}>FFT: 2048</option>
-                  <option value={4096}>FFT: 4096</option>
-                  <option value={8192}>FFT: 8192</option>
-                </select>
-
-                <button
-                  type="button"
-                  onClick={() => setIsLooping((l) => !l)}
-                  className={`neu-btn px-3 py-1 rounded-full flex items-center gap-1 cursor-pointer ${
-                    isLooping ? 'btn-tool-pill' : ''
-                  }`}
-                >
-                  <Repeat className="w-3.5 h-3.5" />
-                  <span>{lang === 'fa' ? 'تکرار' : 'Loop'}</span>
-                </button>
-
-                <select
-                  value={playbackRate}
-                  onChange={(e) => setPlaybackRate(Number(e.target.value))}
-                  className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
-                  aria-label="Playback Speed"
-                >
-                  <option value={0.5}>0.5x</option>
-                  <option value={1.0}>1.0x</option>
-                  <option value={1.5}>1.5x</option>
-                  <option value={2.0}>2.0x</option>
-                </select>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
-      {/* Main Interactive Spectrogram Card (Logarithmic Y-Axis 10 Hz – 20 kHz) */}
-      <div className="neu-card p-5 sm:p-6 flex flex-col gap-4">
-        {/* Clean Single-Row Toolbar: View Mode Tabs with Sliding Active Indicator + Click-to-Hear / Region Select */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="neu-inset p-1 rounded-full flex flex-wrap items-center gap-1">
-            {(
-              [
-                { id: 'combined', label: 'Combined View', fa: 'نمای ترکیبی' },
-                { id: 'spectrogram', label: 'Spectrogram', fa: 'طیف‌نگار' },
-                { id: 'waveform', label: 'Waveform', fa: 'شکل‌موج' },
-                { id: 'spectrum', label: 'Spectrum', fa: 'طیف فوریه' },
-              ] as { id: VisualizationTab; label: string; fa: string }[]
-            ).map((t) => {
-              const active = vizTab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setVizTab(t.id)}
-                  className={`relative px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors duration-150 cursor-pointer ${
-                    active
-                      ? 'text-white dark:text-slate-950 font-bold'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  {active && (
-                    <motion.span
-                      layoutId="audio-viz-tab-pill"
-                      transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                      className="absolute inset-0 rounded-full bg-sky-500 dark:bg-sky-400 shadow-[0_4px_14px_rgba(56,189,248,0.45)]"
-                    />
-                  )}
-                  <span className="relative z-10">{lang === 'fa' ? t.fa : t.label}</span>
-                </button>
-              );
-            })}
+      {/* Live Microphone Status Bar */}
+      {isMicActive && (
+        <div className="neu-inset px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs font-mono border border-rose-500/30">
+          <div className="flex items-center gap-2 text-rose-500 font-bold">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            <span>{lang === 'fa' ? 'طیف زنده میکروفون' : 'Live Microphone Input'}</span>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-4">
+            <span>
+              Peak: <strong className="text-sky-500">{micPeakFreq} Hz</strong>
+            </span>
+            <span>
+              Level: <strong className="text-emerald-500">{micRmsDb.toFixed(1)} dB</strong>
+            </span>
             <button
               type="button"
-              onClick={() => setInteractMode('click-tone')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
-                interactMode === 'click-tone' ? 'btn-tool-pill' : 'neu-btn'
-              }`}
+              onClick={stopMicrophone}
+              className="neu-btn px-2.5 py-0.5 rounded-full text-[11px] cursor-pointer"
             >
-              <MousePointerClick className="w-3.5 h-3.5" />
-              <span>
-                {lang === 'fa' ? 'کلیک ← شنیدن فرکانس' : 'Click / Drag → Hear'}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setInteractMode('multi-click')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
-                interactMode === 'multi-click' ? 'btn-tool-pill' : 'neu-btn'
-              }`}
-              title={
-                lang === 'fa'
-                  ? 'با هر کلیک روی طیف‌نگار، یک فرکانس به لیست پخش چندگانه اضافه می‌شود'
-                  : 'Click multiple spots on the spectrogram to pin & play multiple signals together'
-              }
-            >
-              <Pin className="w-3.5 h-3.5" />
-              <span>
-                {lang === 'fa'
-                  ? `چند سیگنال (${pinnedPoints.length})`
-                  : `Multi-Click Signals (${pinnedPoints.length})`}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setInteractMode('box-select')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
-                interactMode === 'box-select' ? 'btn-tool-pill' : 'neu-btn'
-              }`}
-            >
-              <BoxSelect className="w-3.5 h-3.5" />
-              <span>
-                {lang === 'fa' ? 'انتخاب ناحیه / بازه' : 'Select Range'}
-              </span>
-            </button>
-
-            {/* Sleek Animated Toggle Switch for Live Waterfall Scroll vs Static Timeline */}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={scrollingWaterfall}
-              onClick={() => setScrollingWaterfall((s) => !s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 cursor-pointer ${
-                scrollingWaterfall ? 'btn-tool-pill' : 'neu-btn'
-              }`}
-              title={
-                lang === 'fa'
-                  ? 'تغییر حالت پیمایش زنده طیف‌نگار'
-                  : 'Toggle real-time scrolling waterfall vs. fixed timeline'
-              }
-            >
-              <span
-                className={`w-7 h-4 rounded-full p-0.5 flex items-center transition-colors duration-200 ${
-                  scrollingWaterfall
-                    ? 'bg-sky-500/30 border border-sky-400 justify-end'
-                    : 'bg-slate-400/25 border border-slate-400/40 justify-start'
-                }`}
-              >
-                <motion.span
-                  layout
-                  transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    scrollingWaterfall
-                      ? 'bg-[#7FD141] shadow-[0_0_6px_#7FD141]'
-                      : 'bg-slate-400'
-                  }`}
-                />
-              </span>
-              <span>{lang === 'fa' ? 'پیمایش زنده' : 'Live Scroll'}</span>
+              {lang === 'fa' ? 'تثبیت (Freeze)' : 'Freeze'}
             </button>
           </div>
         </div>
+      )}
 
-        {/* Interactive Logarithmic Spectrogram Canvas */}
-        {(vizTab === 'combined' || vizTab === 'spectrogram') && (
-          <div className="flex flex-col gap-3">
-            <div className="relative oscilloscope-frame p-1.5 overflow-hidden select-none">
-              <canvas
-                ref={spectrogramCanvasRef}
-                onMouseDown={handleSpecMouseDown}
-                onMouseMove={handleSpecMouseMove}
-                onMouseUp={handleSpecMouseUp}
-                onTouchStart={(e) => {
-                  if (e.touches.length > 0) {
-                    const t = e.touches[0];
-                    const coords = getSpectrogramCoordsFromClient(
-                      e.currentTarget,
-                      t.clientX,
-                      t.clientY
-                    );
-                    isPointerDownRef.current = true;
-                    setSelectedPoint({
-                      time: coords.time,
-                      frequency: coords.frequency,
-                      magnitudeDb: coords.magnitudeDb,
-                      normX: coords.normX,
-                      normY: coords.normY,
-                    });
-                    if (autoPlayClick) startOrUpdateDragTone(coords.frequency);
-                  }
-                }}
-                onTouchMove={(e) => {
-                  if (e.touches.length > 0) {
-                    const t = e.touches[0];
-                    const coords = getSpectrogramCoordsFromClient(
-                      e.currentTarget,
-                      t.clientX,
-                      t.clientY
-                    );
-                    setSelectedPoint({
-                      time: coords.time,
-                      frequency: coords.frequency,
-                      magnitudeDb: coords.magnitudeDb,
-                      normX: coords.normX,
-                      normY: coords.normY,
-                    });
-                    if (autoPlayClick) startOrUpdateDragTone(coords.frequency);
-                  }
-                }}
-                onTouchEnd={() => {
-                  isPointerDownRef.current = false;
-                  stopDragTone();
-                }}
-                onMouseLeave={() => {
-                  if (tooltipRef.current) {
-                    tooltipRef.current.style.display = 'none';
-                  }
-                  if (isPointerDownRef.current) {
-                    isPointerDownRef.current = false;
-                    stopDragTone();
-                  }
-                }}
-                className="block w-full rounded-xl cursor-crosshair touch-none"
-              />
+      {micError && (
+        <div className="neu-inset px-3.5 py-2 text-xs font-mono text-rose-500 border border-rose-500/30">
+          {micError}
+        </div>
+      )}
 
-              {/* Zero-overhead DOM Hover Tooltip */}
-              <div
-                ref={tooltipRef}
-                style={{ display: 'none' }}
-                className="pointer-events-none absolute z-20 px-3 py-1.5 rounded-lg bg-slate-950/90 border border-sky-400/40 text-[11px] font-mono text-slate-100 shadow-lg"
-              />
-            </div>
+      {/* Row 2: Minimal 3-Column Generator Strip */}
+      {sourceMode === 'generator' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center pt-3 border-t border-slate-300/30 dark:border-slate-800/60">
+          <div>
+            <label className="block text-[11px] font-mono text-slate-500 mb-1">
+              {lang === 'fa' ? 'شکل‌موج' : 'Waveform'}
+            </label>
+            <select
+              value={waveType}
+              onChange={(e) => setWaveType(e.target.value as LiveWaveType)}
+              className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
+            >
+              {WAVE_OPTIONS.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {lang === 'fa' ? w.faLabel : w.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Sleek Timeline Scroll / Scrubber Bar & Coordinate Readout */}
-            <div className="neu-inset px-4 py-3 flex flex-col gap-2.5 text-xs font-mono">
-              {/* Interactive Time Scroll / Scrubber Bar */}
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] text-slate-500 shrink-0">
-                  {lang === 'fa' ? 'پیمایش زمان:' : 'Time Scroll:'}
-                </span>
-                <span className="tabular-nums text-sky-600 dark:text-sky-400 font-bold w-24 shrink-0">
-                  {currentTime.toFixed(2)}s / {totalDuration.toFixed(1)}s
-                </span>
+          <div>
+            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span className="text-slate-500">{lang === 'fa' ? 'فرکانس' : 'Frequency'}</span>
+              <div className="flex items-center gap-1">
                 <input
-                  type="range"
-                  min={0}
-                  max={Math.max(0.1, totalDuration)}
-                  step={0.02}
-                  value={currentTime}
-                  onChange={(e) => handleSeek(Number(e.target.value))}
-                  aria-label="Spectrogram Timeline Scroll"
-                  className="sci-slider flex-1"
+                  type="number"
+                  min={10}
+                  max={20000}
+                  step={1}
+                  value={Math.round(frequency)}
+                  onChange={(e) => {
+                    const raw = Number(e.target.value);
+                    if (raw < 10 || raw > 20000) {
+                      setFreqInvalid(true);
+                      window.setTimeout(() => setFreqInvalid(false), 320);
+                    }
+                    setFrequency(Math.max(10, Math.min(20000, raw)));
+                  }}
+                  className={`neu-inset w-18 px-1.5 py-0.5 rounded text-right font-bold text-sky-500 bg-transparent ${
+                    freqInvalid ? 'input-invalid' : ''
+                  }`}
                 />
+                <span className="text-slate-400">Hz</span>
               </div>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1000}
+              step={1}
+              value={Math.round(freqToNormYLog(frequency, 20000) * 1000)}
+              onChange={(e) => {
+                const norm = Number(e.target.value) / 1000;
+                setFrequency(Math.round(normYToFreqLog(norm, 20000)));
+              }}
+              className="sci-slider"
+            />
+          </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-1.5 border-t border-slate-300/30 dark:border-slate-800/60">
-              {selectedPoint && (
-                <div className="flex flex-wrap items-center gap-4">
-                  <span>
-                    <span className="text-slate-500">
-                      {lang === 'fa' ? 'زمان: ' : 'Time: '}
-                    </span>
-                    <strong>{selectedPoint.time.toFixed(2)} s</strong>
-                  </span>
-                  <span>
-                    <span className="text-slate-500">
-                      {lang === 'fa' ? 'فرکانس: ' : 'Frequency: '}
-                    </span>
-                    <strong className="text-sky-600 dark:text-sky-400 text-sm">
-                      {Math.round(selectedPoint.frequency).toLocaleString()} Hz
-                    </strong>
-                  </span>
-                  <span>
-                    <span className="text-slate-500">
-                      {lang === 'fa' ? 'شدت: ' : 'Magnitude: '}
-                    </span>
-                    <strong className="text-emerald-600 dark:text-emerald-400">
-                      {selectedPoint.magnitudeDb.toFixed(1)} dB
-                    </strong>
-                  </span>
-                </div>
-              )}
+          <div>
+            <div className="flex justify-between text-[11px] font-mono mb-1">
+              <span className="text-slate-500">{lang === 'fa' ? 'دامنه' : 'Amplitude'}</span>
+              <span className="font-bold text-emerald-500">{amplitude.toFixed(2)}</span>
+            </div>
+            <input
+              type="range"
+              min={0.05}
+              max={1.0}
+              step={0.05}
+              value={amplitude}
+              onChange={(e) => setAmplitude(Number(e.target.value))}
+              className="sci-slider"
+            />
+          </div>
+        </div>
+      )}
 
-              <div className="flex flex-wrap items-center gap-2.5">
-                {selectedPoint && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => playFrequencyTone(selectedPoint.frequency, 650)}
-                      className="btn-primary-pill px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                      <span>
-                        {lang === 'fa'
-                          ? `پخش فرکانس (${Math.round(selectedPoint.frequency)} Hz)`
-                          : `Play (${Math.round(selectedPoint.frequency)} Hz)`}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addPinnedPoint(selectedPoint)}
-                      className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                      title={
-                        lang === 'fa'
-                          ? 'افزودن این نقطه به بانک پخش چند سیگنال'
-                          : 'Pin this clicked frequency to the Multi-Signal Bank'
+      {isDecodingUpload && (
+        <div className="w-full h-7 skeleton-shimmer" />
+      )}
+
+      {/* Custom Mixed Signal Builder */}
+      <AnimatePresence initial={false}>
+        {sourceMode === 'generator' && waveType === 'mixed' && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16 }}
+            className="neu-inset p-3.5 flex flex-col gap-2.5"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono text-sky-500 font-bold">
+                {lang === 'fa' ? 'لایه‌های سیگنال ترکیبی' : 'Signal Mix Layers'}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setMixLayers((prev) => [
+                    ...prev,
+                    {
+                      id: `m-${Date.now()}`,
+                      type: 'sine',
+                      frequency: 440,
+                      amplitude: 0.25,
+                      enabled: true,
+                    },
+                  ])
+                }
+                className="neu-btn px-2.5 py-1 rounded-full text-xs flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>{lang === 'fa' ? 'افزودن' : 'Add'}</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+              {mixLayers.map((lyr, idx) => (
+                <div
+                  key={lyr.id}
+                  className={`neu-card-sm p-2.5 flex flex-col gap-1.5 ${
+                    !lyr.enabled ? 'opacity-50' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={lyr.enabled}
+                      onChange={(e) =>
+                        setMixLayers((prev) =>
+                          prev.map((item, i) =>
+                            i === idx ? { ...item, enabled: e.target.checked } : item
+                          )
+                        )
                       }
+                    />
+                    <select
+                      value={lyr.type}
+                      onChange={(e) =>
+                        setMixLayers((prev) =>
+                          prev.map((item, i) =>
+                            i === idx ? { ...item, type: e.target.value as MixLayer['type'] } : item
+                          )
+                        )
+                      }
+                      className="neu-inset px-2 py-0.5 rounded text-xs font-mono bg-transparent flex-1"
                     >
-                      <Plus className="w-3.5 h-3.5 text-[#7FD141]" />
-                      <span>{lang === 'fa' ? 'سنجاق به چندسیگنال' : 'Pin Signal'}</span>
-                    </button>
-                  </>
-                )}
-
-                {selectedRegion && (
-                  <button
-                    type="button"
-                    onClick={handleSonifyRegion}
-                    disabled={isSonifying}
-                    className="btn-tool-pill px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>
-                      {isSonifying
-                        ? lang === 'fa'
-                          ? 'در حال پخش...'
-                          : 'Sonifying...'
-                        : lang === 'fa'
-                        ? `شنیداری‌سازی ناحیه (${Math.round(selectedRegion.f1)}–${Math.round(selectedRegion.f2)} Hz)`
-                        : `Sonify Selection (${Math.round(selectedRegion.f1)}–${Math.round(selectedRegion.f2)} Hz)`}
-                    </span>
-                  </button>
-                )}
-
-                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoPlayClick}
-                    onChange={(e) => setAutoPlayClick(e.target.checked)}
-                  />
-                  <span>{lang === 'fa' ? 'پخش با کلیک' : 'Auto-play click'}</span>
-                </label>
-              </div>
-              </div>
-
-              {/* Multi-Clicked Signals Bank & Frequency Range Synthesizer Panel */}
-              <div className="pt-2.5 border-t border-slate-300/30 dark:border-slate-800/60 flex flex-col gap-3">
-                {/* Sub-row A: Pinned Multi-Clicked Signals */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 mr-1">
-                      <Layers className="w-3.5 h-3.5 text-[#7FD141]" />
-                      <span>
-                        {lang === 'fa' ? 'سیگنال‌های کلیک‌شده:' : 'Clicked Signals:'}
-                      </span>
-                    </span>
-                    {pinnedPoints.length === 0 ? (
-                      <span className="text-[11px] text-slate-400">
-                        {lang === 'fa'
-                          ? 'حالت «چند سیگنال» را انتخاب کنید و روی طیف‌نگار کلیک کنید'
-                          : 'Select "Multi-Click Signals" mode & click points on the spectrogram'}
-                      </span>
-                    ) : (
-                      pinnedPoints.map((pt, idx) => (
-                        <div
-                          key={pt.id}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] border transition-all ${
-                            activeSeqPinId === pt.id
-                              ? 'bg-amber-500/20 border-amber-400 text-amber-300 scale-105'
-                              : pt.enabled
-                              ? 'bg-slate-900/50 dark:bg-slate-900/80 border-[#7FD141]/50 text-slate-800 dark:text-slate-100'
-                              : 'opacity-45 border-slate-400/30'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={pt.enabled}
-                            onChange={(e) =>
-                              setPinnedPoints((prev) =>
-                                prev.map((item) =>
-                                  item.id === pt.id ? { ...item, enabled: e.target.checked } : item
-                                )
-                              )
-                            }
-                            aria-label={`Toggle signal ${idx + 1}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => playFrequencyTone(pt.frequency, 450)}
-                            className="font-bold text-sky-500 hover:underline cursor-pointer"
-                            title="Click to preview this frequency"
-                          >
-                            #{idx + 1} {Math.round(pt.frequency)} Hz
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPinnedPoints((prev) => prev.filter((item) => item.id !== pt.id))
-                            }
-                            className="text-slate-400 hover:text-rose-500 cursor-pointer ml-0.5"
-                            title="Remove signal"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => playPinnedSignalsSimultaneous(1600)}
-                      disabled={pinnedPoints.filter((p) => p.enabled).length === 0}
-                      className="btn-primary-pill px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>
-                        {isPlayingMulti
-                          ? lang === 'fa'
-                            ? 'توقف پخش چندگانه'
-                            : 'Stop Multi-Play'
-                          : lang === 'fa'
-                          ? `پخش هم‌زمان (${pinnedPoints.filter((p) => p.enabled).length} سیگنال)`
-                          : `Play All Together (${pinnedPoints.filter((p) => p.enabled).length})`}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={playPinnedSignalsSequence}
-                      disabled={pinnedPoints.filter((p) => p.enabled).length === 0}
-                      className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-                    >
-                      <AudioLines className="w-3.5 h-3.5 text-sky-500" />
-                      <span>
-                        {lang === 'fa' ? 'پخش متوالی (Sequence)' : 'Play Sequence'}
-                      </span>
-                    </button>
-
-                    {pinnedPoints.length > 0 && (
+                      <option value="sine">Sine</option>
+                      <option value="square">Square</option>
+                      <option value="triangle">Triangle</option>
+                      <option value="sawtooth">Sawtooth</option>
+                      <option value="white-noise">White Noise</option>
+                      <option value="pink-noise">Pink Noise</option>
+                    </select>
+                    {mixLayers.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          stopMultiSignals();
-                          setPinnedPoints([]);
-                        }}
-                        className="neu-btn px-2.5 py-1.5 rounded-full text-xs text-rose-500 flex items-center gap-1 cursor-pointer"
-                        title={lang === 'fa' ? 'پاک کردن همه نقاط' : 'Clear all pinned signals'}
+                        onClick={() => setMixLayers((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-rose-500 cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                </div>
-
-                {/* Sub-row B: Frequency Range Player (Play a Range of Signals as Multi-Tone Bank or Sweep) */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-2 border-t border-slate-300/20 dark:border-slate-800/40">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                      {lang === 'fa' ? 'پخش بازه فرکانسی (Range):' : 'Frequency Range Player:'}
-                    </span>
-                    <div className="flex items-center gap-1">
+                  {lyr.type !== 'white-noise' && lyr.type !== 'pink-noise' && (
+                    <div className="flex items-center gap-2 text-[11px] font-mono">
+                      <span className="w-14 text-sky-500 font-bold">{lyr.frequency}Hz</span>
                       <input
-                        type="number"
-                        min={10}
-                        max={19900}
-                        value={rangeStartFreq}
-                        onChange={(e) =>
-                          setRangeStartFreq(Math.max(10, Math.min(19900, Number(e.target.value))))
-                        }
-                        className="neu-inset w-20 px-2 py-0.5 rounded text-right font-bold text-sky-500 bg-transparent"
-                        aria-label="Range Start Frequency Hz"
+                        type="range"
+                        min={0}
+                        max={1000}
+                        value={Math.round(freqToNormYLog(lyr.frequency, 20000) * 1000)}
+                        onChange={(e) => {
+                          const f = Math.round(
+                            normYToFreqLog(Number(e.target.value) / 1000, 20000)
+                          );
+                          setMixLayers((prev) =>
+                            prev.map((item, i) => (i === idx ? { ...item, frequency: f } : item))
+                          );
+                        }}
+                        className="sci-slider flex-1"
                       />
-                      <span className="text-slate-400">Hz →</span>
-                      <input
-                        type="number"
-                        min={20}
-                        max={20000}
-                        value={rangeEndFreq}
-                        onChange={(e) =>
-                          setRangeEndFreq(Math.max(20, Math.min(20000, Number(e.target.value))))
-                        }
-                        className="neu-inset w-20 px-2 py-0.5 rounded text-right font-bold text-emerald-500 bg-transparent"
-                        aria-label="Range End Frequency Hz"
-                      />
-                      <span className="text-slate-400">Hz</span>
                     </div>
-
-                    <select
-                      value={rangeToneCount}
-                      onChange={(e) => setRangeToneCount(Number(e.target.value))}
-                      className="neu-inset px-2 py-0.5 rounded text-[11px] bg-transparent"
-                      title="Number of simultaneous tones in range"
-                    >
-                      <option value={4}>4 Tones</option>
-                      <option value={8}>8 Tones</option>
-                      <option value={12}>12 Tones</option>
-                      <option value={16}>16 Tones</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => playFrequencyRangeSignal('harmonic-bank')}
-                      className="btn-tool-pill px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>
-                        {isPlayingRange
-                          ? lang === 'fa'
-                            ? 'در حال پخش بازه...'
-                            : 'Playing Range...'
-                          : lang === 'fa'
-                          ? `پخش هم‌زمان بازه (${rangeToneCount} فرکانس)`
-                          : `Play Range Bank (${rangeToneCount} Tones)`}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => playFrequencyRangeSignal('sweep')}
-                      className="neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>
-                        {lang === 'fa'
-                          ? `جاروب بازه (${rangeStartFreq}→${rangeEndFreq} Hz)`
-                          : `Sweep Range (${rangeStartFreq}→${rangeEndFreq} Hz)`}
-                      </span>
-                    </button>
-                  </div>
+                  )}
                 </div>
-              </div>
+              ))}
             </div>
-          </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* Synchronized Time-Domain Waveform & Logarithmic FFT Spectrum */}
-        {(vizTab === 'combined' || vizTab === 'waveform' || vizTab === 'spectrum') && (
-          <div
-            className={`grid grid-cols-1 ${
-              vizTab === 'combined' ? 'lg:grid-cols-2' : ''
-            } gap-5 pt-1`}
+      {/* Collapsible Advanced Audio Settings */}
+      <AnimatePresence initial={false}>
+        {showAdvanced && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16 }}
+            className="neu-inset p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono"
           >
-            {(vizTab === 'combined' || vizTab === 'waveform') && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs font-mono text-slate-500 px-1">
-                  <span className="font-bold text-slate-700 dark:text-slate-200">
-                    {lang === 'fa'
-                      ? 'شکل‌موج زنده در حوزه زمان (Waveform)'
-                      : 'Time-Domain Waveform — Time (s) vs. Amplitude'}
-                  </span>
-                  <Activity className="w-3.5 h-3.5 text-sky-500" />
-                </div>
-                <div className="oscilloscope-frame p-1 overflow-hidden">
-                  <canvas ref={waveformCanvasRef} className="block w-full rounded-xl" />
-                </div>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={sampleRate}
+                onChange={(e) => setSampleRate(Number(e.target.value))}
+                className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
+              >
+                <option value={22050}>22.05 kHz</option>
+                <option value={44100}>44.1 kHz</option>
+                <option value={48000}>48.0 kHz</option>
+              </select>
+              <select
+                value={fftSize}
+                onChange={(e) => setFftSize(Number(e.target.value))}
+                className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
+              >
+                <option value={2048}>FFT 2048</option>
+                <option value={4096}>FFT 4096</option>
+                <option value={8192}>FFT 8192</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setIsLooping((l) => !l)}
+                className={`neu-btn px-2.5 py-1 rounded-full flex items-center gap-1 cursor-pointer ${
+                  isLooping ? 'btn-tool-pill' : ''
+                }`}
+              >
+                <Repeat className="w-3 h-3" />
+                <span>Loop</span>
+              </button>
+              <select
+                value={playbackRate}
+                onChange={(e) => setPlaybackRate(Number(e.target.value))}
+                className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
+              >
+                <option value={0.5}>0.5x</option>
+                <option value={1.0}>1.0x</option>
+                <option value={1.5}>1.5x</option>
+                <option value={2.0}>2.0x</option>
+              </select>
+            </div>
 
-            {(vizTab === 'combined' || vizTab === 'spectrum') && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs font-mono text-slate-500 px-1">
-                  <span className="font-bold text-slate-700 dark:text-slate-200">
-                    {lang === 'fa'
-                      ? 'طیف فرکانسی لگاریتمی (Log-FFT Spectrum)'
-                      : 'Logarithmic FFT Spectrum (10 Hz – 20 kHz)'}
-                  </span>
-                  <span>0 dB .. -95 dB</span>
-                </div>
-                <div className="oscilloscope-frame p-1 overflow-hidden">
-                  <canvas ref={spectrumCanvasRef} className="block w-full rounded-xl" />
-                </div>
-              </div>
-            )}
-          </div>
+            <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoPlayClick}
+                onChange={(e) => setAutoPlayClick(e.target.checked)}
+              />
+              <span>{lang === 'fa' ? 'پخش خودکار با کلیک' : 'Auto-play on click'}</span>
+            </label>
+          </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Row 3: View Mode Tabs + Interaction Mode Selector */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-300/30 dark:border-slate-800/60">
+        <div className="neu-inset p-1 rounded-full flex items-center gap-1">
+          {(
+            [
+              { id: 'combined', label: 'Combined', fa: 'ترکیبی' },
+              { id: 'spectrogram', label: 'Spectrogram', fa: 'طیف‌نگار' },
+              { id: 'waveform', label: 'Waveform', fa: 'شکل‌موج' },
+              { id: 'spectrum', label: 'Spectrum', fa: 'طیف فوریه' },
+            ] as { id: VisualizationTab; label: string; fa: string }[]
+          ).map((t) => {
+            const active = vizTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setVizTab(t.id)}
+                className={`relative px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                  active
+                    ? 'text-white dark:text-slate-950 font-bold'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="audio-viz-tab-pill"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    className="absolute inset-0 rounded-full bg-sky-500 dark:bg-sky-400"
+                  />
+                )}
+                <span className="relative z-10">{lang === 'fa' ? t.fa : t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setInteractMode('click-tone')}
+            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
+              interactMode === 'click-tone' ? 'btn-tool-pill' : 'neu-btn'
+            }`}
+          >
+            <MousePointerClick className="w-3.5 h-3.5" />
+            <span>{lang === 'fa' ? 'تک‌کلیک' : 'Single Click'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setInteractMode('multi-click')}
+            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
+              interactMode === 'multi-click' ? 'btn-tool-pill' : 'neu-btn'
+            }`}
+          >
+            <Pin className="w-3.5 h-3.5" />
+            <span>
+              {lang === 'fa'
+                ? `چند سیگنال (${pinnedPoints.length})`
+                : `Multi-Click (${pinnedPoints.length})`}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setInteractMode('box-select')}
+            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
+              interactMode === 'box-select' ? 'btn-tool-pill' : 'neu-btn'
+            }`}
+          >
+            <BoxSelect className="w-3.5 h-3.5" />
+            <span>{lang === 'fa' ? 'بازه فرکانس' : 'Range Mode'}</span>
+          </button>
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={scrollingWaterfall}
+            onClick={() => setScrollingWaterfall((s) => !s)}
+            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer ${
+              scrollingWaterfall ? 'btn-tool-pill' : 'neu-btn'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                scrollingWaterfall ? 'bg-[#7FD141]' : 'bg-slate-400'
+              }`}
+            />
+            <span>{lang === 'fa' ? 'پیمایش' : 'Scroll'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Scientific / Educational Explanation Panel */}
-      {!embedded && (
-        <div className="neu-card p-5 flex items-start gap-3.5">
-          <Info className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
-          <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            <strong className="text-slate-900 dark:text-slate-100 block mb-1">
-              {lang === 'fa'
-                ? 'طیف‌نگار با محور فرکانسی لگاریتمی (۱۰ هرتز تا ۲۰ کیلوهرتز)'
-                : 'Logarithmic Time-Frequency Spectrogram (10 Hz – 20 kHz)'}
-            </strong>
-            {lang === 'fa'
-              ? 'محور عمودی فرکانس به‌صورت لگاریتمی از ۱۰ هرتز تا ۲۰ کیلوهرتز درجه‌بندی شده است تا هم فرکانس‌های بسیار پایین (مانند ۲۰ هرتز و ۱۰۰ هرتز) و هم فرکانس‌های بالا به وضوح دیده شوند. روی هر نقطه از طیف‌نگار کلیک کنید تا فرکانس آن را بشنوید.'
-              : 'The vertical frequency axis is scaled logarithmically from 10 Hz to 20 kHz so low-frequency tones (such as 20 Hz and 100 Hz) and high-frequency harmonics receive equal visual resolution across three decades. Click or drag anywhere on the spectrogram to hear that exact frequency.'}
+      {/* Interactive Logarithmic Spectrogram Canvas */}
+      {(vizTab === 'combined' || vizTab === 'spectrogram') && (
+        <div className="flex flex-col gap-2.5">
+          <div className="relative oscilloscope-frame p-1.5 overflow-hidden select-none">
+            <canvas
+              ref={spectrogramCanvasRef}
+              onMouseDown={handleSpecMouseDown}
+              onMouseMove={handleSpecMouseMove}
+              onMouseUp={handleSpecMouseUp}
+              onTouchStart={(e) => {
+                if (e.touches.length > 0) {
+                  const t = e.touches[0];
+                  const coords = getSpectrogramCoordsFromClient(
+                    e.currentTarget,
+                    t.clientX,
+                    t.clientY
+                  );
+                  isPointerDownRef.current = true;
+                  const pt = {
+                    time: coords.time,
+                    frequency: coords.frequency,
+                    magnitudeDb: coords.magnitudeDb,
+                    normX: coords.normX,
+                    normY: coords.normY,
+                  };
+                  setSelectedPoint(pt);
+                  if (interactMode === 'multi-click') addPinnedPoint(pt);
+                  if (autoPlayClick) startOrUpdateDragTone(coords.frequency);
+                }
+              }}
+              onTouchMove={(e) => {
+                if (e.touches.length > 0) {
+                  const t = e.touches[0];
+                  const coords = getSpectrogramCoordsFromClient(
+                    e.currentTarget,
+                    t.clientX,
+                    t.clientY
+                  );
+                  setSelectedPoint({
+                    time: coords.time,
+                    frequency: coords.frequency,
+                    magnitudeDb: coords.magnitudeDb,
+                    normX: coords.normX,
+                    normY: coords.normY,
+                  });
+                  if (autoPlayClick) startOrUpdateDragTone(coords.frequency);
+                }
+              }}
+              onTouchEnd={() => {
+                isPointerDownRef.current = false;
+                stopDragTone();
+              }}
+              onMouseLeave={() => {
+                if (tooltipRef.current) {
+                  tooltipRef.current.style.display = 'none';
+                }
+                if (isPointerDownRef.current) {
+                  isPointerDownRef.current = false;
+                  stopDragTone();
+                }
+              }}
+              className="block w-full rounded-xl cursor-crosshair touch-none"
+            />
+
+            <div
+              ref={tooltipRef}
+              style={{ display: 'none' }}
+              className="pointer-events-none absolute z-20 px-2.5 py-1 rounded-lg bg-slate-950/90 border border-sky-400/40 text-[11px] font-mono text-slate-100 shadow-lg"
+            />
           </div>
+
+          {/* Minimal Contextual Footer Bar — Shows only the controls for the active mode */}
+          <div className="neu-inset px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+            {interactMode === 'click-tone' && (
+              <>
+                <div className="flex flex-wrap items-center gap-3">
+                  {selectedPoint && (
+                    <>
+                      <span className="font-bold text-sky-500">
+                        {Math.round(selectedPoint.frequency).toLocaleString()} Hz
+                      </span>
+                      <span className="text-slate-400">·</span>
+                      <span>{selectedPoint.time.toFixed(2)}s</span>
+                      <span className="text-slate-400">·</span>
+                      <span className="text-emerald-500">
+                        {selectedPoint.magnitudeDb.toFixed(1)} dB
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => playFrequencyTone(selectedPoint.frequency, 600)}
+                        className="btn-primary-pill px-3 py-1 text-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <Volume2 className="w-3 h-3" />
+                        <span>{lang === 'fa' ? 'پخش' : 'Play Tone'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          addPinnedPoint(selectedPoint);
+                          setInteractMode('multi-click');
+                        }}
+                        className="neu-btn px-2.5 py-1 rounded-full text-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3 text-[#7FD141]" />
+                        <span>{lang === 'fa' ? 'افزودن به چندسیگنال' : 'Pin'}</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 min-w-[180px] flex-1 max-w-xs">
+                  <span className="text-[11px] text-slate-400 tabular-nums shrink-0">
+                    {currentTime.toFixed(1)}s
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(0.1, totalDuration)}
+                    step={0.02}
+                    value={currentTime}
+                    onChange={(e) => handleSeek(Number(e.target.value))}
+                    aria-label="Time Scrubber"
+                    className="sci-slider flex-1"
+                  />
+                </div>
+              </>
+            )}
+
+            {interactMode === 'multi-click' && (
+              <>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {pinnedPoints.length === 0 ? (
+                    <span className="text-slate-400 text-[11px]">
+                      {lang === 'fa'
+                        ? 'روی طیف‌نگار کلیک کنید تا چند فرکانس اضافه شود'
+                        : 'Click points on the spectrogram to pin frequencies'}
+                    </span>
+                  ) : (
+                    pinnedPoints.map((pt, idx) => (
+                      <div
+                        key={pt.id}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border ${
+                          activeSeqPinId === pt.id
+                            ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                            : pt.enabled
+                            ? 'border-[#7FD141]/50'
+                            : 'opacity-40 border-slate-400/30'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={pt.enabled}
+                          onChange={(e) =>
+                            setPinnedPoints((prev) =>
+                              prev.map((item) =>
+                                item.id === pt.id ? { ...item, enabled: e.target.checked } : item
+                              )
+                            )
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() => playFrequencyTone(pt.frequency, 450)}
+                          className="font-bold text-sky-500 hover:underline cursor-pointer"
+                        >
+                          #{idx + 1} {Math.round(pt.frequency)}Hz
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPinnedPoints((prev) => prev.filter((item) => item.id !== pt.id))
+                          }
+                          className="text-slate-400 hover:text-rose-500 cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => playPinnedSignalsSimultaneous(1600)}
+                    disabled={pinnedPoints.filter((p) => p.enabled).length === 0}
+                    className="btn-primary-pill px-3 py-1 text-xs flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                  >
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>
+                      {isPlayingMulti
+                        ? lang === 'fa'
+                          ? 'توقف'
+                          : 'Stop'
+                        : lang === 'fa'
+                        ? 'پخش هم‌زمان'
+                        : 'Play All'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={playPinnedSignalsSequence}
+                    disabled={pinnedPoints.filter((p) => p.enabled).length === 0}
+                    className="neu-btn px-2.5 py-1 rounded-full text-xs cursor-pointer disabled:opacity-40"
+                  >
+                    {lang === 'fa' ? 'پخش متوالی' : 'Sequence'}
+                  </button>
+                  {pinnedPoints.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        stopMultiSignals();
+                        setPinnedPoints([]);
+                      }}
+                      className="neu-btn p-1 rounded-full text-rose-500 cursor-pointer"
+                      title="Clear"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
+            {interactMode === 'box-select' && (
+              <>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-slate-500">
+                    {lang === 'fa' ? 'بازه:' : 'Range:'}
+                  </span>
+                  <input
+                    type="number"
+                    min={10}
+                    max={19900}
+                    value={rangeStartFreq}
+                    onChange={(e) =>
+                      setRangeStartFreq(Math.max(10, Math.min(19900, Number(e.target.value))))
+                    }
+                    className="neu-inset w-18 px-1.5 py-0.5 rounded text-right font-bold text-sky-500 bg-transparent"
+                  />
+                  <span className="text-slate-400">→</span>
+                  <input
+                    type="number"
+                    min={20}
+                    max={20000}
+                    value={rangeEndFreq}
+                    onChange={(e) =>
+                      setRangeEndFreq(Math.max(20, Math.min(20000, Number(e.target.value))))
+                    }
+                    className="neu-inset w-18 px-1.5 py-0.5 rounded text-right font-bold text-emerald-500 bg-transparent"
+                  />
+                  <span className="text-slate-400">Hz</span>
+                  <select
+                    value={rangeToneCount}
+                    onChange={(e) => setRangeToneCount(Number(e.target.value))}
+                    className="neu-inset px-2 py-0.5 rounded text-[11px] bg-transparent"
+                  >
+                    <option value={4}>4 Tones</option>
+                    <option value={8}>8 Tones</option>
+                    <option value={12}>12 Tones</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => playFrequencyRangeSignal('harmonic-bank')}
+                    className="btn-primary-pill px-3 py-1 text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>{lang === 'fa' ? 'پخش چندتُنی بازه' : 'Play Range Bank'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => playFrequencyRangeSignal('sweep')}
+                    className="neu-btn px-2.5 py-1 rounded-full text-xs cursor-pointer"
+                  >
+                    {lang === 'fa' ? 'جاروب بازه' : 'Sweep Range'}
+                  </button>
+                  {selectedRegion && (
+                    <button
+                      type="button"
+                      onClick={handleSonifyRegion}
+                      disabled={isSonifying}
+                      className="btn-tool-pill px-2.5 py-1 rounded-full text-xs cursor-pointer"
+                    >
+                      {lang === 'fa' ? 'بازسازی ناحیه' : 'Sonify Box'}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Synchronized Time-Domain Waveform & Logarithmic FFT Spectrum */}
+      {(vizTab === 'combined' || vizTab === 'waveform' || vizTab === 'spectrum') && (
+        <div
+          className={`grid grid-cols-1 ${
+            vizTab === 'combined' ? 'lg:grid-cols-2' : ''
+          } gap-4`}
+        >
+          {(vizTab === 'combined' || vizTab === 'waveform') && (
+            <div className="oscilloscope-frame p-1 overflow-hidden">
+              <canvas ref={waveformCanvasRef} className="block w-full rounded-xl" />
+            </div>
+          )}
+
+          {(vizTab === 'combined' || vizTab === 'spectrum') && (
+            <div className="oscilloscope-frame p-1 overflow-hidden">
+              <canvas ref={spectrumCanvasRef} className="block w-full rounded-xl" />
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
+

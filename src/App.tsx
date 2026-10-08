@@ -74,58 +74,11 @@ const NAV_ITEMS: {
 ];
 
 const TOP_NAV_SHORTCUTS: { id: PageId; label: string; faLabel: string }[] = [
-  { id: 'dashboard', label: 'Overview', faLabel: 'نمای کلی' },
-  { id: 'audio-lab', label: 'Audio Lab', faLabel: 'آزمایشگاه صوت' },
+  { id: 'dashboard', label: 'Audio Lab', faLabel: 'آزمایشگاه صوت' },
   { id: 'signal-generator', label: 'Waveforms', faLabel: 'شکل‌موج' },
   { id: 'fft-spectrum', label: 'Spectrum', faLabel: 'طیف فوریه' },
   { id: 'filtering', label: 'Filters', faLabel: 'فیلترها' },
   { id: 'documentation', label: 'Docs', faLabel: 'مرجع علمی' },
-];
-
-interface StudyTask {
-  id: string;
-  title: string;
-  faTitle: string;
-  pageId: PageId;
-  completed: boolean;
-}
-
-const INITIAL_STUDY_TASKS: StudyTask[] = [
-  {
-    id: 'task-1',
-    title: 'Generate & play a 20 Hz + 100 Hz mixed signal on the logarithmic spectrogram',
-    faTitle: 'تولید و پخش سیگنال ترکیبی ۲۰ هرتز و ۱۰۰ هرتز روی طیف‌نگار لگاریتمی',
-    pageId: 'audio-lab',
-    completed: true,
-  },
-  {
-    id: 'task-2',
-    title: 'Click or drag across the spectrogram (10 Hz – 20 kHz) to sonify frequency components',
-    faTitle: 'کلیک و کشیدن موس روی طیف‌نگار (۱۰ هرتز تا ۲۰ کیلوهرتز) برای شنیدن فرکانس‌ها',
-    pageId: 'audio-lab',
-    completed: false,
-  },
-  {
-    id: 'task-3',
-    title: 'Compare Hann vs. Blackman spectral leakage in the FFT Spectrum module',
-    faTitle: 'مقایسه نشت طیفی پنجره‌های Hann و Blackman در بخش طیف فوریه',
-    pageId: 'fft-spectrum',
-    completed: false,
-  },
-  {
-    id: 'task-4',
-    title: 'Design an IIR/FIR digital filter and inspect SNR improvement in dB',
-    faTitle: 'طراحی فیلتر دیجیتال FIR/IIR و بررسی میزان بهبود نسبت سیگنال به نویز (SNR)',
-    pageId: 'filtering',
-    completed: false,
-  },
-  {
-    id: 'task-5',
-    title: 'Train a 1D-CNN or Denoising Autoencoder in the Deep Learning browser lab',
-    faTitle: 'آموزش شبکه عصبی 1D-CNN یا خودرمزگذار حذف نویز در مرورگر',
-    pageId: 'deep-learning',
-    completed: false,
-  },
 ];
 
 const LabShell: React.FC = () => {
@@ -136,17 +89,10 @@ const LabShell: React.FC = () => {
     setDarkMode,
     lang,
     setLang,
-    saveCurrentExperiment,
   } = useLab();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [checklistOpen, setChecklistOpen] = useState(false);
-  const [savedNotice, setSavedNotice] = useState(false);
-  const [studyTasks, setStudyTasks] = useState<StudyTask[]>(INITIAL_STUDY_TASKS);
   const [scrollPct, setScrollPct] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
-
-  const completedCount = studyTasks.filter((t) => t.completed).length;
-  const progressPct = Math.round((completedCount / studyTasks.length) * 100);
 
   // Passive scroll progress indicator & floating Scroll-to-Top visibility
   useEffect(() => {
@@ -156,7 +102,7 @@ const LabShell: React.FC = () => {
         document.documentElement.scrollHeight - document.documentElement.clientHeight;
       const pct = docHeight > 20 ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)) : 0;
       setScrollPct(pct);
-      setShowScrollTop(scrollTop > 260);
+      setShowScrollTop(scrollTop > 300);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
@@ -196,18 +142,6 @@ const LabShell: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [activePage]);
 
-  const handleQuickSave = async () => {
-    await saveCurrentExperiment();
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 2000);
-  };
-
-  const toggleStudyTask = (id: string) => {
-    setStudyTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
-  };
-
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
@@ -245,34 +179,21 @@ const LabShell: React.FC = () => {
     }
   };
 
-  const activeNavMeta = NAV_ITEMS.find((i) => i.id === activePage) || NAV_ITEMS[0];
-  const circleCircumference = 2 * Math.PI * 11;
-  const circleOffset = circleCircumference - (progressPct / 100) * circleCircumference;
-
   return (
     <div className="min-h-screen flex flex-col relative">
       {/* Top Viewport Scroll Progress Bar */}
       <div
         aria-hidden="true"
-        className="fixed top-0 left-0 right-0 h-[2.5px] z-[60] pointer-events-none bg-transparent"
+        className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none bg-transparent"
       >
         <div
-          className="h-full bg-gradient-to-r from-sky-500 via-cyan-400 to-[#7FD141] shadow-[0_0_10px_rgba(56,189,248,0.65)] transition-[width] duration-100 ease-out"
+          className="h-full bg-gradient-to-r from-sky-500 via-cyan-400 to-[#7FD141] transition-[width] duration-100 ease-out"
           style={{ width: `${scrollPct}%` }}
         />
       </div>
 
-      {/* Subtle Ambient Liquid Refraction Orbs */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 overflow-hidden z-0"
-      >
-        <div className="absolute -top-36 left-1/4 w-[32rem] h-[32rem] rounded-full bg-sky-400/20 dark:bg-sky-500/12 blur-3xl" />
-        <div className="absolute top-1/2 -right-32 w-[28rem] h-[28rem] rounded-full bg-cyan-400/15 dark:bg-cyan-500/10 blur-3xl" />
-      </div>
-
-      {/* 1. Header with Page-Load Animation & Sliding Active Indicator */}
-      <header className="floating-pill-navbar anim-load-header px-3 sm:px-5 flex items-center justify-between gap-2">
+      {/* Minimal Floating Header */}
+      <header className="floating-pill-navbar anim-load-header px-4 sm:px-5 flex items-center justify-between gap-3">
         {/* Left: Portfolio Link + SigLab Brand */}
         <div className="flex items-center gap-2 shrink-0">
           <a
@@ -281,7 +202,7 @@ const LabShell: React.FC = () => {
               const currentTheme = darkMode ? 'dark' : 'light';
               e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
             }}
-            className="neu-btn px-2.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+            className="neu-btn px-2.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap"
             title={lang === 'fa' ? 'بازگشت به پورتفولیو majn35.ir' : 'Return to majn35.ir Portfolio'}
           >
             <ArrowLeft className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
@@ -294,7 +215,7 @@ const LabShell: React.FC = () => {
               e.preventDefault();
               setActivePage('dashboard');
             }}
-            className="flex items-center gap-2 pl-1 pr-1.5 py-1 rounded-full transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 pl-1 pr-1.5 py-1 rounded-full"
           >
             <img
               src={LAB_IMAGES.favicon}
@@ -303,27 +224,28 @@ const LabShell: React.FC = () => {
               onError={(e) => {
                 e.currentTarget.src = './favicon.svg';
               }}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-sky-400/40 shadow-sm shrink-0"
+              className="w-7 h-7 rounded-full object-cover border border-sky-400/40 shrink-0"
             />
-            <span className="font-display text-sm sm:text-base font-extrabold tracking-tight whitespace-nowrap">
+            <span className="font-display text-sm font-bold tracking-tight whitespace-nowrap">
               {lang === 'fa' ? 'سیگ‌لب' : 'SigLab'}
             </span>
           </a>
         </div>
 
-        {/* Center: Clean Core Section Links with Smooth Sliding Active Indicator */}
+        {/* Center: Core Links */}
         <nav className="nav-center-links">
           {TOP_NAV_SHORTCUTS.map((tab) => {
-            const isActive = activePage === tab.id;
+            const isActive =
+              activePage === tab.id || (tab.id === 'dashboard' && activePage === 'audio-lab');
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActivePage(tab.id)}
-                className={`relative h-9 inline-flex items-center px-2.5 text-xs transition-colors duration-200 whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`relative h-9 inline-flex items-center px-3 text-xs transition-colors duration-200 whitespace-nowrap shrink-0 cursor-pointer ${
                   isActive
                     ? 'text-sky-600 dark:text-sky-400 font-bold'
-                    : 'text-slate-600 dark:text-slate-300 font-semibold hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-600 dark:text-slate-300 font-medium hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <span className="relative z-10">{lang === 'fa' ? tab.faLabel : tab.label}</span>
@@ -331,7 +253,7 @@ const LabShell: React.FC = () => {
                   <motion.span
                     layoutId="top-nav-active-underline"
                     transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                    className="absolute bottom-1 left-2 right-2 h-[2px] rounded-full bg-sky-500 dark:bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"
+                    className="absolute bottom-1.5 left-2.5 right-2.5 h-[2px] rounded-full bg-sky-500 dark:bg-sky-400"
                   />
                 )}
               </button>
@@ -339,105 +261,24 @@ const LabShell: React.FC = () => {
           })}
         </nav>
 
-        {/* Right: Clean Controls Cluster (Study Progress Modal, All Labs Drawer, Save, Language, Theme) */}
+        {/* Right: Minimal Controls (Modules Drawer, Language, Theme) */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Interactive Study Session / Lab Tasks Button with Circular Progress */}
-          <button
-            type="button"
-            onClick={() => setChecklistOpen(true)}
-            className="btn-circle-glass cursor-pointer"
-            title={lang === 'fa' ? 'چک‌لیست تمرین‌های آزمایشگاه' : 'Lab Study Checklist & Progress'}
-          >
-            <svg className="w-5 h-5 -rotate-90 shrink-0" viewBox="0 0 28 28">
-              <circle
-                cx="14"
-                cy="14"
-                r="11"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                className="text-slate-300/60 dark:text-slate-700/70"
-              />
-              <circle
-                cx="14"
-                cy="14"
-                r="11"
-                fill="none"
-                stroke={progressPct === 100 ? '#7FD141' : '#38bdf8'}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeDasharray={circleCircumference}
-                strokeDashoffset={circleOffset}
-                className="circular-progress-ring"
-              />
-            </svg>
-          </button>
-
           <button
             type="button"
             onClick={() => setDrawerOpen((o) => !o)}
-            className="neu-btn px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-            title={lang === 'fa' ? 'مشاهده همه ۱۵ بخش آزمایشگاه' : 'Browse All 15 Lab Modules'}
+            className="neu-btn px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            title={lang === 'fa' ? 'همه ماژول‌ها' : 'All Modules'}
           >
             <LayoutGrid className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             <span className="hidden sm:inline">
-              {lang === 'fa' ? 'همه بخش‌ها' : 'All Labs'}
+              {lang === 'fa' ? 'ماژول‌ها' : 'Modules'}
             </span>
           </button>
 
           <button
             type="button"
-            onClick={handleQuickSave}
-            title={
-              savedNotice
-                ? lang === 'fa'
-                  ? 'آزمایش ذخیره شد'
-                  : 'Experiment Saved'
-                : lang === 'fa'
-                ? 'ذخیره سریع آزمایش در مرورگر'
-                : 'Quick Save Experiment'
-            }
-            aria-label="Quick Save Experiment"
-            className={`btn-circle-glass cursor-pointer ${
-              savedNotice
-                ? 'border-[#7FD141] text-[#7FD141] shadow-[0_0_16px_rgba(127,209,65,0.35)] scale-105'
-                : ''
-            }`}
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              {savedNotice ? (
-                <motion.span
-                  key="saved"
-                  initial={{ scale: 0.6, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.6, opacity: 0 }}
-                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <Check className="w-4 h-4 text-[#7FD141]" />
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="save"
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.8, opacity: 0 }}
-                  transition={{ duration: 0.14 }}
-                >
-                  <Save className="w-4 h-4" />
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setLang((l) => (l === 'en' ? 'fa' : 'en'))}
-            title={
-              lang === 'en'
-                ? 'تغییر زبان به فارسی (راست‌به‌چپ)'
-                : 'Switch to English (LTR)'
-            }
-            aria-label="Toggle Language and Direction"
+            aria-label="Toggle Language"
             className="btn-circle-glass text-[11px] font-bold font-mono cursor-pointer"
           >
             {lang === 'en' ? 'FA' : 'EN'}
@@ -446,46 +287,19 @@ const LabShell: React.FC = () => {
           <button
             type="button"
             onClick={() => setDarkMode((d) => !d)}
-            aria-label="Toggle Light and Dark Theme"
-            title={
-              darkMode
-                ? lang === 'fa'
-                  ? 'تغییر به حالت روشن'
-                  : 'Switch to Light Mode'
-                : lang === 'fa'
-                ? 'تغییر به حالت تاریک'
-                : 'Switch to Dark Mode'
-            }
+            aria-label="Toggle Theme"
             className="btn-circle-glass cursor-pointer"
           >
-            <AnimatePresence mode="wait" initial={false}>
-              {darkMode ? (
-                <motion.span
-                  key="sun"
-                  initial={{ rotate: -45, opacity: 0, scale: 0.8 }}
-                  animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                  exit={{ rotate: 45, opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <Sun className="w-4 h-4 text-sky-400" />
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="moon"
-                  initial={{ rotate: 45, opacity: 0, scale: 0.8 }}
-                  animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                  exit={{ rotate: -45, opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <Moon className="w-4 h-4 text-sky-700" />
-                </motion.span>
-              )}
-            </AnimatePresence>
+            {darkMode ? (
+              <Sun className="w-4 h-4 text-sky-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-sky-700" />
+            )}
           </button>
         </div>
       </header>
 
-      {/* 4. Sliding Glass Drawer for All 15 Laboratory Modules with Staggered Reveal */}
+      {/* Sliding Glass Drawer for All Modules */}
       <AnimatePresence>
         {drawerOpen && (
           <div className="fixed inset-0 z-40 flex">
@@ -501,15 +315,11 @@ const LabShell: React.FC = () => {
               initial={{ x: lang === 'fa' ? 320 : -320, opacity: 0.8 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: lang === 'fa' ? 320 : -320, opacity: 0 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              className="relative z-50 w-80 max-w-[88vw] h-full pt-24 pb-8 px-5 overflow-y-auto mobile-glass-drawer flex flex-col gap-2"
+              transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+              className="relative z-50 w-72 max-w-[85vw] h-full pt-20 pb-8 px-4 overflow-y-auto mobile-glass-drawer flex flex-col gap-2"
             >
-              <div className="px-2 pb-2 text-xs font-mono font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between border-b border-slate-300/40 dark:border-slate-800/60">
-                <span>
-                  {lang === 'fa'
-                    ? 'همه ماژول‌های آزمایشگاه (۱۵)'
-                    : 'All Laboratory Modules (15)'}
-                </span>
+              <div className="px-2 pb-2 text-xs font-mono font-semibold text-slate-500 flex items-center justify-between border-b border-slate-300/30 dark:border-slate-800/60">
+                <span>{lang === 'fa' ? 'همه بخش‌ها' : 'All Modules'}</span>
                 <button
                   type="button"
                   onClick={() => setDrawerOpen(false)}
@@ -519,37 +329,27 @@ const LabShell: React.FC = () => {
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="flex flex-col gap-1.5 pt-1">
-                {NAV_ITEMS.map((item, index) => {
+              <div className="flex flex-col gap-1 pt-1">
+                {NAV_ITEMS.map((item) => {
                   const Icon = item.icon;
                   const isActive = activePage === item.id;
                   return (
-                    <motion.button
+                    <button
                       key={item.id}
                       type="button"
-                      initial={{ opacity: 0, x: lang === 'fa' ? 14 : -14 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{
-                        duration: 0.22,
-                        delay: index * 0.022,
-                        ease: [0.16, 1, 0.3, 1],
-                      }}
                       onClick={() => {
                         setActivePage(item.id);
                         setDrawerOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                      className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
                         isActive
                           ? 'btn-tool-pill font-bold'
-                          : 'hover:bg-white/40 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200'
+                          : 'hover:bg-white/40 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span className="truncate">
-                        {String(index + 1).padStart(2, '0')} ·{' '}
-                        {lang === 'fa' ? item.faLabel : item.label}
-                      </span>
-                    </motion.button>
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{lang === 'fa' ? item.faLabel : item.label}</span>
+                    </button>
                   );
                 })}
               </div>
@@ -558,210 +358,45 @@ const LabShell: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 7, 12 & 13. Animated Modal / Dialog for Lab Study Session Checklist & Progress */}
-      <AnimatePresence>
-        {checklistOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-              className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs"
-              onClick={() => setChecklistOpen(false)}
-            />
-            <motion.div
-              role="dialog"
-              aria-modal="true"
-              initial={{ opacity: 0, scale: 0.96, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 8 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="relative z-10 w-full max-w-lg neu-card p-6 flex flex-col gap-4"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <ListChecks className="w-5 h-5 text-[#7FD141]" />
-                  <div>
-                    <h3 className="text-base font-extrabold tracking-tight">
-                      {lang === 'fa'
-                        ? 'برنامه مطالعه و تمرین‌های تعاملی آزمایشگاه'
-                        : 'Interactive Signal Lab Study Session'}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-mono">
-                      {lang === 'fa'
-                        ? `${completedCount} از ${studyTasks.length} تمرین تکمیل شده (${progressPct}٪)`
-                        : `${completedCount} of ${studyTasks.length} experiments completed (${progressPct}%)`}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setChecklistOpen(false)}
-                  className="btn-circle-glass cursor-pointer"
-                  aria-label="Close Dialog"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Animated Progress Bar */}
-              <div className="w-full h-2 rounded-full bg-slate-300/50 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full rounded-full progress-fill-smooth"
-                  style={{
-                    width: `${progressPct}%`,
-                    backgroundColor: progressPct === 100 ? '#7FD141' : '#38bdf8',
-                  }}
-                />
-              </div>
-
-              {/* Task Items with Satisfying Completion Transitions */}
-              <div className="flex flex-col gap-2.5">
-                {studyTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`neu-inset p-3.5 flex items-center justify-between gap-3 task-item-row ${
-                      task.completed ? 'task-item-completed' : ''
-                    }`}
-                  >
-                    <label className="flex items-start gap-3 cursor-pointer flex-1">
-                      <input
-                        type="checkbox"
-                        checked={task.completed}
-                        onChange={() => toggleStudyTask(task.id)}
-                        className="mt-0.5 shrink-0"
-                      />
-                      <span
-                        className={`text-xs font-medium leading-relaxed ${
-                          task.completed ? 'task-text-completed' : ''
-                        }`}
-                      >
-                        {lang === 'fa' ? task.faTitle : task.title}
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActivePage(task.pageId);
-                        setChecklistOpen(false);
-                      }}
-                      className="neu-btn px-2.5 py-1 rounded-full text-[11px] font-mono shrink-0 cursor-pointer"
-                    >
-                      {lang === 'fa' ? 'اجرا' : 'Open'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {progressPct === 100 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                  className="px-4 py-2.5 rounded-xl bg-[#7FD141]/15 border border-[#7FD141]/50 text-xs font-semibold flex items-center gap-2 text-emerald-700 dark:text-[#7FD141]"
-                >
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>
-                    {lang === 'fa'
-                      ? 'عالی! تمام تمرین‌های این جلسه آزمایشگاهی با موفقیت تکمیل شدند.'
-                      : 'Study session complete — all core DSP & spectrogram experiments verified.'}
-                  </span>
-                </motion.div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Spacious Centered Main Stage */}
-      <div className="flex-1 flex flex-col relative z-10 max-w-[1220px] w-full mx-auto px-4 sm:px-8 pt-28 pb-16 gap-10">
-        {/* 2. Hero / Secondary Module Pill Bar with Page-Load Stagger */}
-        <div className="anim-load-hero flex items-center justify-between gap-3 overflow-x-auto py-1 no-scrollbar">
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400 shrink-0">
-            <span className="text-sky-600 dark:text-sky-400 font-bold">
-              {lang === 'fa' ? activeNavMeta.faLabel : activeNavMeta.label}
-            </span>
-            <span>·</span>
-            <span>
-              {lang === 'fa' ? 'آزمایشگاه تعاملی سیگنال' : 'Interactive Signal Workspace'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {(
-              [
-                { id: 'wavelet-analysis', label: 'Wavelets', fa: 'موجک' },
-                { id: 'pca', label: 'PCA', fa: 'PCA' },
-                { id: 'ica', label: 'FastICA', fa: 'ICA' },
-                { id: 'telecommunications', label: 'Analog RF', fa: 'آنالوگ' },
-                { id: 'custom-samples', label: 'Samples', fa: 'نمونه‌ها' },
-                { id: 'experiments', label: 'Presets', fa: 'سناریوها' },
-              ] as { id: PageId; label: string; fa: string }[]
-            ).map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setActivePage(m.id)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                  activePage === m.id
-                    ? 'btn-tool-pill font-semibold'
-                    : 'neu-btn opacity-80 hover:opacity-100'
-                }`}
-              >
-                {lang === 'fa' ? m.fa : m.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 3. Active Module Content with Smooth Section Switch Transition */}
+      {/* Spacious, Minimal Centered Main Stage */}
+      <div className="flex-1 flex flex-col relative z-10 max-w-[1120px] w-full mx-auto px-4 sm:px-6 pt-24 pb-12 gap-8">
         <main className="flex-1 min-w-0 w-full anim-load-main">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={activePage}
-              initial={{ opacity: 0, y: 10, scale: 0.994 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.996 }}
-              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             >
               {renderPage()}
             </motion.div>
           </AnimatePresence>
         </main>
 
-        {/* Clean, Spacious Educational Footer */}
-        <footer className="neu-card anim-load-footer px-6 py-5 text-center sm:text-start flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-4">
-          <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            <span className="font-bold text-slate-800 dark:text-slate-200">
-              {lang === 'fa'
-                ? 'آزمایشگاه پردازش سیگنال (SigLab)'
-                : 'Signal Processing Laboratory (SigLab)'}
-            </span>{' '}
-            ·{' '}
+        {/* Minimal Single-Line Footer */}
+        <footer className="pt-4 border-t border-slate-300/30 dark:border-slate-800/50 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>
             {lang === 'fa'
-              ? 'شبیه‌سازی آموزشی و پژوهشی پردازش سیگنال، مخابرات، EEG مصنوعی و یادگیری ماشین.'
-              : 'Interactive educational simulation for DSP, telecommunications, synthetic EEG, and machine learning.'}
-          </div>
-          <div className="text-xs font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
-            {lang === 'fa' ? 'توسعه توسط ' : 'by '}
-            <a
-              href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
-              onClick={(e) => {
-                const currentTheme = darkMode ? 'dark' : 'light';
-                e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
-              }}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-bold text-sky-700 dark:text-sky-400 hover:underline"
-            >
-              {lang === 'fa' ? 'محمدعلی جوادی‌نسب' : 'Mohammadali Javadinasab'}
-            </a>
-          </div>
+              ? 'آزمایشگاه پردازش سیگنال (SigLab)'
+              : 'SigLab — Audio & Signal Processing Lab'}
+          </span>
+          <a
+            href={`https://majn35.ir/?theme=${darkMode ? 'dark' : 'light'}`}
+            onClick={(e) => {
+              const currentTheme = darkMode ? 'dark' : 'light';
+              e.currentTarget.href = `https://majn35.ir/?theme=${currentTheme}`;
+            }}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-sky-600 dark:text-sky-400 hover:underline"
+          >
+            {lang === 'fa' ? 'محمدعلی جوادی‌نسب' : 'Mohammadali Javadinasab'}
+          </a>
         </footer>
       </div>
 
-      {/* Floating Glass Scroll-to-Top Pill Button */}
+      {/* Minimal Scroll-to-Top Button */}
       <AnimatePresence>
         {showScrollTop && (
           <motion.button
@@ -771,11 +406,10 @@ const LabShell: React.FC = () => {
             exit={{ opacity: 0, y: 12, scale: 0.9 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="fixed bottom-5 right-5 z-40 neu-btn px-3.5 py-2 rounded-full text-xs font-mono font-semibold flex items-center gap-1.5 shadow-lg cursor-pointer"
+            className="fixed bottom-5 right-5 z-40 neu-btn p-2.5 rounded-full text-xs shadow-lg cursor-pointer"
             title={lang === 'fa' ? 'بازگشت به بالای صفحه' : 'Scroll to Top'}
           >
-            <ArrowUp className="w-3.5 h-3.5 text-sky-500" />
-            <span className="tabular-nums">{Math.round(scrollPct)}%</span>
+            <ArrowUp className="w-4 h-4 text-sky-500" />
           </motion.button>
         )}
       </AnimatePresence>
