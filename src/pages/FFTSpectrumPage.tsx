@@ -1,6 +1,7 @@
 import React from 'react';
 import { InteractiveHeatmap, InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
+import { Signal3DStage } from '../components/Signal3DStage';
 import { useLab } from '../store/LabContext';
 import { WindowFunctionType } from '../types';
 import { calculateRMSE } from '../utils/math';
@@ -14,7 +15,7 @@ const WINDOWS: { id: WindowFunctionType; label: string; faLabel: string; sidelob
 ];
 
 export const FFTSpectrumPage: React.FC = () => {
-  const { experiment, setExperiment, computed, lang } = useLab();
+  const { experiment, setExperiment, computed, lang, darkMode } = useLab();
   const fftCfg = experiment.analysis.fft;
 
   const updateFFT = (patch: Partial<typeof fftCfg>) => {
@@ -197,6 +198,19 @@ export const FFTSpectrumPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 3D Interactive FFT, Signal Helix & Time-Frequency Stage */}
+      <Signal3DStage
+        fallbackWave={computed.noisySignal}
+        fallbackFilteredWave={computed.filteredSignal}
+        fallbackSpectrumMag={computed.spectrum.magnitude}
+        fallbackSpectrumFreqs={computed.spectrum.frequencies}
+        frequency={experiment.signal.frequency}
+        waveType={experiment.signal.type}
+        lang={lang}
+        darkMode={darkMode}
+        heightClass="h-[460px] sm:h-[520px]"
+      />
 
       {/* Magnitude Spectrum & Power Spectral Density */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

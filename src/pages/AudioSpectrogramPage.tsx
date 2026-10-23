@@ -3,8 +3,10 @@ import {
   Activity,
   AudioLines,
   BoxSelect,
+  HelpCircle,
   Info,
   Layers,
+  Lightbulb,
   Mic,
   MicOff,
   MousePointerClick,
@@ -23,6 +25,8 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { GuideModal } from '../components/GuideModal';
+import { Signal3DStage } from '../components/Signal3DStage';
 import { useLab } from '../store/LabContext';
 
 export type LiveWaveType =
@@ -39,7 +43,7 @@ export type LiveWaveType =
   | 'musical'
   | 'mixed';
 
-export type VisualizationTab = 'combined' | 'spectrogram' | 'waveform' | 'spectrum';
+export type VisualizationTab = '3d' | 'combined' | 'spectrogram' | 'waveform' | 'spectrum';
 export type SpectrogramInteractMode = 'click-tone' | 'multi-click' | 'box-select';
 
 export interface MixLayer {
@@ -145,7 +149,7 @@ for (let i = 0; i < 256; i++) {
 }
 
 export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
-  const { lang } = useLab();
+  const { lang, darkMode } = useLab();
 
   // Generator & Audio state
   const [sourceMode, setSourceMode] = useState<'generator' | 'uploaded' | 'microphone'>('generator');
@@ -158,6 +162,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const [fftSize, setFftSize] = useState<number>(4096);
   const [maxFreqDisplay, setMaxFreqDisplay] = useState<number>(20000);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [showGuide, setShowGuide] = useState<boolean>(false);
 
   // Microphone live spectrum state
   const [isMicActive, setIsMicActive] = useState<boolean>(false);
@@ -188,7 +193,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
   // Visualization & Interaction state
-  const [vizTab, setVizTab] = useState<VisualizationTab>('combined');
+  const [vizTab, setVizTab] = useState<VisualizationTab>('3d');
   const [interactMode, setInteractMode] = useState<SpectrogramInteractMode>('click-tone');
   const [scrollingWaterfall, setScrollingWaterfall] = useState<boolean>(true);
   const [autoPlayClick, setAutoPlayClick] = useState<boolean>(true);
@@ -2171,6 +2176,16 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
           <button
             type="button"
+            onClick={() => setShowGuide(true)}
+            className="neu-btn px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 text-sky-600 dark:text-sky-400 hover:text-sky-500 cursor-pointer"
+            title={lang === 'fa' ? 'راهنمای ساده و سریع' : 'Friendly Beginner Guide'}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{lang === 'fa' ? 'راهنما' : 'Guide'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowAdvanced((s) => !s)}
             className={`btn-circle-glass cursor-pointer ${
               showAdvanced ? 'border-sky-500 text-sky-500' : ''
@@ -2472,10 +2487,11 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
       {/* Row 3: View Mode Tabs + Interaction Mode Selector */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-300/30 dark:border-slate-800/60">
-        <div className="neu-inset p-1 rounded-full flex items-center gap-1">
+        <div className="neu-inset p-1 rounded-full flex flex-wrap items-center gap-1">
           {(
             [
-              { id: 'combined', label: 'Combined', fa: 'ترکیبی' },
+              { id: '3d', label: '3D Visualizer', fa: 'نمایش سه‌بعدی (3D)' },
+              { id: 'combined', label: '2D Combined', fa: 'ترکیبی دوبعدی' },
               { id: 'spectrogram', label: 'Spectrogram', fa: 'طیف‌نگار' },
               { id: 'waveform', label: 'Waveform', fa: 'شکل‌موج' },
               { id: 'spectrum', label: 'Spectrum', fa: 'طیف فوریه' },
@@ -2506,66 +2522,131 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
           })}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setInteractMode('click-tone')}
-            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
-              interactMode === 'click-tone' ? 'btn-tool-pill' : 'neu-btn'
-            }`}
-          >
-            <MousePointerClick className="w-3.5 h-3.5" />
-            <span>{lang === 'fa' ? 'تک‌کلیک' : 'Single Click'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setInteractMode('multi-click')}
-            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
-              interactMode === 'multi-click' ? 'btn-tool-pill' : 'neu-btn'
-            }`}
-          >
-            <Pin className="w-3.5 h-3.5" />
-            <span>
-              {lang === 'fa'
-                ? `چند سیگنال (${pinnedPoints.length})`
-                : `Multi-Click (${pinnedPoints.length})`}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setInteractMode('box-select')}
-            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
-              interactMode === 'box-select' ? 'btn-tool-pill' : 'neu-btn'
-            }`}
-          >
-            <BoxSelect className="w-3.5 h-3.5" />
-            <span>{lang === 'fa' ? 'بازه فرکانس' : 'Range Mode'}</span>
-          </button>
-
-          <button
-            type="button"
-            role="switch"
-            aria-checked={scrollingWaterfall}
-            onClick={() => setScrollingWaterfall((s) => !s)}
-            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer ${
-              scrollingWaterfall ? 'btn-tool-pill' : 'neu-btn'
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                scrollingWaterfall ? 'bg-[#7FD141]' : 'bg-slate-400'
+        {vizTab !== '3d' && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setInteractMode('click-tone')}
+              className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
+                interactMode === 'click-tone' ? 'btn-tool-pill' : 'neu-btn'
               }`}
-            />
-            <span>{lang === 'fa' ? 'پیمایش' : 'Scroll'}</span>
-          </button>
-        </div>
+            >
+              <MousePointerClick className="w-3.5 h-3.5" />
+              <span>{lang === 'fa' ? 'تک‌کلیک' : 'Single Click'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setInteractMode('multi-click')}
+              className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
+                interactMode === 'multi-click' ? 'btn-tool-pill' : 'neu-btn'
+              }`}
+            >
+              <Pin className="w-3.5 h-3.5" />
+              <span>
+                {lang === 'fa'
+                  ? `چند سیگنال (${pinnedPoints.length})`
+                  : `Multi-Click (${pinnedPoints.length})`}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setInteractMode('box-select')}
+              className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
+                interactMode === 'box-select' ? 'btn-tool-pill' : 'neu-btn'
+              }`}
+            >
+              <BoxSelect className="w-3.5 h-3.5" />
+              <span>{lang === 'fa' ? 'بازه فرکانس' : 'Range Mode'}</span>
+            </button>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={scrollingWaterfall}
+              onClick={() => setScrollingWaterfall((s) => !s)}
+              className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer ${
+                scrollingWaterfall ? 'btn-tool-pill' : 'neu-btn'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  scrollingWaterfall ? 'bg-[#7FD141]' : 'bg-slate-400'
+                }`}
+              />
+              <span>{lang === 'fa' ? 'پیمایش' : 'Scroll'}</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Interactive 3D React Three Fiber Stage (Signal Helix, Harmonics, 3D FFT Pillars & 3D Waterfall) */}
+      {vizTab === '3d' && (
+        <Signal3DStage
+          liveWaveformRef={liveWaveSliceRef}
+          liveSpectrumDbRef={liveSpecRowRef}
+          specMatrixRef={specMatrixRef}
+          frequency={frequency}
+          waveType={waveType}
+          amplitude={amplitude}
+          isPlaying={isPlaying}
+          isMicActive={isMicActive}
+          lang={lang}
+          darkMode={darkMode}
+          onTogglePlay={() => {
+            if (isPlaying) {
+              handlePause();
+            } else {
+              stopMicrophone();
+              if (sourceMode === 'microphone') setSourceMode('generator');
+              startPlayback(pauseOffsetRef.current);
+            }
+          }}
+          onToggleMic={() => {
+            if (isMicActive) stopMicrophone();
+            else startMicrophone();
+          }}
+          onSelectPreset={(preset) => applyQuickPreset(preset as any)}
+          onPlayFrequencyTone={playFrequencyTone}
+          heightClass="h-[500px] sm:h-[580px]"
+        />
+      )}
 
       {/* Interactive Logarithmic Spectrogram Canvas */}
       {(vizTab === 'combined' || vizTab === 'spectrogram') && (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2">
+          {/* Friendly Interaction Tip Banner */}
+          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
+            <span className="flex items-center gap-1.5">
+              <MousePointerClick className="w-3.5 h-3.5 text-sky-500" />
+              {interactMode === 'click-tone' && (
+                <span>
+                  {lang === 'fa'
+                    ? 'روی هر کجای طیف‌نگار کلیک یا درگ کنید تا فرکانس آن پخش شود (پایین = بیس بم، بالا = زیر)'
+                    : 'Click or drag anywhere on the spectrogram to hear the exact frequency (Bottom = Bass, Top = Highs)'}
+                </span>
+              )}
+              {interactMode === 'multi-click' && (
+                <span>
+                  {lang === 'fa'
+                    ? 'روی چند نقطه کلیک کنید تا فرکانس‌ها پین شوند، سپس «پخش هم‌زمان» را بزنید'
+                    : 'Click points on the spectrogram to pin tones, then hit "Play All" for chords or "Sequence"'}
+                </span>
+              )}
+              {interactMode === 'box-select' && (
+                <span>
+                  {lang === 'fa'
+                    ? 'یک مستطیل روی بازه فرکانس بکشید یا بازه را در نوار زیر وارد کنید'
+                    : 'Drag a box around a frequency band or enter frequencies below to synthesize the range'}
+                </span>
+              )}
+            </span>
+            <span className="hidden sm:inline font-mono text-[10px] text-slate-400">
+              Y-Axis: Logarithmic (10 Hz – 20 kHz)
+            </span>
+          </div>
+
           <div className="relative oscilloscope-frame p-1.5 overflow-hidden select-none">
             <canvas
               ref={spectrogramCanvasRef}
@@ -2879,6 +2960,12 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
           )}
         </div>
       )}
+      {/* Quick Friendly Guide Modal */}
+      <GuideModal
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+        onSelectPreset={(presetKey) => applyQuickPreset(presetKey as any)}
+      />
     </div>
   );
 };
