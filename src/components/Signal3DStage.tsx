@@ -61,6 +61,7 @@ const _color = new THREE.Color();
 const _vec3 = new THREE.Vector3();
 const _targetCamPos = new THREE.Vector3();
 const _targetLookAt = new THREE.Vector3();
+const ThreeLine = 'line' as unknown as React.ComponentType<any>;
 
 const MIN_LOG_FREQ = 10;
 const MAX_LOG_FREQ = 20000;
@@ -358,9 +359,9 @@ const SignalFourier3DGroup: React.FC<{
       </mesh>
 
       {/* Main 3D Analytic Signal Curve */}
-      <line geometry={mainLineGeo as any}>
+      <ThreeLine geometry={mainLineGeo as any}>
         <lineBasicMaterial vertexColors linewidth={2} />
-      </line>
+      </ThreeLine>
 
       {/* 3D Instanced Beads along the Signal Helix */}
       <instancedMesh ref={helixBeadsRef} args={[undefined, undefined, NUM_POINTS >> 1]}>
@@ -369,21 +370,21 @@ const SignalFourier3DGroup: React.FC<{
       </instancedMesh>
 
       {/* Bottom Shadow Projection of Signal */}
-      <line geometry={shadowLineGeo as any}>
+      <ThreeLine geometry={shadowLineGeo as any}>
         <lineBasicMaterial color="#38bdf8" transparent opacity={0.28} />
-      </line>
+      </ThreeLine>
 
       {/* Exploded Fourier Harmonic Wave Planes */}
       {showHarmonicPlanes &&
         harmonicGeos.map((geo, idx) => (
           <group key={idx}>
-            <line geometry={geo as any}>
+            <ThreeLine geometry={geo as any}>
               <lineBasicMaterial
                 color={harmonicColors[idx % harmonicColors.length]}
                 transparent
                 opacity={0.75}
               />
-            </line>
+            </ThreeLine>
           </group>
         ))}
     </group>
