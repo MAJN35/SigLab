@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Cpu,
   Database,
+  Dna,
   Filter,
   FlaskConical,
   GitBranch,
@@ -36,6 +37,7 @@ import { AudioSpectrogramPage } from './pages/AudioSpectrogramPage';
 import { CustomSamplesPage } from './pages/CustomSamplesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DeepLearningPage } from './pages/DeepLearningPage';
+import { DNASimulatorPage } from './pages/DNASimulatorPage';
 import { DocumentationPage } from './pages/DocumentationPage';
 import { EEGSimulatorPage } from './pages/EEGSimulatorPage';
 import { ExperimentsPage } from './pages/ExperimentsPage';
@@ -58,6 +60,7 @@ const NAV_ITEMS: {
 }[] = [
   { id: 'dashboard', label: 'Overview', faLabel: 'نمای کلی آزمایشگاه', icon: LayoutDashboard },
   { id: 'audio-lab', label: 'Audio & Spectrogram', faLabel: 'پخش زنده صوت و طیف‌نگار', icon: Volume2 },
+  { id: 'dna-simulator', label: '3D DNA & 47 Chromosomes', faLabel: 'شبیه‌ساز سه‌بعدی DNA و ۴۷ کروموزوم', icon: Dna },
   { id: 'signal-generator', label: 'Signal Generator', faLabel: 'تولیدکننده سیگنال', icon: Activity },
   { id: 'fft-spectrum', label: 'FFT & Spectrum', faLabel: 'طیف فوریه و FFT', icon: BarChart3 },
   { id: 'filtering', label: 'Digital Filtering', faLabel: 'فیلترینگ دیجیتال', icon: Filter },
@@ -74,7 +77,8 @@ const NAV_ITEMS: {
 ];
 
 const TOP_NAV_SHORTCUTS: { id: PageId; label: string; faLabel: string }[] = [
-  { id: 'dashboard', label: 'Audio Lab', faLabel: 'آزمایشگاه صوت' },
+  { id: 'dashboard', label: 'Audio & SNR', faLabel: 'آزمایشگاه صوت و SNR' },
+  { id: 'dna-simulator', label: '3D DNA & 47 Chr', faLabel: 'شبیه‌ساز سه‌بعدی DNA' },
   { id: 'signal-generator', label: 'Waveforms', faLabel: 'شکل‌موج' },
   { id: 'fft-spectrum', label: 'Spectrum', faLabel: 'طیف فوریه' },
   { id: 'filtering', label: 'Filters', faLabel: 'فیلترها' },
@@ -148,6 +152,8 @@ const LabShell: React.FC = () => {
         return <DashboardPage />;
       case 'audio-lab':
         return <AudioSpectrogramPage />;
+      case 'dna-simulator':
+        return <DNASimulatorPage />;
       case 'signal-generator':
         return <SignalGeneratorPage />;
       case 'telecommunications':

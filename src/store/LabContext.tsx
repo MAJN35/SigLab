@@ -114,6 +114,7 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const validPages: PageId[] = [
       'dashboard',
       'audio-lab',
+      'dna-simulator',
       'signal-generator',
       'telecommunications',
       'eeg-simulator',
@@ -200,8 +201,39 @@ export const LabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [lang]);
 
   useEffect(() => {
-    window.location.hash = `#/${activePage}`;
+    if (window.location.hash !== `#/${activePage}`) {
+      window.location.hash = `#/${activePage}`;
+    }
   }, [activePage]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace('#/', '') as PageId;
+      const validPages: PageId[] = [
+        'dashboard',
+        'audio-lab',
+        'dna-simulator',
+        'signal-generator',
+        'telecommunications',
+        'eeg-simulator',
+        'fft-spectrum',
+        'wavelet-analysis',
+        'filtering',
+        'pca',
+        'ica',
+        'modulation-ber',
+        'deep-learning',
+        'custom-samples',
+        'experiments',
+        'documentation',
+      ];
+      if (validPages.includes(hash)) {
+        setActivePage(hash);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   useEffect(() => {
     getAllExperiments().then((exps) => {

@@ -192,6 +192,17 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
   const [isLooping, setIsLooping] = useState<boolean>(true);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
+  // Choosable SNR & Human Voice Clarity Engine (works on Uploaded Music & Generator)
+  const [snrEnabled, setSnrEnabled] = useState<boolean>(false);
+  const [targetSnrDb, setTargetSnrDb] = useState<number>(6);
+  const [snrMode, setSnrMode] = useState<'voice-in-music' | 'awgn' | 'pink' | 'babble' | 'hum'>(
+    'voice-in-music'
+  );
+  const [vocalClarityMode, setVocalClarityMode] = useState<
+    'off' | 'voice-boost' | 'strict-voice-bandpass' | 'instrumental-focus'
+  >('off');
+  const [voicePitchHz, setVoicePitchHz] = useState<number>(145);
+
   // Visualization & Interaction state
   const [vizTab, setVizTab] = useState<VisualizationTab>('3d');
   const [interactMode, setInteractMode] = useState<SpectrogramInteractMode>('click-tone');
@@ -432,6 +443,176 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     []
   );
 
+  // Apply Vocal Formant Clarity Filter & Exact Calibrated SNR (dB) to any audio sample array (Uploaded Music or Synth)
+  const processSamplesWithSnrAndVoice = useCallback(
+    (
+      inputSamples: Float32Array,
+      fs: number,
+      enableSnr: boolean,
+      snrDb: number,
+      mode: 'voice-in-music' | 'awgn' | 'pink' | 'babble' | 'hum',
+      clarity: 'off' | 'voice-boost' | 'strict-voice-bandpass' | 'instrumental-focus',
+      f0Voice: number
+    ): Float32Array => {
+      const n = inputSamples.length;
+      const out = new Float32Array(n);
+      const safeFs = Math.max(8000, fs);
+
+      // Step 1: Apply Real-Time Biquad Vocal Formant Filter (300 Hz - 3400 Hz human voice band)
+      // High-pass @ 280 Hz + Low-pass @ 3400 Hz state variables
+      const rcHp = 1 / (2 * Math.PI * 280);
+      const dt = 1 / safeFs;
+      const alphaHp = rcHp / (rcHp + dt);
+      const rcLp = 1 / (2 * Math.PI * 3400);
+      const alphaLp = dt / (rcLp + dt);
+
+      let hpPrev = 0;
+      let xPrev = 0;
+      let lpPrev = 0;
+
+      for (let i = 0; i < n; i++) {
+        const x = inputSamples[i];
+        hpPrev = alphaHp * (hpPrev + x - xPrev);
+        xPrev = x;
+        lpPrev = lpPrev + alphaLp * (hpPrev - lpPrev);
+        const voiceBand = lpPrev;
+        const nonVoiceBand = x - voiceBand;
+
+        if (clarity === 'off') {
+          out[i] = x;
+        } else if (clarity === 'voice-boost') {
+          // Boost vocal formants (+7.5 dB ≈ 2.37x) while gently attenuating non-vocal music bed
+          out[i] = voiceBand * 2.15 + nonVoiceBand * 0.42;
+        } else if (clarity === 'strict-voice-bandpass') {
+          // Isolate 300 Hz - 3.4 kHz human voice band
+          out[i] = voiceBand * 2.4;
+        } else if (clarity === 'instrumental-focus') {
+          // Suppress vocal center band to emphasize background music
+          out[i] = nonVoiceBand * 1.25 + voiceBand * 0.18;
+        }
+      }
+
+      // Step 2: If Choosable SNR is enabled, compute RMS power and mix at exact SNR (dB)
+      if (enableSnr) {
+        let sumSq = 0;
+        for (let i = 0; i < n; i++) {
+          sumSq += out[i] * out[i];
+        }
+        const sigRms = Math.max(0.015, Math.sqrt(sumSq / Math.max(1, n)));
+
+        if (mode === 'voice-in-music') {
+          // Synthesize articulated multi-formant human speech stream (vowels /a/ -> /e/ -> /i/ -> /o/)
+          // and set exact SNR (dB) between the human voice and the music/signal bed
+          const voiceBuf = new Float32Array(n);
+          let vSumSq = 0;
+          let phase0 = 0;
+          for (let i = 0; i < n; i++) {
+            const t = i / safeFs;
+            const vibrato = 1 + 0.012 * Math.sin(2 * Math.PI * 5.4 * t);
+            const instF0 = f0Voice * vibrato;
+            phase0 += (2 * Math.PI * instF0) / safeFs;
+
+            // Syllable articulation envelope (3.4 syllables/sec)
+            const syllEnv =
+              0.25 +
+              0.75 * Math.pow(Math.max(0, Math.sin(Math.PI * 3.4 * t)), 1.6);
+
+            // Moving vowel formants F1 (500-750Hz), F2 (1100-2200Hz), F3 (2500Hz)
+            const f1 = 620 + 140 * Math.sin(2 * Math.PI * 0.85 * t);
+            const f2 = 1580 + 480 * Math.cos(2 * Math.PI * 0.65 * t);
+            const f3 = 2620 + 180 * Math.sin(2 * Math.PI * 1.1 * t);
+
+            const glottal =
+              0.52 * Math.sin(phase0) +
+              0.31 * Math.sin(2 * phase0) +
+              0.17 * Math.sin(3 * phase0);
+            const formants =
+              0.48 * Math.sin(2 * Math.PI * f1 * t) +
+              0.34 * Math.sin(2 * Math.PI * f2 * t) +
+              0.16 * Math.sin(2 * Math.PI * f3 * t);
+
+            const vSample = syllEnv * (0.55 * glottal + 0.45 * formants);
+            voiceBuf[i] = vSample;
+            vSumSq += vSample * vSample;
+          }
+          const voiceRms = Math.max(1e-4, Math.sqrt(vSumSq / Math.max(1, n)));
+          // Target SNR (dB) = 20 * log10(Voice_RMS / Background_RMS)
+          // For positive SNR, voice is louder than background; for negative SNR, background masks voice
+          const snrLinear = Math.pow(10, snrDb / 20);
+          const targetVoiceRms = sigRms * snrLinear;
+          const voiceScale = targetVoiceRms / voiceRms;
+
+          for (let i = 0; i < n; i++) {
+            out[i] = out[i] + voiceBuf[i] * voiceScale;
+          }
+        } else {
+          // Noise floor modes: AWGN, Pink 1/f, Cocktail Babble, or 50/60 Hz Hum
+          // SNR (dB) = 20 * log10(Signal_RMS / Noise_RMS) => Noise_RMS = Signal_RMS / 10^(SNR/20)
+          const targetNoiseRms = sigRms / Math.pow(10, snrDb / 20);
+          const noiseBuf = new Float32Array(n);
+          let nSumSq = 0;
+          let b0 = 0,
+            b1 = 0,
+            b2 = 0;
+
+          for (let i = 0; i < n; i++) {
+            const t = i / safeFs;
+            let nVal = 0;
+            if (mode === 'awgn') {
+              nVal = Math.random() * 2 - 1;
+            } else if (mode === 'pink') {
+              const w = Math.random() * 2 - 1;
+              b0 = 0.99765 * b0 + w * 0.099046;
+              b1 = 0.963 * b1 + w * 0.2965164;
+              b2 = 0.57 * b2 + w * 1.0526913;
+              nVal = (b0 + b1 + b2 + w * 0.1848) * 0.12;
+            } else if (mode === 'babble') {
+              const env1 = 0.5 + 0.5 * Math.sin(2 * Math.PI * 2.7 * t);
+              const env2 = 0.5 + 0.5 * Math.cos(2 * Math.PI * 3.9 * t + 1.1);
+              nVal =
+                env1 *
+                  (0.4 * Math.sin(2 * Math.PI * 195 * t) +
+                    0.35 * Math.sin(2 * Math.PI * 740 * t)) +
+                env2 *
+                  (0.4 * Math.sin(2 * Math.PI * 255 * t) +
+                    0.3 * Math.sin(2 * Math.PI * 1320 * t)) +
+                0.15 * (Math.random() * 2 - 1);
+            } else if (mode === 'hum') {
+              nVal =
+                0.7 * Math.sin(2 * Math.PI * 50 * t) +
+                0.25 * Math.sin(2 * Math.PI * 150 * t) +
+                0.1 * Math.sin(2 * Math.PI * 250 * t);
+            }
+            noiseBuf[i] = nVal;
+            nSumSq += nVal * nVal;
+          }
+          const rawNoiseRms = Math.max(1e-5, Math.sqrt(nSumSq / Math.max(1, n)));
+          const noiseScale = targetNoiseRms / rawNoiseRms;
+
+          for (let i = 0; i < n; i++) {
+            out[i] = out[i] + noiseBuf[i] * noiseScale;
+          }
+        }
+      }
+
+      // Soft peak limiter to prevent digital clipping on speaker output
+      let maxPeak = 0;
+      for (let i = 0; i < n; i++) {
+        const abs = Math.abs(out[i]);
+        if (abs > maxPeak) maxPeak = abs;
+      }
+      if (maxPeak > 0.96) {
+        const norm = 0.94 / maxPeak;
+        for (let i = 0; i < n; i++) {
+          out[i] *= norm;
+        }
+      }
+
+      return out;
+    },
+    []
+  );
+
   // Build Web Audio AudioBuffer only when needed for actual speaker playback
   const buildSynthesizedBuffer = useCallback(
     (
@@ -445,7 +626,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       layers: MixLayer[]
     ): AudioBuffer => {
       const safeFs = Math.max(8000, Math.min(48000, fs));
-      const effectiveDur = type === 'chirp' ? Math.min(5, dur) : 2.0;
+      const effectiveDur = type === 'chirp' ? Math.min(8, dur) : Math.max(2.0, dur);
       const numSamples = Math.max(safeFs, Math.round(safeFs * effectiveDur));
       const raw = synthesizeRawSamples(
         numSamples,
@@ -457,12 +638,30 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         safeFs,
         layers
       );
+      const processed = processSamplesWithSnrAndVoice(
+        raw,
+        safeFs,
+        snrEnabled,
+        targetSnrDb,
+        snrMode,
+        vocalClarityMode,
+        voicePitchHz
+      );
       const buffer = ctx.createBuffer(1, numSamples, safeFs);
-      buffer.getChannelData(0).set(raw);
+      buffer.getChannelData(0).set(processed);
       return buffer;
     },
-    [synthesizeRawSamples]
+    [
+      processSamplesWithSnrAndVoice,
+      snrEnabled,
+      snrMode,
+      synthesizeRawSamples,
+      targetSnrDb,
+      vocalClarityMode,
+      voicePitchHz,
+    ]
   );
+
 
   // Compute exact windowed spectral magnitude (in dB) mapped onto a LOGARITHMIC frequency axis (10 Hz .. maxFreq)
   const computeSliceSpectrumDb = useCallback(
@@ -577,7 +776,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       const cols: Float32Array[] = new Array(SPEC_COLS);
       const times = new Float32Array(SPEC_COLS);
 
-      const numKeyframes = isTimeVarying ? 36 : 4;
+      const numKeyframes = isTimeVarying ? 48 : 8;
       const keyframes: Float32Array[] = new Array(numKeyframes);
       for (let k = 0; k < numKeyframes; k++) {
         const ratio = k / Math.max(1, numKeyframes - 1);
@@ -588,10 +787,25 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       for (let c = 0; c < SPEC_COLS; c++) {
         const ratio = c / Math.max(1, SPEC_COLS - 1);
         times[c] = ratio * dur;
-        const kfIdx = isTimeVarying
-          ? Math.min(numKeyframes - 1, Math.floor(ratio * numKeyframes))
-          : c % numKeyframes;
-        cols[c] = keyframes[kfIdx];
+        if (isTimeVarying) {
+          const exactKf = ratio * (numKeyframes - 1);
+          const k0 = Math.floor(exactKf);
+          const k1 = Math.min(numKeyframes - 1, k0 + 1);
+          const frac = exactKf - k0;
+          if (frac < 0.01 || k0 === k1) {
+            cols[c] = keyframes[k0];
+          } else {
+            const interp = new Float32Array(SPEC_ROWS);
+            const row0 = keyframes[k0];
+            const row1 = keyframes[k1];
+            for (let r = 0; r < SPEC_ROWS; r++) {
+              interp[r] = row0[r] * (1 - frac) + row1[r] * frac;
+            }
+            cols[c] = interp;
+          }
+        } else {
+          cols[c] = keyframes[c % numKeyframes];
+        }
       }
       specMatrixRef.current = cols;
       specTimesRef.current = times;
@@ -975,7 +1189,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       const safeFs = Math.max(8000, Math.min(48000, sampleRate));
       const isChirp = waveType === 'chirp';
       const previewLen = isChirp ? 16384 : 8192;
-      const previewSamples = synthesizeRawSamples(
+      const rawPreviewSamples = synthesizeRawSamples(
         previewLen,
         waveType,
         frequency,
@@ -985,6 +1199,15 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         safeFs,
         mixLayers
       );
+      const previewSamples = processSamplesWithSnrAndVoice(
+        rawPreviewSamples,
+        safeFs,
+        snrEnabled,
+        targetSnrDb,
+        snrMode,
+        vocalClarityMode,
+        voicePitchHz
+      );
 
       const waveOut = new Float32Array(512);
       for (let i = 0; i < 512; i++) {
@@ -992,7 +1215,11 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       }
       liveWaveSliceRef.current = waveOut;
 
-      if (!isChirp) {
+      const isDynamicPreview =
+        isChirp ||
+        (snrEnabled && (snrMode === 'voice-in-music' || snrMode === 'babble'));
+
+      if (!isDynamicPreview) {
         const singleCol = computeSliceSpectrumDb(
           previewSamples,
           safeFs,
@@ -1007,7 +1234,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         }
         specMatrixRef.current = cols;
       } else {
-        const numKf = 14;
+        const numKf = 18;
         const kfs: Float32Array[] = new Array(numKf);
         for (let k = 0; k < numKf; k++) {
           const center = Math.floor((k / (numKf - 1)) * (previewLen - 1));
@@ -1031,10 +1258,35 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         return () => window.clearTimeout(timer);
       }
     } else if (sourceMode === 'uploaded' && uploadedBufferRef.current) {
-      activeBufferRef.current = uploadedBufferRef.current;
-      setTotalDuration(uploadedBufferRef.current.duration);
-      precomputeBufferSpectrogram(uploadedBufferRef.current, maxFreqDisplay, true);
-      renderCanvases(pauseOffsetRef.current);
+      const timer = window.setTimeout(() => {
+        const origBuf = uploadedBufferRef.current;
+        if (!origBuf) return;
+        const rawCh = origBuf.getChannelData(0);
+        const processedCh = processSamplesWithSnrAndVoice(
+          rawCh,
+          origBuf.sampleRate,
+          snrEnabled,
+          targetSnrDb,
+          snrMode,
+          vocalClarityMode,
+          voicePitchHz
+        );
+        const procBuf = new AudioBuffer({
+          length: processedCh.length,
+          sampleRate: origBuf.sampleRate,
+          numberOfChannels: 1,
+        });
+        procBuf.getChannelData(0).set(processedCh);
+        activeBufferRef.current = procBuf;
+        setTotalDuration(procBuf.duration);
+        precomputeBufferSpectrogram(procBuf, maxFreqDisplay, true);
+        renderCanvases(pauseOffsetRef.current);
+
+        if (isPlaying) {
+          startPlayback(pauseOffsetRef.current);
+        }
+      }, 45);
+      return () => window.clearTimeout(timer);
     }
   }, [
     sourceMode,
@@ -1046,8 +1298,15 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     sampleRate,
     mixLayers,
     maxFreqDisplay,
+    snrEnabled,
+    targetSnrDb,
+    snrMode,
+    vocalClarityMode,
+    voicePitchHz,
     computeSliceSpectrumDb,
+    getOrCreateAudioContext,
     precomputeBufferSpectrogram,
+    processSamplesWithSnrAndVoice,
     synthesizeRawSamples,
   ]);
 
@@ -1921,6 +2180,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     const file = e.target.files?.[0];
     if (!file) return;
     stopSourceNode();
+    stopMultiSignals();
     setIsPlaying(false);
     setIsDecodingUpload(true);
 
@@ -1929,15 +2189,28 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       const arrayBuf = await file.arrayBuffer();
       const decoded = await ctx.decodeAudioData(arrayBuf);
       uploadedBufferRef.current = decoded;
-      activeBufferRef.current = decoded;
+
+      const processedSamples = processSamplesWithSnrAndVoice(
+        decoded.getChannelData(0),
+        decoded.sampleRate,
+        snrEnabled,
+        targetSnrDb,
+        snrMode,
+        vocalClarityMode,
+        voicePitchHz
+      );
+      const procBuf = ctx.createBuffer(1, processedSamples.length, decoded.sampleRate);
+      procBuf.getChannelData(0).set(processedSamples);
+
+      activeBufferRef.current = procBuf;
       setUploadedFileName(file.name);
       setSourceMode('uploaded');
-      setTotalDuration(decoded.duration);
+      setTotalDuration(procBuf.duration);
       pauseOffsetRef.current = 0;
       setCurrentTime(0);
       const autoMaxFreq = 20000;
       setMaxFreqDisplay(autoMaxFreq);
-      precomputeBufferSpectrogram(decoded, autoMaxFreq, true);
+      precomputeBufferSpectrogram(procBuf, autoMaxFreq, true);
       startPlayback(0);
     } catch {
       // ignore invalid audio format
@@ -1946,6 +2219,82 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     }
     e.target.value = '';
   };
+
+  // Load Built-In Demo Vocal + Music Track so users can test Voice Clarity & Choosable SNR immediately
+  const loadDemoVocalMusicTrack = useCallback(() => {
+    stopSourceNode();
+    stopMultiSignals();
+    const ctx = getOrCreateAudioContext();
+    const fs = 44100;
+    const dur = 6.0;
+    const N = Math.round(fs * dur);
+    const rawBuf = ctx.createBuffer(1, N, fs);
+    const ch = rawBuf.getChannelData(0);
+
+    // Synthesize a realistic polyphonic music backing (sub-bass 73Hz/98Hz + high-hat shimmer 7.5kHz)
+    // layered with a singing human vowel formant melody (F0 = 196Hz -> 220Hz -> 261.6Hz -> 293.6Hz with vowel formants F1=730Hz, F2=1290Hz, F3=2440Hz)
+    const melodyNotes = [196.0, 220.0, 246.94, 261.63, 293.66, 246.94];
+    for (let i = 0; i < N; i++) {
+      const t = i / fs;
+      const barIdx = Math.min(melodyNotes.length - 1, Math.floor(t));
+      const f0 = melodyNotes[barIdx] * (1 + 0.012 * Math.sin(2 * Math.PI * 5.4 * t)); // natural vocal vibrato
+      const syllableEnv = Math.sin(Math.PI * (t % 1.0)) * 0.85 + 0.15;
+
+      // Human singing voice (fundamental + F1/F2/F3 vocal tract formants in 300Hz-3.4kHz band)
+      const humanVoice =
+        syllableEnv *
+        (0.28 * Math.sin(2 * Math.PI * f0 * t) +
+          0.36 * Math.sin(2 * Math.PI * f0 * 3 * t) +
+          0.32 * Math.sin(2 * Math.PI * 730 * t) +
+          0.26 * Math.sin(2 * Math.PI * 1290 * t) +
+          0.18 * Math.sin(2 * Math.PI * 2440 * t));
+
+      // Sub-bass & warm chord pad (65Hz - 165Hz) + high acoustic percussion shimmer (6.5kHz - 9kHz)
+      const bassNote = barIdx % 2 === 0 ? 65.41 : 82.41;
+      const subBass =
+        0.38 * Math.sin(2 * Math.PI * bassNote * t) +
+        0.22 * Math.sin(2 * Math.PI * bassNote * 1.5 * t);
+      const beatEnv = Math.exp(-14 * (t % 0.5));
+      const highPerc = beatEnv * 0.16 * (Math.random() * 2 - 1) * Math.sin(2 * Math.PI * 7200 * t);
+
+      ch[i] = Math.max(-0.95, Math.min(0.95, 0.55 * humanVoice + 0.5 * subBass + highPerc));
+    }
+
+    uploadedBufferRef.current = rawBuf;
+    const processed = processSamplesWithSnrAndVoice(
+      ch,
+      fs,
+      snrEnabled,
+      targetSnrDb,
+      snrMode,
+      vocalClarityMode,
+      voicePitchHz
+    );
+    const procBuf = ctx.createBuffer(1, N, fs);
+    procBuf.getChannelData(0).set(processed);
+
+    activeBufferRef.current = procBuf;
+    setUploadedFileName('Vocal_Music_Mix_Demo.wav');
+    setSourceMode('uploaded');
+    setTotalDuration(dur);
+    pauseOffsetRef.current = 0;
+    setCurrentTime(0);
+    precomputeBufferSpectrogram(procBuf, maxFreqDisplay, true);
+    startPlayback(0);
+  }, [
+    getOrCreateAudioContext,
+    maxFreqDisplay,
+    precomputeBufferSpectrogram,
+    processSamplesWithSnrAndVoice,
+    snrEnabled,
+    snrMode,
+    startPlayback,
+    stopMultiSignals,
+    stopSourceNode,
+    targetSnrDb,
+    vocalClarityMode,
+    voicePitchHz,
+  ]);
 
   // Convenient Preset Buttons
   const applyQuickPreset = (
@@ -2106,10 +2455,10 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             <Upload className="w-3.5 h-3.5 text-sky-500" />
             <span>
               {uploadedFileName
-                ? uploadedFileName.slice(0, 14)
+                ? uploadedFileName.slice(0, 16)
                 : lang === 'fa'
-                ? 'فایل صوتی'
-                : 'Upload'}
+                ? 'آپلود موزیک/صدا'
+                : 'Upload Music/Voice'}
             </span>
             <input
               type="file"
@@ -2118,6 +2467,24 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               className="hidden"
             />
           </label>
+
+          <button
+            type="button"
+            onClick={loadDemoVocalMusicTrack}
+            className={`px-3.5 py-2 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer ${
+              sourceMode === 'uploaded' && uploadedFileName === 'Vocal_Music_Mix_Demo.wav'
+                ? 'btn-tool-pill'
+                : 'neu-btn'
+            }`}
+            title={
+              lang === 'fa'
+                ? 'بارگذاری نمونه صدای خواننده + موزیک برای تست SNR و تفکیک صدا'
+                : 'Load synthesized Vocal + Music track to test Choosable SNR & Voice Clarity'
+            }
+          >
+            <AudioLines className="w-3.5 h-3.5 text-[#7FD141]" />
+            <span>{lang === 'fa' ? 'دموی خواننده + موزیک' : 'Vocal + Music Demo'}</span>
+          </button>
         </div>
 
         {/* Right: Quick Preset Select + Volume + Settings */}
@@ -2312,6 +2679,213 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       {isDecodingUpload && (
         <div className="w-full h-7 skeleton-shimmer" />
       )}
+
+      {/* Choosable SNR & Human Voice Clarity Strip (Works on Uploaded Music & Generator) */}
+      <div className="neu-inset p-3.5 rounded-2xl flex flex-col gap-3 border border-sky-500/20">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AudioLines className="w-4 h-4 text-sky-500 shrink-0" />
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+              {lang === 'fa'
+                ? 'تنظیم انتخابی SNR (نسبت سیگنال به نویز) و شفاف‌سازی صدای انسان در موسیقی آپلودشده'
+                : 'Choosable SNR (dB) & Human Voice Clarity in Uploaded Music / Signals'}
+            </span>
+            {sourceMode === 'uploaded' && uploadedFileName && (
+              <span className="text-[11px] font-mono text-emerald-500 font-semibold">
+                ({uploadedFileName})
+              </span>
+            )}
+          </div>
+
+          {/* Quick Choosable SNR Buttons */}
+          <div className="flex flex-wrap items-center gap-1 font-mono text-[11px]">
+            <button
+              type="button"
+              onClick={() => setSnrEnabled(false)}
+              className={`px-2.5 py-1 rounded-lg cursor-pointer transition-colors ${
+                !snrEnabled
+                  ? 'bg-emerald-500 text-slate-950 font-bold'
+                  : 'neu-btn text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              {lang === 'fa' ? 'پاک (∞ dB)' : 'Clean (∞ dB)'}
+            </button>
+            {[-10, -3, 0, 6, 12, 20].map((dbVal) => (
+              <button
+                key={dbVal}
+                type="button"
+                onClick={() => {
+                  setSnrEnabled(true);
+                  setTargetSnrDb(dbVal);
+                }}
+                className={`px-2 py-1 rounded-lg cursor-pointer transition-colors ${
+                  snrEnabled && targetSnrDb === dbVal
+                    ? 'bg-sky-500 text-slate-950 font-bold'
+                    : 'neu-btn text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                {dbVal > 0 ? `+${dbVal}` : dbVal} dB
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+          {/* Column 1: Vocal Formant Clarity / Isolation Filter */}
+          <div>
+            <label className="block text-[11px] font-mono text-slate-500 mb-1">
+              {lang === 'fa'
+                ? 'تقویت و جداسازی صدای انسان (۳۰۰ تا ۳۴۰۰ هرتز)'
+                : 'Voice Isolation & Formant Clarity'}
+            </label>
+            <select
+              value={vocalClarityMode}
+              onChange={(e) => setVocalClarityMode(e.target.value as any)}
+              className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
+            >
+              <option value="off">
+                {lang === 'fa'
+                  ? 'طیف کامل اصلی (بدون فیلتر وکال)'
+                  : 'Original Full Spectrum (Off)'}
+              </option>
+              <option value="voice-boost">
+                {lang === 'fa'
+                  ? 'تقویت صدای خواننده/گوینده در موسیقی (+7.5 dB Formant Boost)'
+                  : 'Boost Voice in Uploaded Music (+7.5 dB Formants)'}
+              </option>
+              <option value="strict-voice-bandpass">
+                {lang === 'fa'
+                  ? 'جداسازی باند صدای انسان (فیلتر میان‌گذر 300Hz–3.4kHz)'
+                  : 'Isolate Voice Band Only (300 Hz – 3.4 kHz Bandpass)'}
+              </option>
+              <option value="instrumental-focus">
+                {lang === 'fa'
+                  ? 'تضعیف صدای خواننده (تمرکز بر سازها و موسیقی متن)'
+                  : 'Suppress Center Vocals (Instrumental Focus)'}
+              </option>
+            </select>
+          </div>
+
+          {/* Column 2: SNR Signal / Noise Mixing Mode */}
+          <div>
+            <label className="block text-[11px] font-mono text-slate-500 mb-1">
+              {lang === 'fa'
+                ? 'حالت ترکیب SNR (صدای انسان روی موسیقی یا نویز کالیبره)'
+                : 'SNR Target Channel (Voice-in-Music vs. Noise)'}
+            </label>
+            <select
+              value={snrMode}
+              onChange={(e) => {
+                setSnrMode(e.target.value as any);
+                setSnrEnabled(true);
+              }}
+              className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
+            >
+              <option value="voice-in-music">
+                {lang === 'fa'
+                  ? 'تزریق/شنیدن صدای گفتار انسان در موسیقی با SNR انتخابی'
+                  : 'Hear Human Voice in Music at Chosen SNR (dB)'}
+              </option>
+              <option value="awgn">
+                {lang === 'fa'
+                  ? 'نویز سفید گوسی (AWGN) با SNR انتخابی'
+                  : 'White Gaussian Noise (AWGN) at Chosen SNR'}
+              </option>
+              <option value="pink">
+                {lang === 'fa'
+                  ? 'نویز صورتی (1/f Pink Noise) با SNR انتخابی'
+                  : 'Pink 1/f Noise at Chosen SNR'}
+              </option>
+              <option value="babble">
+                {lang === 'fa'
+                  ? 'همهمه جمعیت (Cocktail Party Babble) با SNR انتخابی'
+                  : 'Cocktail Party Speech Babble at Chosen SNR'}
+              </option>
+              <option value="hum">
+                {lang === 'fa'
+                  ? 'نویز برق شهر (50/150 Hz Hum) با SNR انتخابی'
+                  : '50/150 Hz Powerline Hum at Chosen SNR'}
+              </option>
+            </select>
+          </div>
+
+          {/* Column 3: Continuous SNR (dB) Slider (-20 dB to +30 dB) */}
+          <div dir="ltr">
+            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span className="text-slate-500">
+                {lang === 'fa' ? 'مقدار دقیق SNR:' : 'Selected SNR Level:'}
+              </span>
+              <span
+                className={`font-bold ${
+                  !snrEnabled
+                    ? 'text-emerald-500'
+                    : targetSnrDb < 0
+                    ? 'text-rose-500'
+                    : 'text-sky-500'
+                }`}
+              >
+                {snrEnabled
+                  ? `${targetSnrDb > 0 ? '+' : ''}${targetSnrDb} dB`
+                  : 'Clean (∞ dB)'}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={-20}
+              max={30}
+              step={1}
+              value={targetSnrDb}
+              onChange={(e) => {
+                setSnrEnabled(true);
+                setTargetSnrDb(Number(e.target.value));
+              }}
+              className="sci-slider w-full"
+            />
+          </div>
+        </div>
+
+        {/* Optional Voice Fundamental Pitch Slider when Voice-in-Music SNR mode is active */}
+        {snrEnabled && snrMode === 'voice-in-music' && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-300/30 dark:border-slate-800/60 text-xs font-mono">
+            <span className="text-slate-500">
+              {lang === 'fa'
+                ? 'فرکانس پایه حنجره صدای گفتار (F0):'
+                : 'Injected Human Voice Fundamental Pitch (F0):'}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setVoicePitchHz(120)}
+                className={`px-2.5 py-0.5 rounded-lg cursor-pointer ${
+                  voicePitchHz === 120 ? 'bg-sky-500 text-slate-950 font-bold' : 'neu-btn'
+                }`}
+              >
+                {lang === 'fa' ? 'صدای مرد (120 Hz)' : 'Male Voice (120 Hz)'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoicePitchHz(215)}
+                className={`px-2.5 py-0.5 rounded-lg cursor-pointer ${
+                  voicePitchHz === 215 ? 'bg-sky-500 text-slate-950 font-bold' : 'neu-btn'
+                }`}
+              >
+                {lang === 'fa' ? 'صدای زن (215 Hz)' : 'Female Voice (215 Hz)'}
+              </button>
+              <input
+                type="range"
+                min={85}
+                max={260}
+                step={5}
+                value={voicePitchHz}
+                onChange={(e) => setVoicePitchHz(Number(e.target.value))}
+                className="sci-slider w-28"
+              />
+              <span className="text-sky-500 font-bold w-14 text-right">{voicePitchHz} Hz</span>
+            </div>
+          </div>
+        )}
+      </div>
+
 
       {/* Custom Mixed Signal Builder */}
       <AnimatePresence initial={false}>
@@ -2647,7 +3221,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             </span>
           </div>
 
-          <div className="relative oscilloscope-frame p-1.5 overflow-hidden select-none">
+          <div dir="ltr" className="relative oscilloscope-frame p-1.5 overflow-hidden select-none">
             <canvas
               ref={spectrogramCanvasRef}
               onMouseDown={handleSpecMouseDown}

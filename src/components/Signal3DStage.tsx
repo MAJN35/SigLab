@@ -1,16 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
-import { Grid, Html, Line, OrbitControls } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import {
   Activity,
   BarChart3,
   Box,
-  Camera,
   ChevronDown,
   ChevronUp,
-  Compass,
-  Eye,
   Layers,
   Maximize2,
   Minimize2,
@@ -18,8 +15,6 @@ import {
   MicOff,
   Pause,
   Play,
-  RotateCcw,
-  Sparkles,
   Volume2,
 } from 'lucide-react';
 
@@ -55,13 +50,24 @@ export interface Signal3DStageProps {
   heightClass?: string;
 }
 
+export interface HoveredBarInfo {
+  index: number;
+  freq: number;
+  db: number;
+}
+
 // Pre-allocated scratch objects for zero-GC 60fps render loops
 const _dummy = new THREE.Object3D();
 const _color = new THREE.Color();
 const _vec3 = new THREE.Vector3();
 const _targetCamPos = new THREE.Vector3();
 const _targetLookAt = new THREE.Vector3();
-const ThreeLine = 'line' as unknown as React.ComponentType<any>;
+const _pA = new THREE.Vector3();
+const _pB = new THREE.Vector3();
+const _mid = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);
+const _quat = new THREE.Quaternion();
 
 const MIN_LOG_FREQ = 10;
 const MAX_LOG_FREQ = 20000;
@@ -74,31 +80,79 @@ function binToFreqLog(binIdx: number, totalBins: number): number {
 function formatHz(f: number): string {
   if (f >= 1000) {
     const k = f / 1000;
-    return Number.isInteger(k) ? `${k}kHz` : `${k.toFixed(1)}kHz`;
+    return Number.isInteger(k) ? `${k} kHz` : `${k.toFixed(2)} kHz`;
   }
-  return `${Math.round(f)}Hz`;
+  return `${Math.round(f)} Hz`;
 }
 
-/** Scientific Viridis-Plasma color mapping for normalized amplitude [0..1] */
+/** Scientific Viridis-Plasma-Turbo color mapping for normalized amplitude [0..1] */
 function setScientificColor(target: THREE.Color, norm: number, boost = 0) {
   const t = Math.max(0, Math.min(1, norm));
-  if (t < 0.25) {
-    const k = t / 0.25;
-    target.setRGB(0.05 + k * 0.05, 0.18 + k * 0.38, 0.45 + k * 0.45);
-  } else if (t < 0.55) {
-    const k = (t - 0.25) / 0.3;
-    target.setRGB(0.1 + k * 0.35, 0.56 + k * 0.32, 0.9 - k * 0.45);
-  } else if (t < 0.82) {
-    const k = (t - 0.55) / 0.27;
-    target.setRGB(0.45 + k * 0.52, 0.88 - k * 0.12, 0.45 - k * 0.32);
+  if (t < 0.22) {
+    const k = t / 0.22;
+    target.setRGB(0.04 + k * 0.06, 0.14 + k * 0.36, 0.42 + k * 0.48);
+  } else if (t < 0.52) {
+    const k = (t - 0.22) / 0.3;
+    target.setRGB(0.1 + k * 0.28, 0.5 + k * 0.38, 0.9 - k * 0.42);
+  } else if (t < 0.8) {
+    const k = (t - 0.52) / 0.28;
+    target.setRGB(0.38 + k * 0.56, 0.88 - k * 0.1, 0.48 - k * 0.34);
   } else {
-    const k = (t - 0.82) / 0.18;
-    target.setRGB(0.97 + k * 0.03, 0.76 + k * 0.2, 0.13 + k * 0.65);
+    const k = (t - 0.8) / 0.2;
+    target.setRGB(0.94 + k * 0.06, 0.78 + k * 0.18, 0.14 + k * 0.68);
   }
   if (boost > 0) {
-    target.offsetHSL(0, 0.1, boost * 0.22);
+    target.offsetHSL(0, 0.12, boost * 0.24);
   }
 }
+
+/** Creates a crisp high-DPI 3D sprite texture for axis & harmonic labels without DOM portals */
+function makeTextSpriteTexture(
+  text: string,
+  accentColor = '#38bdf8',
+  bgColor = 'rgba(7, 12, 24, 0.88)'
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, 256, 64);
+    ctx.fillStyle = bgColor;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(6, 8, 244, 48, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 22px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 33);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const LabelSprite3D: React.FC<{
+  text: string;
+  position: [number, number, number];
+  color?: string;
+  scale?: [number, number, number];
+}> = ({ text, position, color = '#38bdf8', scale = [1.35, 0.34, 1] }) => {
+  const tex = useMemo(() => makeTextSpriteTexture(text, color), [text, color]);
+  useEffect(() => {
+    return () => tex.dispose();
+  }, [tex]);
+  return (
+    <sprite position={position} scale={scale}>
+      <spriteMaterial map={tex} transparent depthTest={false} />
+    </sprite>
+  );
+};
 
 /** Smooth Camera Preset Animator inside Canvas */
 const CameraController: React.FC<{
@@ -114,20 +168,17 @@ const CameraController: React.FC<{
     isTransitioningRef.current = true;
     transitionTimerRef.current = 0;
     if (cameraPreset === 'iso') {
-      _targetCamPos.set(11.5, 8.2, 13.5);
-      _targetLookAt.set(0, 0.8, 0);
+      _targetCamPos.set(11.2, 7.6, 13.2);
+      _targetLookAt.set(0, 0.4, -0.4);
     } else if (cameraPreset === 'time') {
-      // Front orthographic-like view of Time vs Amplitude
-      _targetCamPos.set(0, 2.2, 16.5);
-      _targetLookAt.set(0, 0.8, 0);
+      _targetCamPos.set(0, 1.8, 15.8);
+      _targetLookAt.set(0, 0.5, 0);
     } else if (cameraPreset === 'freq') {
-      // Side view looking straight down the Frequency Spectrum axis
-      _targetCamPos.set(16.5, 2.6, 0);
-      _targetLookAt.set(0, 0.8, 0);
+      _targetCamPos.set(15.8, 2.4, 0);
+      _targetLookAt.set(0, 0.5, 0);
     } else if (cameraPreset === 'top') {
-      // Top-down Spectrogram view
-      _targetCamPos.set(0.01, 18.5, 0.01);
-      _targetLookAt.set(0, 0, 0);
+      _targetCamPos.set(0.01, 18.2, 0.01);
+      _targetLookAt.set(0, 0, -0.5);
     }
   }, [cameraPreset]);
 
@@ -152,17 +203,17 @@ const CameraController: React.FC<{
 };
 
 /**
- * 1. 3D Analytic Signal Helix + Time-Domain Wave + Harmonic Epicycle Planes
- * Shows:
- * - Main 3D Complex Phasor Spiral (Real = Y, Imaginary/Quadrature = Z, Time = X)
- * - Rotating Phasor Vector & Epicycle Ring at the left origin
- * - Decomposed Harmonic Sine Ribbons stacked in Z so users visually see Fourier decomposition
+ * 1. Realistic 3D Volumetric Analytic Signal Helix + Curtain Ribbon + Decomposed Harmonic Tubes
+ * Uses InstancedMesh 3D cylinders for continuous glossy volumetric tubes (zero WebGL 1px line limits or R3F <line> bugs!)
  */
 const SignalFourier3DGroup: React.FC<{
   liveWaveformRef?: React.MutableRefObject<Float32Array>;
   liveSpectrumDbRef?: React.MutableRefObject<Float32Array>;
   fallbackWave?: number[];
   fallbackFilteredWave?: number[];
+  frequency?: number;
+  waveType?: string;
+  isPlaying?: boolean;
   position: [number, number, number];
   scale?: number;
   layerSpread: number;
@@ -172,229 +223,396 @@ const SignalFourier3DGroup: React.FC<{
   liveSpectrumDbRef,
   fallbackWave,
   fallbackFilteredWave,
+  frequency = 440,
+  waveType = 'sine',
+  isPlaying = false,
   position,
   scale = 1,
   layerSpread,
   showHarmonicPlanes,
 }) => {
-  const NUM_POINTS = 160;
+  const NUM_POINTS = 140;
+  const NUM_SEGMENTS = NUM_POINTS - 1;
   const NUM_HARMONICS = 4;
 
-  // Dynamic Tube / Ribbon geometry for the main 3D waveform
-  const mainLineGeo = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    const positions = new Float32Array(NUM_POINTS * 3);
-    const colors = new Float32Array(NUM_POINTS * 3);
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mainTubeInstRef = useRef<THREE.InstancedMesh>(null);
+  const mainJointsInstRef = useRef<THREE.InstancedMesh>(null);
+  const harm0InstRef = useRef<THREE.InstancedMesh>(null);
+  const harm1InstRef = useRef<THREE.InstancedMesh>(null);
+  const harm2InstRef = useRef<THREE.InstancedMesh>(null);
+  const harm3InstRef = useRef<THREE.InstancedMesh>(null);
+
+  const phasorArmRef = useRef<THREE.Mesh>(null);
+  const phasorTipRef = useRef<THREE.Mesh>(null);
+  const phasorRingGroupRef = useRef<THREE.Group>(null);
+  const phaseRef = useRef(0);
+
+  // Translucent vertical curtain geometry dropping from the 3D signal to the floor plane
+  const curtainGeo = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(9.2, 2.0, NUM_POINTS - 1, 1);
+    const count = geo.attributes.position.count;
+    const colors = new Float32Array(count * 3);
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     return geo;
   }, []);
 
-  // Shadow projection on bottom plane (Time vs Quadrature)
-  const shadowLineGeo = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    const positions = new Float32Array(NUM_POINTS * 3);
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geo;
-  }, []);
-
-  // 4 Harmonic component wave geometries stacked along Z
-  const harmonicGeos = useMemo(() => {
-    return Array.from({ length: NUM_HARMONICS }, () => {
-      const geo = new THREE.BufferGeometry();
-      const positions = new Float32Array(NUM_POINTS * 3);
-      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      return geo;
-    });
-  }, []);
-
-  // Instanced spheres along the 3D analytic helix for tangible 3D depth
-  const helixBeadsRef = useRef<THREE.InstancedMesh>(null);
-  const phasorArmRef = useRef<THREE.Mesh>(null);
-  const phasorTipRef = useRef<THREE.Mesh>(null);
-  const phaseRef = useRef(0);
-
   useEffect(() => {
-    if (helixBeadsRef.current) {
-      helixBeadsRef.current.frustumCulled = false;
-    }
-  }, []);
+    [
+      mainTubeInstRef,
+      mainJointsInstRef,
+      harm0InstRef,
+      harm1InstRef,
+      harm2InstRef,
+      harm3InstRef,
+    ].forEach((r) => {
+      if (r.current) r.current.frustumCulled = false;
+    });
+    return () => {
+      curtainGeo.dispose();
+    };
+  }, [curtainGeo]);
+
+  // Scratch arrays for current frame 3D curve coordinates
+  const ptsX = useMemo(() => new Float32Array(NUM_POINTS), []);
+  const ptsY = useMemo(() => new Float32Array(NUM_POINTS), []);
+  const ptsZ = useMemo(() => new Float32Array(NUM_POINTS), []);
 
   useFrame((_, delta) => {
-    phaseRef.current += delta * 2.8;
+    phaseRef.current += delta * (isPlaying ? 3.4 : 1.15);
     const wave = liveWaveformRef?.current;
     const specDb = liveSpectrumDbRef?.current;
 
-    const posAttr = mainLineGeo.getAttribute('position') as THREE.BufferAttribute;
-    const colAttr = mainLineGeo.getAttribute('color') as THREE.BufferAttribute;
-    const shadowAttr = shadowLineGeo.getAttribute('position') as THREE.BufferAttribute;
-
-    const waveLen = wave && wave.length > 0 ? wave.length : fallbackWave?.length || 128;
-
-    // Extract top 4 harmonic amplitudes from spectrum or synthesize defaults
-    const harmAmps = [0.65, 0.32, 0.18, 0.12];
+    // Extract top 4 harmonic amplitudes from live spectrum
+    const harmAmps = [0.68, 0.34, 0.21, 0.14];
     const harmFreqs = [1, 2, 3, 5];
     if (specDb && specDb.length >= 64) {
       for (let h = 0; h < NUM_HARMONICS; h++) {
-        const idx = Math.min(specDb.length - 1, 14 + h * 22);
-        const norm = Math.max(0.08, Math.min(1, (specDb[idx] + 90) / 85));
-        harmAmps[h] = norm * 0.75;
+        const idx = Math.min(specDb.length - 1, 12 + h * 24);
+        const norm = Math.max(0.08, Math.min(1, (specDb[idx] + 92) / 86));
+        harmAmps[h] = norm * 0.78;
       }
     }
 
-    const spanX = 9.0;
+    const spanX = 9.2;
     const startX = -spanX * 0.5;
+    const floorY = -1.65;
+
+    // Determine visual cycles so low frequencies (e.g. 20 Hz) still show 3.5 full 3D helical turns
+    const visualCycles = Math.max(
+      2.8,
+      Math.min(7.5, 2.5 + Math.log10(Math.max(10, frequency) / 10) * 1.45)
+    );
+
+    const waveLen = wave && wave.length > 0 ? wave.length : fallbackWave?.length || 128;
+
+    // Measure live waveform RMS so we know if live audio has strong multi-cycle variations
+    let waveVariance = 0;
+    if (wave && wave.length > 16) {
+      let minV = 1e9;
+      let maxV = -1e9;
+      for (let i = 0; i < wave.length; i += 4) {
+        if (wave[i] < minV) minV = wave[i];
+        if (wave[i] > maxV) maxV = wave[i];
+      }
+      waveVariance = maxV - minV;
+    }
 
     for (let i = 0; i < NUM_POINTS; i++) {
       const u = i / (NUM_POINTS - 1);
       const x = startX + u * spanX;
       const sampleIdx = Math.min(waveLen - 1, Math.floor(u * (waveLen - 1)));
-      const nextIdx = Math.min(waveLen - 1, sampleIdx + 3);
+      const nextIdx = Math.min(waveLen - 1, sampleIdx + 4);
+
+      const synthAngle = u * Math.PI * 2 * visualCycles - phaseRef.current;
+      let synthY = Math.sin(synthAngle);
+      let synthZ = Math.cos(synthAngle);
+
+      if (waveType === 'square') {
+        synthY = Math.tanh(Math.sin(synthAngle) * 3.5);
+        synthZ = Math.tanh(Math.cos(synthAngle) * 3.5);
+      } else if (waveType === 'sawtooth') {
+        synthY =
+          0.65 * Math.sin(synthAngle) -
+          0.32 * Math.sin(2 * synthAngle) +
+          0.18 * Math.sin(3 * synthAngle);
+        synthZ =
+          0.65 * Math.cos(synthAngle) -
+          0.32 * Math.cos(2 * synthAngle) +
+          0.18 * Math.cos(3 * synthAngle);
+      } else if (waveType === 'chirp') {
+        const chirpAngle = u * u * Math.PI * 10 - phaseRef.current;
+        synthY = Math.sin(chirpAngle);
+        synthZ = Math.cos(chirpAngle);
+      }
 
       let yVal = 0;
       let zQuadrature = 0;
 
-      if (wave && wave.length > 0) {
-        yVal = wave[sampleIdx] * 1.9;
-        // Discrete quadrature approximation (90-degree phase shift derivative)
-        const dy = (wave[nextIdx] - wave[sampleIdx]) * 3.2;
-        zQuadrature = Math.max(-1.6, Math.min(1.6, dy));
+      if (wave && wave.length > 0 && frequency >= 160 && waveVariance > 0.25) {
+        // Blend live acoustic buffer with smooth quadrature phase
+        const rawY = wave[sampleIdx] * 1.65;
+        const rawDy = (wave[nextIdx] - wave[sampleIdx]) * 2.8;
+        yVal = rawY * 0.72 + synthY * 0.45;
+        zQuadrature = Math.max(-1.35, Math.min(1.35, rawDy * 0.65 + synthZ * 0.45));
       } else if (fallbackWave && fallbackWave.length > 0) {
-        yVal = (fallbackWave[sampleIdx] ?? 0) * 1.1;
+        yVal = (fallbackWave[sampleIdx] ?? 0) * 1.15;
         const filt = fallbackFilteredWave?.[sampleIdx] ?? 0;
-        zQuadrature = filt * 0.9;
+        zQuadrature = filt * 0.95;
       } else {
-        const angle = u * Math.PI * 6 - phaseRef.current;
-        yVal = Math.sin(angle) * 1.4;
-        zQuadrature = Math.cos(angle) * 1.4;
+        // Low frequency (e.g., 20Hz-150Hz) or paused preview: show full multi-cycle 3D analytic spiral
+        const envMod = wave && wave.length > 0 ? 0.75 + 0.35 * Math.abs(wave[sampleIdx]) : 1.0;
+        yVal = synthY * 1.18 * envMod;
+        zQuadrature = synthZ * 0.92 * envMod;
       }
 
-      posAttr.setXYZ(i, x, yVal, zQuadrature * 0.55);
-      shadowAttr.setXYZ(i, x, -1.75, zQuadrature * 0.55);
+      ptsX[i] = x;
+      ptsY[i] = yVal;
+      ptsZ[i] = zQuadrature * 0.68;
 
-      const normAmp = Math.min(1, Math.abs(yVal) / 1.8 + 0.25);
-      setScientificColor(_color, normAmp);
-      colAttr.setXYZ(i, _color.r, _color.g, _color.b);
-
-      // Update 3D instanced beads along the signal curve (every 2nd point = 80 beads)
-      if (helixBeadsRef.current && i % 2 === 0) {
-        const beadIdx = i >> 1;
-        _dummy.position.set(x, yVal, zQuadrature * 0.55);
-        const s = 0.055 + Math.abs(yVal) * 0.035;
-        _dummy.scale.set(s, s, s);
+      // Update glossy sphere joints along the main 3D signal conduit
+      if (mainJointsInstRef.current) {
+        _dummy.position.set(ptsX[i], ptsY[i], ptsZ[i]);
+        const r = 0.052 + Math.abs(yVal) * 0.018;
+        _dummy.scale.set(r, r, r);
+        _dummy.rotation.set(0, 0, 0);
         _dummy.updateMatrix();
-        helixBeadsRef.current.setMatrixAt(beadIdx, _dummy.matrix);
-        helixBeadsRef.current.setColorAt(beadIdx, _color);
+        mainJointsInstRef.current.setMatrixAt(i, _dummy.matrix);
+
+        const normAmp = Math.min(1, Math.abs(yVal) / 1.45 + 0.22);
+        setScientificColor(_color, normAmp, 0.1);
+        mainJointsInstRef.current.setColorAt(i, _color);
       }
     }
 
-    posAttr.needsUpdate = true;
-    colAttr.needsUpdate = true;
-    shadowAttr.needsUpdate = true;
+    // Update 3D Tube Segments connecting consecutive points (i -> i+1)
+    if (mainTubeInstRef.current) {
+      for (let i = 0; i < NUM_SEGMENTS; i++) {
+        _pA.set(ptsX[i], ptsY[i], ptsZ[i]);
+        _pB.set(ptsX[i + 1], ptsY[i + 1], ptsZ[i + 1]);
+        _mid.addVectors(_pA, _pB).multiplyScalar(0.5);
+        _dir.subVectors(_pB, _pA);
+        const len = _dir.length();
+        if (len > 1e-5) {
+          _dir.divideScalar(len);
+          _quat.setFromUnitVectors(_up, _dir);
+        }
+        const radius = 0.046 + Math.abs(ptsY[i]) * 0.014;
+        _dummy.position.copy(_mid);
+        _dummy.quaternion.copy(_quat);
+        _dummy.scale.set(radius, len * 1.04, radius);
+        _dummy.updateMatrix();
+        mainTubeInstRef.current.setMatrixAt(i, _dummy.matrix);
 
-    if (helixBeadsRef.current) {
-      helixBeadsRef.current.instanceMatrix.needsUpdate = true;
-      if (helixBeadsRef.current.instanceColor) {
-        helixBeadsRef.current.instanceColor.needsUpdate = true;
+        const normAmp = Math.min(1, Math.abs(ptsY[i]) / 1.45 + 0.22);
+        setScientificColor(_color, normAmp);
+        mainTubeInstRef.current.setColorAt(i, _color);
+      }
+      mainTubeInstRef.current.instanceMatrix.needsUpdate = true;
+      if (mainTubeInstRef.current.instanceColor) {
+        mainTubeInstRef.current.instanceColor.needsUpdate = true;
       }
     }
 
-    // Update Phasor Wheel Vector at startX
-    const y0 = posAttr.getY(0);
-    const z0 = posAttr.getZ(0);
-    const radius = Math.min(1.5, Math.hypot(y0, z0));
-    const angle = Math.atan2(y0, z0);
+    if (mainJointsInstRef.current) {
+      mainJointsInstRef.current.instanceMatrix.needsUpdate = true;
+      if (mainJointsInstRef.current.instanceColor) {
+        mainJointsInstRef.current.instanceColor.needsUpdate = true;
+      }
+    }
+
+    // Update Translucent Vertical Curtain Mesh (Top row = 3D wave, Bottom row = Floor projection)
+    const cPos = curtainGeo.getAttribute('position') as THREE.BufferAttribute;
+    const cCol = curtainGeo.getAttribute('color') as THREE.BufferAttribute;
+    for (let i = 0; i < NUM_POINTS; i++) {
+      // Top vertex
+      cPos.setXYZ(i, ptsX[i], ptsY[i], ptsZ[i]);
+      // Bottom vertex projected on floor
+      cPos.setXYZ(NUM_POINTS + i, ptsX[i], floorY, ptsZ[i]);
+
+      const normAmp = Math.min(1, Math.abs(ptsY[i]) / 1.45 + 0.2);
+      setScientificColor(_color, normAmp);
+      cCol.setXYZ(i, _color.r, _color.g, _color.b);
+      cCol.setXYZ(NUM_POINTS + i, _color.r * 0.35, _color.g * 0.45, _color.b * 0.65);
+    }
+    cPos.needsUpdate = true;
+    cCol.needsUpdate = true;
+
+    // Update Phasor Gyroscope Vector at startX
+    const y0 = ptsY[0];
+    const z0 = ptsZ[0];
     if (phasorArmRef.current) {
-      phasorArmRef.current.position.set(startX, y0 * 0.5, z0 * 0.5);
-      phasorArmRef.current.rotation.set(angle, 0, 0);
-      phasorArmRef.current.scale.set(1, 1, Math.max(0.1, radius));
+      _pA.set(startX, 0, 0);
+      _pB.set(startX, y0, z0);
+      _mid.addVectors(_pA, _pB).multiplyScalar(0.5);
+      _dir.subVectors(_pB, _pA);
+      const len = Math.max(0.05, _dir.length());
+      _dir.normalize();
+      _quat.setFromUnitVectors(_up, _dir);
+      phasorArmRef.current.position.copy(_mid);
+      phasorArmRef.current.quaternion.copy(_quat);
+      phasorArmRef.current.scale.set(0.045, len, 0.045);
     }
     if (phasorTipRef.current) {
       phasorTipRef.current.position.set(startX, y0, z0);
     }
+    if (phasorRingGroupRef.current) {
+      phasorRingGroupRef.current.rotation.x = phaseRef.current * 0.35;
+    }
 
-    // Update Decomposed Fourier Harmonic Planes
+    // Update 4 Decomposed Fourier Harmonic 3D Tubes
     if (showHarmonicPlanes) {
+      const harmRefs = [harm0InstRef, harm1InstRef, harm2InstRef, harm3InstRef];
       for (let h = 0; h < NUM_HARMONICS; h++) {
-        const hAttr = harmonicGeos[h].getAttribute('position') as THREE.BufferAttribute;
-        const zOffset = -1.8 - (h + 1) * (0.95 * layerSpread);
+        const inst = harmRefs[h].current;
+        if (!inst) continue;
+        const zOffset = -1.75 - (h + 1) * (0.95 * layerSpread);
         const amp = harmAmps[h];
         const freqMult = harmFreqs[h];
 
-        for (let i = 0; i < NUM_POINTS; i++) {
-          const u = i / (NUM_POINTS - 1);
-          const x = startX + u * spanX;
-          const y = Math.sin(u * Math.PI * 2 * freqMult - phaseRef.current * (0.6 + h * 0.25)) * amp;
-          hAttr.setXYZ(i, x, y, zOffset);
+        let prevX = startX;
+        let prevY = Math.sin(-phaseRef.current * (0.65 + h * 0.25)) * amp;
+
+        for (let i = 0; i < NUM_SEGMENTS; i++) {
+          const uNext = (i + 1) / (NUM_POINTS - 1);
+          const nextX = startX + uNext * spanX;
+          const nextY =
+            Math.sin(uNext * Math.PI * 2 * freqMult * 1.5 - phaseRef.current * (0.65 + h * 0.25)) *
+            amp;
+
+          _pA.set(prevX, prevY, zOffset);
+          _pB.set(nextX, nextY, zOffset);
+          _mid.addVectors(_pA, _pB).multiplyScalar(0.5);
+          _dir.subVectors(_pB, _pA);
+          const len = Math.max(0.001, _dir.length());
+          _dir.divideScalar(len);
+          _quat.setFromUnitVectors(_up, _dir);
+
+          _dummy.position.copy(_mid);
+          _dummy.quaternion.copy(_quat);
+          _dummy.scale.set(0.028, len * 1.05, 0.028);
+          _dummy.updateMatrix();
+          inst.setMatrixAt(i, _dummy.matrix);
+
+          prevX = nextX;
+          prevY = nextY;
         }
-        hAttr.needsUpdate = true;
+        inst.instanceMatrix.needsUpdate = true;
       }
     }
   });
 
   const harmonicColors = ['#38bdf8', '#7FD141', '#f59e0b', '#ec4899'];
+  const harmonicLabels = ['f₀ Fund.', '2f₀ Harm.', '3f₀ Harm.', '5f₀ Harm.'];
 
   return (
     <group position={position} scale={scale}>
-      {/* Phasor Epicycle Ring at Origin X = -4.5 */}
-      <group position={[-4.5, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+      {/* 3D Metallic Phasor Epicycle Gyroscope at Origin X = -4.6 */}
+      <group position={[-4.6, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
         <mesh>
-          <ringGeometry args={[1.18, 1.24, 48]} />
-          <meshBasicMaterial color="#38bdf8" side={THREE.DoubleSide} transparent opacity={0.55} />
+          <torusGeometry args={[1.22, 0.028, 16, 64]} />
+          <meshPhysicalMaterial
+            color="#38bdf8"
+            emissive="#0284c7"
+            emissiveIntensity={0.45}
+            roughness={0.15}
+            metalness={0.8}
+            clearcoat={1}
+          />
         </mesh>
+        <group ref={phasorRingGroupRef}>
+          <mesh>
+            <torusGeometry args={[0.68, 0.018, 12, 48]} />
+            <meshStandardMaterial
+              color="#7FD141"
+              emissive="#7FD141"
+              emissiveIntensity={0.5}
+              metalness={0.6}
+              roughness={0.2}
+            />
+          </mesh>
+        </group>
+        {/* Crosshair Axes inside Phasor Wheel */}
         <mesh>
-          <ringGeometry args={[0.58, 0.61, 36]} />
-          <meshBasicMaterial color="#7FD141" side={THREE.DoubleSide} transparent opacity={0.35} />
+          <cylinderGeometry args={[0.008, 0.008, 2.4, 8]} />
+          <meshBasicMaterial color="#38bdf8" transparent opacity={0.35} />
+        </mesh>
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.008, 0.008, 2.4, 8]} />
+          <meshBasicMaterial color="#38bdf8" transparent opacity={0.35} />
         </mesh>
       </group>
 
       {/* Rotating Phasor Vector Arm & Glowing Tip */}
-      <mesh ref={phasorArmRef} position={[-4.5, 0, 0]}>
-        <boxGeometry args={[0.04, 0.04, 1]} />
-        <meshStandardMaterial color="#7FD141" emissive="#7FD141" emissiveIntensity={0.8} />
+      <mesh ref={phasorArmRef} position={[-4.6, 0, 0]}>
+        <cylinderGeometry args={[1, 1, 1, 12]} />
+        <meshStandardMaterial color="#7FD141" emissive="#7FD141" emissiveIntensity={0.9} />
       </mesh>
-      <mesh ref={phasorTipRef} position={[-4.5, 0, 0]}>
-        <sphereGeometry args={[0.11, 16, 16]} />
-        <meshStandardMaterial color="#7FD141" emissive="#7FD141" emissiveIntensity={1.2} />
+      <mesh ref={phasorTipRef} position={[-4.6, 0, 0]}>
+        <sphereGeometry args={[0.12, 20, 20]} />
+        <meshStandardMaterial color="#ffffff" emissive="#7FD141" emissiveIntensity={1.4} />
       </mesh>
 
-      {/* Main 3D Analytic Signal Curve */}
-      <ThreeLine geometry={mainLineGeo as any}>
-        <lineBasicMaterial vertexColors linewidth={2} />
-      </ThreeLine>
-
-      {/* 3D Instanced Beads along the Signal Helix */}
-      <instancedMesh ref={helixBeadsRef} args={[undefined, undefined, NUM_POINTS >> 1]}>
-        <sphereGeometry args={[1, 12, 12]} />
-        <meshStandardMaterial roughness={0.2} metalness={0.6} />
+      {/* Main 3D Volumetric Analytic Wave Conduit (Glossy Physical Tube Segments) */}
+      <instancedMesh ref={mainTubeInstRef} args={[undefined, undefined, NUM_SEGMENTS]}>
+        <cylinderGeometry args={[1, 1, 1, 12, 1, false]} />
+        <meshPhysicalMaterial
+          roughness={0.14}
+          metalness={0.35}
+          clearcoat={0.9}
+          clearcoatRoughness={0.12}
+        />
       </instancedMesh>
 
-      {/* Bottom Shadow Projection of Signal */}
-      <ThreeLine geometry={shadowLineGeo as any}>
-        <lineBasicMaterial color="#38bdf8" transparent opacity={0.28} />
-      </ThreeLine>
+      {/* Smooth Glossy Nodes along the 3D Signal Helix */}
+      <instancedMesh ref={mainJointsInstRef} args={[undefined, undefined, NUM_POINTS]}>
+        <sphereGeometry args={[1, 12, 12]} />
+        <meshPhysicalMaterial roughness={0.12} metalness={0.45} clearcoat={1} />
+      </instancedMesh>
 
-      {/* Exploded Fourier Harmonic Wave Planes */}
+      {/* Translucent Vertical Signal Amplitude Curtain */}
+      <mesh geometry={curtainGeo}>
+        <meshBasicMaterial
+          vertexColors
+          transparent
+          opacity={0.22}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Exploded 3D Fourier Harmonic Tubes + 3D Labels */}
       {showHarmonicPlanes &&
-        harmonicGeos.map((geo, idx) => (
-          <group key={idx}>
-            <ThreeLine geometry={geo as any}>
-              <lineBasicMaterial
-                color={harmonicColors[idx % harmonicColors.length]}
-                transparent
-                opacity={0.75}
+        [harm0InstRef, harm1InstRef, harm2InstRef, harm3InstRef].map((ref, idx) => {
+          const zOff = -1.75 - (idx + 1) * (0.95 * layerSpread);
+          const col = harmonicColors[idx];
+          return (
+            <group key={idx}>
+              <instancedMesh ref={ref} args={[undefined, undefined, NUM_SEGMENTS]}>
+                <cylinderGeometry args={[1, 1, 1, 10]} />
+                <meshStandardMaterial
+                  color={col}
+                  emissive={col}
+                  emissiveIntensity={0.45}
+                  roughness={0.22}
+                  metalness={0.4}
+                />
+              </instancedMesh>
+              <LabelSprite3D
+                text={harmonicLabels[idx]}
+                position={[4.95, 0.25, zOff]}
+                color={col}
+                scale={[1.15, 0.28, 1]}
               />
-            </ThreeLine>
-          </group>
-        ))}
+            </group>
+          );
+        })}
     </group>
   );
 };
 
 /**
- * 2. 3D Interactive FFT Spectrum Pillars (Linear or Radial Cathedral)
- * Uses THREE.InstancedMesh with raycasting so clicking/hovering any 3D bar
- * inspects its exact Hz & dB and triggers Web Audio API tone playback!
+ * 2. Realistic 3D Interactive FFT Spectrum Pillars with Floating Peak-Hold Caps
+ * Clicking or hovering any 3D pillar inspects its exact Hz & dB and triggers Web Audio API tone playback!
  */
 const FFTSpectrum3DPillars: React.FC<{
   liveSpectrumDbRef?: React.MutableRefObject<Float32Array>;
@@ -402,87 +620,115 @@ const FFTSpectrum3DPillars: React.FC<{
   radialMode: boolean;
   position: [number, number, number];
   onPlayFrequencyTone?: (freqHz: number, durationMs?: number) => void;
+  onHoverBar?: (info: HoveredBarInfo | null) => void;
 }> = ({
   liveSpectrumDbRef,
   fallbackSpectrumMag,
   radialMode,
   position,
   onPlayFrequencyTone,
+  onHoverBar,
 }) => {
   const NUM_BARS = 64;
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const [hoveredBar, setHoveredBar] = useState<{
-    index: number;
-    freq: number;
-    db: number;
-    pos: [number, number, number];
-  } | null>(null);
+  const peakCapsRef = useRef<THREE.InstancedMesh>(null);
+  const hoveredIndexRef = useRef<number | null>(null);
 
-  const smoothHeightsRef = useRef<Float32Array>(new Float32Array(NUM_BARS).fill(0.15));
+  const smoothHeightsRef = useRef<Float32Array>(new Float32Array(NUM_BARS).fill(0.18));
+  const peakHoldRef = useRef<Float32Array>(new Float32Array(NUM_BARS).fill(0.24));
 
   useEffect(() => {
-    if (meshRef.current) {
-      meshRef.current.frustumCulled = false;
-    }
+    if (meshRef.current) meshRef.current.frustumCulled = false;
+    if (peakCapsRef.current) peakCapsRef.current.frustumCulled = false;
   }, []);
 
   useFrame((_, delta) => {
     if (!meshRef.current) return;
     const specDb = liveSpectrumDbRef?.current;
     const lerpFactor = Math.min(1, delta * 14);
+    const peakDecay = delta * 0.85;
 
     for (let i = 0; i < NUM_BARS; i++) {
       let norm = 0.08;
-      let rawDb = -88;
 
       if (specDb && specDb.length > 0) {
         const srcIdx = Math.min(
           specDb.length - 1,
           Math.floor((i / (NUM_BARS - 1)) * (specDb.length - 1))
         );
-        rawDb = specDb[srcIdx] ?? -90;
-        norm = Math.max(0.05, Math.min(1, (rawDb + 92) / 88));
+        const rawDb = specDb[srcIdx] ?? -90;
+        norm = Math.max(0.04, Math.min(1, (rawDb + 92) / 88));
       } else if (fallbackSpectrumMag && fallbackSpectrumMag.length > 0) {
         const srcIdx = Math.min(
           fallbackSpectrumMag.length - 1,
           Math.floor((i / (NUM_BARS - 1)) * (fallbackSpectrumMag.length - 1))
         );
-        norm = Math.max(0.05, Math.min(1, (fallbackSpectrumMag[srcIdx] ?? 0) * 1.6));
-        rawDb = -90 + norm * 88;
+        norm = Math.max(0.04, Math.min(1, (fallbackSpectrumMag[srcIdx] ?? 0) * 1.6));
       }
 
       const prevH = smoothHeightsRef.current[i];
-      const targetH = 0.14 + norm * 3.6;
+      const targetH = 0.14 + norm * 3.55;
       const h = prevH + (targetH - prevH) * lerpFactor;
       smoothHeightsRef.current[i] = h;
 
+      // Update floating peak-hold cap with realistic gravity decay
+      const prevPeak = peakHoldRef.current[i];
+      const nextPeak = h >= prevPeak ? h + 0.08 : Math.max(h + 0.05, prevPeak - peakDecay);
+      peakHoldRef.current[i] = nextPeak;
+
+      const isHovered = hoveredIndexRef.current === i;
+
       if (radialMode) {
         const angle = (i / NUM_BARS) * Math.PI * 2;
-        const radius = 3.2;
+        const radius = 3.35;
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
-        _dummy.position.set(x, h * 0.5 - 1.5, z);
+        _dummy.position.set(x, h * 0.5 - 1.6, z);
         _dummy.rotation.set(0, -angle, 0);
-        _dummy.scale.set(0.18, h, 0.18);
+        _dummy.scale.set(0.19, h, 0.19);
+        _dummy.updateMatrix();
+        meshRef.current.setMatrixAt(i, _dummy.matrix);
+
+        if (peakCapsRef.current) {
+          _dummy.position.set(x, nextPeak - 1.54, z);
+          _dummy.scale.set(0.2, 0.045, 0.2);
+          _dummy.updateMatrix();
+          peakCapsRef.current.setMatrixAt(i, _dummy.matrix);
+        }
       } else {
         const span = 9.2;
         const x = -span * 0.5 + (i / (NUM_BARS - 1)) * span;
-        _dummy.position.set(x, h * 0.5 - 1.6, 0);
+        _dummy.position.set(x, h * 0.5 - 1.65, 0);
         _dummy.rotation.set(0, 0, 0);
-        _dummy.scale.set(0.11, h, 0.22);
+        _dummy.scale.set(0.115, h, 0.24);
+        _dummy.updateMatrix();
+        meshRef.current.setMatrixAt(i, _dummy.matrix);
+
+        if (peakCapsRef.current) {
+          _dummy.position.set(x, nextPeak - 1.58, 0);
+          _dummy.scale.set(0.125, 0.045, 0.25);
+          _dummy.updateMatrix();
+          peakCapsRef.current.setMatrixAt(i, _dummy.matrix);
+        }
       }
 
-      _dummy.updateMatrix();
-      meshRef.current.setMatrixAt(i, _dummy.matrix);
-
-      const isHovered = hoveredBar?.index === i;
       setScientificColor(_color, norm, isHovered ? 0.35 : 0);
       meshRef.current.setColorAt(i, _color);
+      if (peakCapsRef.current) {
+        setScientificColor(_color, Math.min(1, norm + 0.22), 0.25);
+        peakCapsRef.current.setColorAt(i, _color);
+      }
     }
 
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) {
       meshRef.current.instanceColor.needsUpdate = true;
+    }
+    if (peakCapsRef.current) {
+      peakCapsRef.current.instanceMatrix.needsUpdate = true;
+      if (peakCapsRef.current.instanceColor) {
+        peakCapsRef.current.instanceColor.needsUpdate = true;
+      }
     }
   });
 
@@ -491,35 +737,22 @@ const FFTSpectrum3DPillars: React.FC<{
       e.stopPropagation();
       if (e.instanceId === undefined) return;
       const idx = e.instanceId;
+      hoveredIndexRef.current = idx;
       const freq = binToFreqLog(idx, NUM_BARS);
       const specDb = liveSpectrumDbRef?.current;
       const srcIdx = specDb
         ? Math.min(specDb.length - 1, Math.floor((idx / (NUM_BARS - 1)) * (specDb.length - 1)))
         : 0;
       const db = specDb ? specDb[srcIdx] ?? -80 : -20;
-      const h = smoothHeightsRef.current[idx] || 1;
-
-      if (radialMode) {
-        const angle = (idx / NUM_BARS) * Math.PI * 2;
-        setHoveredBar({
-          index: idx,
-          freq,
-          db,
-          pos: [Math.cos(angle) * 3.2, h - 1.2, Math.sin(angle) * 3.2],
-        });
-      } else {
-        const span = 9.2;
-        const x = -span * 0.5 + (idx / (NUM_BARS - 1)) * span;
-        setHoveredBar({
-          index: idx,
-          freq,
-          db,
-          pos: [x, h - 1.2, 0],
-        });
-      }
+      onHoverBar?.({ index: idx, freq, db });
     },
-    [liveSpectrumDbRef, radialMode]
+    [liveSpectrumDbRef, onHoverBar]
   );
+
+  const handlePointerOut = useCallback(() => {
+    hoveredIndexRef.current = null;
+    onHoverBar?.(null);
+  }, [onHoverBar]);
 
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
@@ -533,49 +766,80 @@ const FFTSpectrum3DPillars: React.FC<{
 
   return (
     <group position={position}>
+      {/* Main Glossy Metallic-Glass Spectrum Pillars */}
       <instancedMesh
         ref={meshRef}
         args={[undefined, undefined, NUM_BARS]}
         onPointerMove={handlePointerMove}
-        onPointerOut={() => setHoveredBar(null)}
+        onPointerOut={handlePointerOut}
         onClick={handleClick}
       >
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial roughness={0.22} metalness={0.55} />
+        <meshPhysicalMaterial
+          roughness={0.18}
+          metalness={0.52}
+          clearcoat={0.85}
+          clearcoatRoughness={0.15}
+        />
       </instancedMesh>
 
-      {hoveredBar && (
-        <Html position={hoveredBar.pos} center distanceFactor={14}>
-          <div className="pointer-events-none px-2.5 py-1 rounded-lg bg-slate-950/90 border border-sky-400/60 text-[11px] font-mono text-white whitespace-nowrap shadow-xl">
-            <span className="text-sky-400 font-bold">{formatHz(hoveredBar.freq)}</span>
-            <span className="mx-1.5 text-slate-500">|</span>
-            <span className="text-[#7FD141]">{hoveredBar.db.toFixed(1)} dB</span>
-            <span className="ml-1.5 text-[10px] text-slate-400">(Click to hear)</span>
-          </div>
-        </Html>
+      {/* Glowing Peak-Hold Indicator Caps */}
+      <instancedMesh ref={peakCapsRef} args={[undefined, undefined, NUM_BARS]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial roughness={0.1} metalness={0.3} emissive="#38bdf8" emissiveIntensity={0.35} />
+      </instancedMesh>
+
+      {/* Frequency Calibration Scale Labels on Floor */}
+      {!radialMode && (
+        <group position={[0, -1.68, 0.55]}>
+          {[
+            { x: -4.4, text: '20 Hz' },
+            { x: -2.2, text: '150 Hz' },
+            { x: 0.0, text: '1 kHz' },
+            { x: 2.2, text: '5 kHz' },
+            { x: 4.4, text: '20 kHz' },
+          ].map((tk, i) => (
+            <LabelSprite3D
+              key={i}
+              text={tk.text}
+              position={[tk.x, 0, 0]}
+              color="#0284c7"
+              scale={[1.05, 0.26, 1]}
+            />
+          ))}
+        </group>
       )}
     </group>
   );
 };
 
 /**
- * 3. 3D Real-Time Spectrogram Waterfall Terrain Mesh
- * Deforms a 3D grid surface where:
+ * 3. Realistic 3D Spectrogram Waterfall Terrain Mesh with Contour Ridges & Glass Base Plinth
+ * Deforms a high-resolution 3D surface where:
  * - X = Time Columns
  * - Z = Logarithmic Frequency Rows (10 Hz .. 20 kHz)
- * - Y = Amplitude (dB) Elevation with scientific vertex coloring
+ * - Y = Amplitude (dB) Elevation with physical specular sheen & vertex coloring
  */
 const WaterfallSpectrogram3DMesh: React.FC<{
   specMatrixRef?: React.MutableRefObject<Float32Array[]>;
   liveSpectrumDbRef?: React.MutableRefObject<Float32Array>;
   wireframe: boolean;
+  isPlaying?: boolean;
   position: [number, number, number];
   scale?: [number, number, number];
-}> = ({ specMatrixRef, liveSpectrumDbRef, wireframe, position, scale = [1, 1, 1] }) => {
-  const SEG_X = 56; // Time steps
-  const SEG_Z = 44; // Log Frequency bins
+}> = ({
+  specMatrixRef,
+  liveSpectrumDbRef,
+  wireframe,
+  isPlaying = false,
+  position,
+  scale = [1, 1, 1],
+}) => {
+  const SEG_X = 64; // Time columns
+  const SEG_Z = 48; // Log Frequency rows
 
   const meshRef = useRef<THREE.Mesh>(null);
+  const animTimeRef = useRef(0);
   const localHistoryRef = useRef<Float32Array[]>(
     Array.from({ length: SEG_X + 1 }, () => new Float32Array(SEG_Z + 1).fill(-92))
   );
@@ -589,27 +853,58 @@ const WaterfallSpectrogram3DMesh: React.FC<{
     return geo;
   }, []);
 
-  useFrame(() => {
+  useEffect(() => {
+    return () => {
+      terrainGeo.dispose();
+    };
+  }, [terrainGeo]);
+
+  useFrame((_, delta) => {
+    animTimeRef.current += delta * (isPlaying ? 2.6 : 0.9);
     const posAttr = terrainGeo.getAttribute('position') as THREE.BufferAttribute;
     const colAttr = terrainGeo.getAttribute('color') as THREE.BufferAttribute;
 
     const matrix = specMatrixRef?.current;
     const liveRow = liveSpectrumDbRef?.current;
 
-    // If specMatrixRef is provided from AudioSpectrogramPage, sample directly from it
     if (matrix && matrix.length > 0) {
       const mCols = matrix.length;
       const mRows = matrix[0]?.length || 128;
 
+      // Check if all columns in matrix are identical (static generator preview)
+      const isStaticPreview =
+        mCols > 4 &&
+        Math.abs((matrix[0]?.[20] ?? -90) - (matrix[mCols >> 1]?.[20] ?? -90)) < 0.01 &&
+        Math.abs((matrix[0]?.[50] ?? -90) - (matrix[mCols - 1]?.[50] ?? -90)) < 0.01;
+
       for (let iz = 0; iz <= SEG_Z; iz++) {
         const rIdx = Math.min(mRows - 1, Math.floor((iz / SEG_Z) * (mRows - 1)));
+        const zRatio = iz / SEG_Z;
+
         for (let ix = 0; ix <= SEG_X; ix++) {
           const cIdx = Math.min(mCols - 1, Math.floor((ix / SEG_X) * (mCols - 1)));
+          const xRatio = ix / SEG_X;
           const db = matrix[cIdx]?.[rIdx] ?? -92;
-          const norm = Math.max(0, Math.min(1, (db + 92) / 88));
-          const vertIdx = iz * (SEG_X + 1) + ix;
+          let norm = Math.max(0, Math.min(1, (db + 92) / 88));
 
-          const elevation = norm * 2.15;
+          // If static preview, add subtle travelling time-frequency ridge modulation + harmonic overtone ripples
+          // so the 3D terrain looks like a living 3D waterfall topography rather than a flat extruded ramp
+          if (isStaticPreview) {
+            const timeRipple =
+              0.84 + 0.16 * Math.sin(xRatio * Math.PI * 5 - animTimeRef.current + zRatio * 4);
+            const subHarmonicRidge =
+              0.08 *
+              Math.exp(-Math.pow((zRatio - 0.38) / 0.08, 2)) *
+              (0.6 + 0.4 * Math.cos(xRatio * Math.PI * 4 - animTimeRef.current));
+            const highHarmonicRidge =
+              0.05 *
+              Math.exp(-Math.pow((zRatio - 0.68) / 0.09, 2)) *
+              (0.6 + 0.4 * Math.sin(xRatio * Math.PI * 6 - animTimeRef.current * 1.2));
+            norm = Math.min(1, norm * timeRipple + subHarmonicRidge + highHarmonicRidge);
+          }
+
+          const vertIdx = iz * (SEG_X + 1) + ix;
+          const elevation = Math.pow(norm, 1.05) * 2.25;
           posAttr.setY(vertIdx, elevation);
 
           setScientificColor(_color, norm);
@@ -617,7 +912,6 @@ const WaterfallSpectrogram3DMesh: React.FC<{
         }
       }
     } else {
-      // Otherwise roll our own local waterfall history from liveSpectrumDbRef
       const hist = localHistoryRef.current;
       hist.shift();
       const nextCol = new Float32Array(SEG_Z + 1);
@@ -639,7 +933,7 @@ const WaterfallSpectrogram3DMesh: React.FC<{
           const db = hist[ix][iz];
           const norm = Math.max(0, Math.min(1, (db + 92) / 88));
           const vertIdx = iz * (SEG_X + 1) + ix;
-          posAttr.setY(vertIdx, norm * 2.15);
+          posAttr.setY(vertIdx, norm * 2.25);
           setScientificColor(_color, norm);
           colAttr.setXYZ(vertIdx, _color.r, _color.g, _color.b);
         }
@@ -653,13 +947,42 @@ const WaterfallSpectrogram3DMesh: React.FC<{
 
   return (
     <group position={position} scale={scale}>
+      {/* Main Glossy Physical 3D Spectrogram Terrain Surface */}
       <mesh ref={meshRef} geometry={terrainGeo}>
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           vertexColors
-          roughness={0.35}
-          metalness={0.25}
+          roughness={0.22}
+          metalness={0.2}
+          clearcoat={0.55}
+          clearcoatRoughness={0.18}
           wireframe={wireframe}
           side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* Subtle Topographic Wireframe Overlay for Scientific Ridge Depth */}
+      {!wireframe && (
+        <mesh geometry={terrainGeo} position={[0, 0.008, 0]}>
+          <meshBasicMaterial
+            color="#38bdf8"
+            wireframe
+            transparent
+            opacity={0.09}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+
+      {/* Solid Dark Glass Plinth / Stage Base under the Waterfall */}
+      <mesh position={[0, -0.08, 0]}>
+        <boxGeometry args={[9.3, 0.12, 5.3]} />
+        <meshPhysicalMaterial
+          color="#091326"
+          roughness={0.2}
+          metalness={0.7}
+          clearcoat={0.8}
+          transparent
+          opacity={0.85}
         />
       </mesh>
     </group>
@@ -667,9 +990,7 @@ const WaterfallSpectrogram3DMesh: React.FC<{
 };
 
 /**
- * 4. 3D Audio-Reactive Harmonic Core Sculpture (TorusKnot / Morphing Icosahedron)
- * Placed at the center of the Radial FFT Arena or above the stage, reacting to
- * low/mid/high spectral energy and signal amplitude.
+ * 4. 3D Audio-Reactive Harmonic Core Sculpture (TorusKnot + Morphing Icosahedron)
  */
 const ReactiveSignalCore3D: React.FC<{
   liveSpectrumDbRef?: React.MutableRefObject<Float32Array>;
@@ -712,18 +1033,19 @@ const ReactiveSignalCore3D: React.FC<{
   return (
     <group position={position}>
       <mesh ref={coreRef}>
-        <torusKnotGeometry args={[0.68, 0.2, 96, 24, 2, 3]} />
-        <meshStandardMaterial
+        <torusKnotGeometry args={[0.68, 0.2, 110, 28, 2, 3]} />
+        <meshPhysicalMaterial
           color="#38bdf8"
           emissive="#0284c7"
           emissiveIntensity={0.45}
-          roughness={0.18}
+          roughness={0.14}
           metalness={0.75}
+          clearcoat={1}
         />
       </mesh>
       <mesh ref={outerRingRef}>
-        <icosahedronGeometry args={[1.05, 1]} />
-        <meshBasicMaterial color="#7FD141" wireframe transparent opacity={0.32} />
+        <icosahedronGeometry args={[1.08, 1]} />
+        <meshBasicMaterial color="#7FD141" wireframe transparent opacity={0.35} />
       </mesh>
     </group>
   );
@@ -755,6 +1077,7 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
   const [layerSpread, setLayerSpread] = useState(1.0);
   const [dockCollapsed, setDockCollapsed] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hoveredBar, setHoveredBar] = useState<HoveredBarInfo | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
@@ -776,120 +1099,137 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
     return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
 
-  const bgColor = darkMode ? '#060c17' : '#0b1324';
+  const bgColor = darkMode ? '#050a14' : '#081020';
 
   return (
     <div
       ref={containerRef}
       className={`relative w-full ${
         isFullscreen ? 'h-screen' : heightClass
-      } rounded-2xl overflow-hidden border border-sky-500/25 shadow-2xl select-none bg-[#060c17]`}
+      } rounded-2xl overflow-hidden border border-sky-500/25 shadow-2xl select-none bg-[#050a14]`}
     >
-      {/* Top-Left Minimal 3D Mode Pill Selector */}
-      <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-1.5">
-        {(
-          [
-            {
-              id: 'all',
-              label: 'All 3D Objects',
-              fa: 'نمایش کامل سه‌بعدی',
-              icon: Layers,
-            },
-            {
-              id: 'fourier-3d',
-              label: '3D Signal & Harmonics',
-              fa: 'مارپیچ سیگنال و هارمونیک‌ها',
-              icon: Activity,
-            },
-            {
-              id: 'waterfall-3d',
-              label: '3D Spectrogram Terrain',
-              fa: 'توپوگرافی سه‌بعدی طیف‌نگار',
-              icon: Box,
-            },
-            {
-              id: 'fft-arena',
-              label: '3D FFT Spectrum Arena',
-              fa: 'حلقه سه‌بعدی طیف FFT',
-              icon: BarChart3,
-            },
-          ] as {
-            id: Scene3DMode;
-            label: string;
-            fa: string;
-            icon: React.ComponentType<{ className?: string }>;
-          }[]
-        ).map((m) => {
-          const Icon = m.icon;
-          const active = sceneMode === m.id;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setSceneMode(m.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                active
-                  ? 'bg-sky-500 text-slate-950 font-bold shadow-lg shadow-sky-500/25'
-                  : 'bg-slate-900/85 text-slate-200 border border-slate-700/70 hover:border-sky-400/50'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{lang === 'fa' ? m.fa : m.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Top-Right Camera Angle Quick Views + Fullscreen */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
-        <div className="hidden sm:flex items-center gap-1 bg-slate-900/85 border border-slate-700/70 rounded-full p-1">
+      {/* Unified Non-Overlapping Top HUD Header Bar */}
+      <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        {/* Left: Compact 3D Scene Mode Selector */}
+        <div className="pointer-events-auto flex flex-wrap items-center gap-1 bg-slate-950/88 border border-slate-800/90 rounded-full p-1 shadow-lg">
           {(
             [
-              { id: 'iso', label: '3D Orbit', fa: 'سه‌بعدی' },
-              { id: 'time', label: 'Time (X-Y)', fa: 'زمان' },
-              { id: 'freq', label: 'FFT (Z-Y)', fa: 'فرکانس' },
-              { id: 'top', label: 'Top Map', fa: 'از بالا' },
-            ] as const
-          ).map((cam) => (
-            <button
-              key={cam.id}
-              type="button"
-              onClick={() => setCameraPreset(cam.id)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-mono transition-colors cursor-pointer ${
-                cameraPreset === cam.id
-                  ? 'bg-[#7FD141] text-slate-950 font-bold'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              {lang === 'fa' ? cam.fa : cam.label}
-            </button>
-          ))}
+              {
+                id: 'all',
+                label: 'All 3D',
+                fa: 'همه سه‌بعدی',
+                icon: Layers,
+              },
+              {
+                id: 'fourier-3d',
+                label: 'Signal & Harmonics',
+                fa: 'مارپیچ و هارمونیک',
+                icon: Activity,
+              },
+              {
+                id: 'waterfall-3d',
+                label: '3D Terrain',
+                fa: 'توپوگرافی طیف',
+                icon: Box,
+              },
+              {
+                id: 'fft-arena',
+                label: 'FFT Arena',
+                fa: 'حلقه FFT',
+                icon: BarChart3,
+              },
+            ] as {
+              id: Scene3DMode;
+              label: string;
+              fa: string;
+              icon: React.ComponentType<{ className?: string }>;
+            }[]
+          ).map((m) => {
+            const Icon = m.icon;
+            const active = sceneMode === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setSceneMode(m.id)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
+                  active
+                    ? 'bg-sky-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <Icon className="w-3 h-3 shrink-0" />
+                <span>{lang === 'fa' ? m.fa : m.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          className="p-2 rounded-full bg-slate-900/85 border border-slate-700/70 text-slate-200 hover:text-sky-400 cursor-pointer"
-          title={lang === 'fa' ? 'تمام‌صفحه' : 'Fullscreen 3D'}
-        >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </button>
+        {/* Center/Right Telemetry Readout on Hover + Camera Presets */}
+        <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
+          {hoveredBar && (
+            <button
+              type="button"
+              onClick={() => onPlayFrequencyTone?.(hoveredBar.freq, 550)}
+              className="px-2.5 py-1 rounded-full bg-slate-950/90 border border-sky-400/60 text-[11px] font-mono text-white flex items-center gap-1.5 shadow-lg cursor-pointer"
+            >
+              <Volume2 className="w-3 h-3 text-sky-400" />
+              <span className="text-sky-400 font-bold">{formatHz(hoveredBar.freq)}</span>
+              <span className="text-slate-500">|</span>
+              <span className="text-[#7FD141]">{hoveredBar.db.toFixed(1)} dB</span>
+            </button>
+          )}
+
+          <div className="hidden sm:flex items-center gap-1 bg-slate-950/88 border border-slate-800/90 rounded-full p-1 shadow-lg">
+            {(
+              [
+                { id: 'iso', label: '3D Orbit', fa: 'سه‌بعدی' },
+                { id: 'time', label: 'Time X-Y', fa: 'زمان' },
+                { id: 'freq', label: 'FFT Z-Y', fa: 'فرکانس' },
+                { id: 'top', label: 'Top Map', fa: 'از بالا' },
+              ] as const
+            ).map((cam) => (
+              <button
+                key={cam.id}
+                type="button"
+                onClick={() => setCameraPreset(cam.id)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-mono transition-colors cursor-pointer whitespace-nowrap ${
+                  cameraPreset === cam.id
+                    ? 'bg-[#7FD141] text-slate-950 font-bold'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                {lang === 'fa' ? cam.fa : cam.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="p-2 rounded-full bg-slate-950/88 border border-slate-800/90 text-slate-200 hover:text-sky-400 cursor-pointer"
+            title={lang === 'fa' ? 'تمام‌صفحه' : 'Fullscreen 3D'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+        </div>
       </div>
 
       {/* Interactive React Three Fiber 3D WebGL Canvas */}
       <Canvas
         dpr={[1, 2]}
-        camera={{ position: [11.5, 8.2, 13.5], fov: 44, near: 0.1, far: 200 }}
+        camera={{ position: [11.2, 7.6, 13.2], fov: 43, near: 0.1, far: 200 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
         <color attach="background" args={[bgColor]} />
         <fog attach="fog" args={[bgColor, 18, 42]} />
 
-        {/* Studio & Scientific Rim Lighting */}
-        <ambientLight intensity={0.65} />
-        <directionalLight position={[10, 16, 12]} intensity={1.35} color="#ffffff" />
-        <directionalLight position={[-12, 8, -10]} intensity={0.75} color="#38bdf8" />
-        <pointLight position={[0, 5, 0]} intensity={0.9} color="#7FD141" distance={20} />
+        {/* Studio Multi-Point Scientific Lighting */}
+        <ambientLight intensity={0.72} />
+        <hemisphereLight args={['#38bdf8', '#091326', 0.65]} />
+        <directionalLight position={[10, 16, 12]} intensity={1.55} color="#ffffff" />
+        <directionalLight position={[-12, 9, -10]} intensity={0.85} color="#38bdf8" />
+        <pointLight position={[0, 5.5, 2]} intensity={1.1} color="#7FD141" distance={22} />
 
         <CameraController
           cameraPreset={cameraPreset}
@@ -908,42 +1248,46 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
           maxPolarAngle={Math.PI * 0.85}
         />
 
-        {/* Scientific Reference Floor Grid */}
-        <Grid
-          position={[0, -1.8, 0]}
-          args={[24, 24]}
-          cellSize={1}
-          cellThickness={0.6}
-          cellColor="#1e293b"
-          sectionSize={4}
-          sectionThickness={1.1}
-          sectionColor="#0284c7"
-          fadeDistance={28}
-          fadeStrength={1.2}
-        />
+        {/* Native Three.js Reference Floor Grid + Subtle Reflective Optical Stage */}
+        <gridHelper args={[24, 24, '#0284c7', '#17253b']} position={[0, -1.78, 0]} />
+        <mesh position={[0, -1.82, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[24, 24]} />
+          <meshPhysicalMaterial
+            color="#040812"
+            roughness={0.25}
+            metalness={0.65}
+            clearcoat={0.7}
+            transparent
+            opacity={0.82}
+          />
+        </mesh>
 
         {/* MODE 1: ALL-IN-ONE 3D STAGE (Signal Helix + Harmonics + FFT Pillars + 3D Waterfall) */}
         {sceneMode === 'all' && (
           <group>
-            {/* Front-Upper: 3D Analytic Signal Helix & Harmonic Decomposition */}
+            {/* Front-Upper: 3D Volumetric Analytic Signal Helix & Harmonic Decomposition */}
             <SignalFourier3DGroup
               liveWaveformRef={liveWaveformRef}
               liveSpectrumDbRef={liveSpectrumDbRef}
               fallbackWave={fallbackWave}
               fallbackFilteredWave={fallbackFilteredWave}
+              frequency={frequency}
+              waveType={waveType}
+              isPlaying={isPlaying}
               position={[0, 1.35 * layerSpread, 2.8 * layerSpread]}
               scale={0.95}
               layerSpread={layerSpread}
               showHarmonicPlanes={true}
             />
 
-            {/* Middle: 3D Interactive Logarithmic FFT Pillars */}
+            {/* Middle: 3D Interactive Logarithmic FFT Pillars + Peak-Hold Caps */}
             <FFTSpectrum3DPillars
               liveSpectrumDbRef={liveSpectrumDbRef}
               fallbackSpectrumMag={fallbackSpectrumMag}
               radialMode={false}
-              position={[0, 0, 0.2]}
+              position={[0, 0, 0.25]}
               onPlayFrequencyTone={onPlayFrequencyTone}
+              onHoverBar={setHoveredBar}
             />
 
             {/* Back-Floor: 3D Spectrogram Waterfall Landscape */}
@@ -951,8 +1295,9 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
               specMatrixRef={specMatrixRef}
               liveSpectrumDbRef={liveSpectrumDbRef}
               wireframe={wireframe}
-              position={[0, -1.75, -3.4 * layerSpread]}
-              scale={[1, 0.95, 0.9]}
+              isPlaying={isPlaying}
+              position={[0, -1.68, -3.5 * layerSpread]}
+              scale={[1, 0.95, 0.92]}
             />
           </group>
         )}
@@ -965,8 +1310,11 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
               liveSpectrumDbRef={liveSpectrumDbRef}
               fallbackWave={fallbackWave}
               fallbackFilteredWave={fallbackFilteredWave}
-              position={[0, 0.4, 2.2]}
-              scale={1.25}
+              frequency={frequency}
+              waveType={waveType}
+              isPlaying={isPlaying}
+              position={[0, 0.45, 2.2]}
+              scale={1.22}
               layerSpread={layerSpread * 1.15}
               showHarmonicPlanes={true}
             />
@@ -974,8 +1322,9 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
               liveSpectrumDbRef={liveSpectrumDbRef}
               fallbackSpectrumMag={fallbackSpectrumMag}
               radialMode={false}
-              position={[0, -0.2, -3.5]}
+              position={[0, -0.1, -3.5]}
               onPlayFrequencyTone={onPlayFrequencyTone}
+              onHoverBar={setHoveredBar}
             />
           </group>
         )}
@@ -987,6 +1336,7 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
               specMatrixRef={specMatrixRef}
               liveSpectrumDbRef={liveSpectrumDbRef}
               wireframe={wireframe}
+              isPlaying={isPlaying}
               position={[0, -1.5, 0]}
               scale={[1.35, 1.45, 1.55]}
             />
@@ -995,6 +1345,9 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
               liveSpectrumDbRef={liveSpectrumDbRef}
               fallbackWave={fallbackWave}
               fallbackFilteredWave={fallbackFilteredWave}
+              frequency={frequency}
+              waveType={waveType}
+              isPlaying={isPlaying}
               position={[0, 2.4, 4.2]}
               scale={0.85}
               layerSpread={0.7}
@@ -1012,6 +1365,7 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
               radialMode={true}
               position={[0, -0.1, 0]}
               onPlayFrequencyTone={onPlayFrequencyTone}
+              onHoverBar={setHoveredBar}
             />
             <ReactiveSignalCore3D
               liveSpectrumDbRef={liveSpectrumDbRef}
@@ -1021,25 +1375,26 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
         )}
       </Canvas>
 
-      {/* Subtle 3D Axis Legend Badge (Bottom-Left) */}
-      <div className="pointer-events-none absolute bottom-16 left-3 z-10 hidden md:flex items-center gap-3 px-3 py-1.5 rounded-full bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-slate-300">
-        <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-sky-400" />
-          X: {lang === 'fa' ? 'زمان (Time)' : 'Time'}
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#7FD141]" />
-          Y: {lang === 'fa' ? 'دامنه / dB' : 'Amplitude / dB'}
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-amber-400" />
-          Z: {lang === 'fa' ? 'فرکانس / فاز' : 'Frequency / Phase'}
-        </span>
-      </div>
+      {/* Collapsible Floating Bottom Dock (Includes Axis Legend & Audio/3D Controls with Zero Overlap) */}
+      <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-col items-center gap-1.5 pointer-events-none">
+        {!dockCollapsed && (
+          <div className="hidden md:flex items-center gap-4 px-3.5 py-1 rounded-full bg-slate-950/85 border border-slate-800/80 text-[10px] font-mono text-slate-300">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-sky-400" />
+              X: {lang === 'fa' ? 'زمان (Time)' : 'Time Axis'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#7FD141]" />
+              Y: {lang === 'fa' ? 'دامنه / dB' : 'Amplitude / dB'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              Z: {lang === 'fa' ? 'فرکانس / هارمونیک‌ها' : 'Log Frequency / Harmonics'}
+            </span>
+          </div>
+        )}
 
-      {/* Collapsible Floating Bottom Dock for Instant Visual & Audio Control */}
-      <div className="absolute bottom-3 left-3 right-3 z-20 flex justify-center pointer-events-none">
-        <div className="pointer-events-auto bg-slate-900/90 border border-slate-700/80 rounded-2xl px-3.5 py-2 shadow-2xl flex flex-wrap items-center justify-between gap-3 max-w-4xl w-full">
+        <div className="pointer-events-auto bg-slate-950/92 border border-slate-800 rounded-2xl px-3.5 py-2 shadow-2xl flex flex-wrap items-center justify-between gap-2.5 max-w-4xl w-full">
           {/* Left: Play / Mic / Quick Signal Presets */}
           <div className="flex flex-wrap items-center gap-1.5">
             {onTogglePlay && (
@@ -1076,7 +1431,11 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
                     : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
                 }`}
               >
-                {isMicActive ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-rose-400" />}
+                {isMicActive ? (
+                  <MicOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Mic className="w-3.5 h-3.5 text-rose-400" />
+                )}
                 <span className="hidden sm:inline">
                   {isMicActive
                     ? lang === 'fa'
@@ -1090,7 +1449,7 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
             )}
 
             {onSelectPreset && !dockCollapsed && (
-              <div className="flex items-center gap-1 pl-1 border-l border-slate-700">
+              <div className="flex items-center gap-1 pl-1 border-l border-slate-800">
                 {[
                   { id: '100hz', label: 'Sine' },
                   { id: 'chirp', label: 'Chirp' },
@@ -1102,7 +1461,7 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
                     key={p.id}
                     type="button"
                     onClick={() => onSelectPreset(p.id)}
-                    className="px-2.5 py-1 rounded-full text-[11px] font-mono bg-slate-800/90 text-slate-300 hover:text-sky-400 hover:bg-slate-800 cursor-pointer"
+                    className="px-2.5 py-1 rounded-full text-[11px] font-mono bg-slate-900 text-slate-300 hover:text-sky-400 hover:bg-slate-800 cursor-pointer"
                   >
                     {p.label}
                   </button>
@@ -1121,7 +1480,7 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
                   className={`px-2.5 py-1 rounded-full text-[11px] font-mono cursor-pointer ${
                     wireframe
                       ? 'bg-sky-500/20 border border-sky-400 text-sky-300'
-                      : 'bg-slate-800 text-slate-300'
+                      : 'bg-slate-900 text-slate-300'
                   }`}
                 >
                   {lang === 'fa' ? 'شبکه (Wire)' : 'Wireframe'}
@@ -1133,13 +1492,16 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
                   className={`px-2.5 py-1 rounded-full text-[11px] font-mono cursor-pointer ${
                     autoRotate
                       ? 'bg-[#7FD141]/20 border border-[#7FD141] text-[#7FD141]'
-                      : 'bg-slate-800 text-slate-300'
+                      : 'bg-slate-900 text-slate-300'
                   }`}
                 >
                   {lang === 'fa' ? 'چرخش خودکار' : 'Auto-Orbit'}
                 </button>
 
-                <div className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono text-slate-400">
+                <div
+                  dir="ltr"
+                  className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono text-slate-400"
+                >
                   <span>{lang === 'fa' ? 'فاصله لایه‌ها' : 'Spread'}</span>
                   <input
                     type="range"
@@ -1157,10 +1519,14 @@ export const Signal3DStage: React.FC<Signal3DStageProps> = ({
             <button
               type="button"
               onClick={() => setDockCollapsed((c) => !c)}
-              className="p-1.5 rounded-full bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+              className="p-1.5 rounded-full bg-slate-900 text-slate-300 hover:text-white cursor-pointer"
               title={dockCollapsed ? 'Expand controls' : 'Minimize controls'}
             >
-              {dockCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {dockCollapsed ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
             </button>
           </div>
         </div>

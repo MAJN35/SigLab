@@ -1,6 +1,7 @@
 export type PageId =
   | 'dashboard'
   | 'audio-lab'
+  | 'dna-simulator'
   | 'signal-generator'
   | 'telecommunications'
   | 'eeg-simulator'

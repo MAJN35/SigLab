@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, BarChart3, Brain, Cpu, Filter, Layers, Radio, Signal } from 'lucide-react';
+import { Activity, BarChart3, Brain, Cpu, Dna, Filter, Layers, Radio, Signal } from 'lucide-react';
 import { useLab } from '../store/LabContext';
 import { PageId } from '../types';
 import { AudioSpectrogramPage } from './AudioSpectrogramPage';
@@ -13,6 +13,7 @@ export const DashboardPage: React.FC = () => {
     faTitle: string;
     icon: React.ComponentType<{ className?: string }>;
   }[] = [
+    { id: 'dna-simulator', title: '3D DNA & 47 Chromosomes', faTitle: 'شبیه‌ساز DNA و ۴۷ کروموزوم', icon: Dna },
     { id: 'signal-generator', title: 'Signal Generator', faTitle: 'تولید سیگنال', icon: Activity },
     { id: 'filtering', title: 'FIR / IIR Filters', faTitle: 'فیلتر دیجیتال', icon: Filter },
     { id: 'fft-spectrum', title: 'FFT & Windows', faTitle: 'تحلیل فوریه', icon: BarChart3 },
