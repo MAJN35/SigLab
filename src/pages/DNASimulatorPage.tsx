@@ -801,6 +801,8 @@ export const DNASimulatorPage: React.FC = () => {
   const [autoRotateHelix, setAutoRotateHelix] = useState<boolean>(true);
   const [dockCollapsed, setDockCollapsed] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [showPresetDetails, setShowPresetDetails] = useState<boolean>(false);
+  const [showGspDrawer, setShowGspDrawer] = useState<boolean>(true);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -929,23 +931,23 @@ export const DNASimulatorPage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Top Header & Karyotype Mode Selector (46,XX Female, 46,XY Male, and 47-Chromosome Modes) */}
-      <div className="neu-card p-5 flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      {/* Compact Unified Top Toolbar: Karyotype Switcher, Trait Filter & Audio Sonification */}
+      <div className="neu-card p-4 sm:p-5 flex flex-col gap-3.5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-mono text-sky-600 dark:text-sky-400">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-sky-600 dark:text-sky-400">
               <span>
                 {lang === 'fa'
                   ? 'آزمایشگاه ژنومیک و کاریوتایپ سه‌بعدی انسان'
-                  : 'Human Karyotype & Genomic Signal Processing Lab'}
+                  : '3D Human Karyotype & Genomic Signal Processing Lab'}
               </span>
               <span>·</span>
-              <span className="font-bold tabular-nums">
+              <span className="px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 font-bold tabular-nums">
                 {activePreset.totalChromosomes} {lang === 'fa' ? 'کروموزوم' : 'Chromosomes'}
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight mt-0.5">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">
               {lang === 'fa' ? activePreset.titleFa : activePreset.titleEn}
             </h1>
           </div>
@@ -953,8 +955,23 @@ export const DNASimulatorPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => setShowPresetDetails((v) => !v)}
+              className="neu-btn px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+            >
+              {showPresetDetails ? (
+                <ChevronUp className="w-3.5 h-3.5 text-sky-500" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-sky-500" />
+              )}
+              <span>
+                {lang === 'fa' ? 'توضیحات علمی کاریوتایپ' : 'Karyotype Notes'}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={playDNASequenceAudio}
-              className="btn-primary-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+              className="btn-primary-pill px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
             >
               <Volume2 className="w-3.5 h-3.5" />
               <span>{lang === 'fa' ? 'شنیدن ملودی کدون DNA' : 'Sonify DNA Codons'}</span>
@@ -962,22 +979,25 @@ export const DNASimulatorPage: React.FC = () => {
           </div>
         </div>
 
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-          {lang === 'fa' ? activePreset.descriptionFa : activePreset.descriptionEn}
-        </p>
+        {/* Collapsible Karyotype Clinical Overview Drawer */}
+        {showPresetDetails && (
+          <div className="neu-inset p-3.5 rounded-xl text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            {lang === 'fa' ? activePreset.descriptionFa : activePreset.descriptionEn}
+          </div>
+        )}
 
-        {/* Karyotype Mode Switcher (Men 46,XY | Women 46,XX | All 47-Chromosome Karyotypes) */}
+        {/* Karyotype Mode Switcher — Clean Rectangular Tiles with Full Labels */}
         <div className="flex flex-col gap-2 pt-2 border-t border-slate-300/30 dark:border-slate-800/60">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-500">
             <span>
               {lang === 'fa'
-                ? 'انتخاب کاریوتایپ (زن ۴۶، مرد ۴۶، یا نمایش کامل ۴۷ کروموزوم):'
-                : 'Select Human Karyotype (Female 46,XX · Male 46,XY · 47-Chromosome Trisomies):'}
+                ? 'کاریوتایپ انسان (زن ۴۶، مرد ۴۶، یا تریزومی‌های ۴۷ کروموزومی):'
+                : 'Human Karyotype Preset (Female 46,XX · Male 46,XY · 47-Chromosome Trisomies):'}
             </span>
             <span className="font-bold text-sky-500 tabular-nums">
               {lang === 'fa'
-                ? `تعداد کل در صحنه سه‌بعدی: ${karyotypeInstances.length} کروموزوم`
-                : `Rendered in 3D Stage: ${karyotypeInstances.length} Chromosomes`}
+                ? `صحنه سه‌بعدی: ${karyotypeInstances.length} کروموزوم`
+                : `Active 3D Stage: ${karyotypeInstances.length} Chromosomes`}
             </span>
           </div>
 
@@ -998,14 +1018,18 @@ export const DNASimulatorPage: React.FC = () => {
                       }
                     }
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs font-mono text-start transition-all cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-mono text-start transition-all cursor-pointer flex flex-col justify-between gap-0.5 ${
                     isActive
-                      ? 'bg-sky-500 text-slate-950 font-bold shadow-sm'
-                      : 'neu-btn text-slate-700 dark:text-slate-200 hover:border-sky-400/50'
+                      ? 'bg-sky-500 text-slate-950 font-bold shadow-sm border border-sky-400'
+                      : 'neu-tile text-slate-700 dark:text-slate-200 hover:border-sky-400/50'
                   }`}
                 >
                   <div className="font-bold whitespace-nowrap">{preset.id}</div>
-                  <div className={`text-[10px] truncate ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                  <div
+                    className={`text-[10px] leading-tight ${
+                      isActive ? 'text-slate-900 font-semibold' : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
                     {lang === 'fa' ? preset.sexLabelFa : preset.sexLabelEn}
                   </div>
                 </button>
@@ -1014,8 +1038,8 @@ export const DNASimulatorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Trait / Phenotype Category Filter Bar */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2">
+        {/* Compact Trait / Phenotype Category Filter Bar */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
           {TRAIT_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const active = traitFilter === cat.id;
@@ -1051,7 +1075,7 @@ export const DNASimulatorPage: React.FC = () => {
       {/* Main 3D Viewport Stage (Unobstructed Center + Collapsible Bottom Dock) */}
       <div
         className={`relative rounded-2xl overflow-hidden border border-slate-300/50 dark:border-slate-800/80 bg-[#040812] ${
-          isFullscreen ? 'fixed inset-3 z-50 h-auto' : 'h-[560px] sm:h-[640px]'
+          isFullscreen ? 'fixed inset-3 z-50 h-auto' : 'h-[520px] sm:h-[600px]'
         }`}
       >
         {/* Unified Non-Overlapping Top HUD Bar */}
@@ -1066,7 +1090,7 @@ export const DNASimulatorPage: React.FC = () => {
             <span className="text-[#7FD141] font-bold">
               Chr {activeLocus.cytogeneticBand} ({activeLocus.geneSymbol})
             </span>
-            <span className="hidden md:inline text-slate-400">
+            <span className="hidden md:inline text-slate-300">
               — {lang === 'fa' ? activeLocus.traitTitleFa : activeLocus.traitTitleEn}
             </span>
           </div>
@@ -1291,9 +1315,9 @@ export const DNASimulatorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Interactive Chromosome Selector Bar (1–22, X, Y) & Trait Loci Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Left 5 Cols: Chromosome Explorer (All 24 Types + Active Chromosome Details) */}
+      {/* Interactive Chromosome Selector (1–22, X, Y) & Clean Rectangular Gene / Allele Inspector */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        {/* Left 5 Cols: Chromosome Explorer (All 24 Types + Active Chromosome Details + Trait Loci) */}
         <div className="lg:col-span-5 neu-card p-5 flex flex-col justify-between gap-4">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -1302,7 +1326,7 @@ export const DNASimulatorPage: React.FC = () => {
                   ? '۱. انتخاب کروموزوم انسانی (۱ تا ۲۲، X و Y)'
                   : '1. Select Human Chromosome (Chr 1–22, X, Y)'}
               </h2>
-              <span className="text-xs font-mono text-sky-500 tabular-nums">
+              <span className="text-xs font-mono text-sky-500 font-semibold tabular-nums">
                 {activeChromSpec.sizeMb} Mb · {activeChromSpec.geneCount} Genes
               </span>
             </div>
@@ -1326,14 +1350,14 @@ export const DNASimulatorPage: React.FC = () => {
                     }}
                     className={`py-1.5 px-2 rounded-lg text-xs font-mono transition-all cursor-pointer flex flex-col items-center ${
                       isSelected
-                        ? 'bg-sky-500 text-slate-950 font-bold shadow-sm'
+                        ? 'bg-sky-500 text-slate-950 font-bold shadow-sm border border-sky-400'
                         : isTrisomic
                         ? 'bg-amber-500/20 border border-amber-500 text-amber-500 font-bold'
-                        : 'neu-btn text-slate-700 dark:text-slate-200'
+                        : 'neu-tile text-slate-700 dark:text-slate-200'
                     }`}
                   >
                     <span>{cid}</span>
-                    <span className="text-[9px] opacity-75">
+                    <span className="text-[9px] opacity-80">
                       {isTrisomic ? '3× (#47)' : hasMappedLocus ? '★' : '2n'}
                     </span>
                   </button>
@@ -1342,14 +1366,14 @@ export const DNASimulatorPage: React.FC = () => {
             </div>
 
             {/* Selected Chromosome Biophysical Card */}
-            <div className="neu-inset p-4 rounded-xl flex flex-col gap-2.5 mt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-base font-bold text-sky-600 dark:text-sky-400">
+            <div className="neu-inset p-4 rounded-xl flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm sm:text-base font-bold text-sky-600 dark:text-sky-400">
                   {lang === 'fa' ? activeChromSpec.faLabel : activeChromSpec.label} (
                   {activeChromSpec.morphology})
                 </span>
-                <span className="text-xs font-mono text-slate-500 tabular-nums">
-                  p/q ratio: {(activeChromSpec.centromereRatio * 100).toFixed(0)}% /{' '}
+                <span className="px-2 py-0.5 rounded-md bg-slate-500/10 text-xs font-mono text-slate-500 dark:text-slate-400 tabular-nums">
+                  p/q: {(activeChromSpec.centromereRatio * 100).toFixed(0)}% /{' '}
                   {((1 - activeChromSpec.centromereRatio) * 100).toFixed(0)}%
                 </span>
               </div>
@@ -1358,7 +1382,7 @@ export const DNASimulatorPage: React.FC = () => {
                 {lang === 'fa' ? activeChromSpec.summaryFa : activeChromSpec.summaryEn}
               </p>
 
-              <div className="pt-2 border-t border-slate-300/30 dark:border-slate-800/60 flex flex-col gap-1">
+              <div className="pt-2 border-t border-slate-300/30 dark:border-slate-800/60 flex flex-col gap-1.5">
                 <span className="text-[11px] font-mono text-slate-500">
                   {lang === 'fa'
                     ? 'ویژگی‌ها و صفات مرتبط با این کروموزوم:'
@@ -1367,9 +1391,9 @@ export const DNASimulatorPage: React.FC = () => {
                 <div className="flex flex-col gap-1 text-xs font-medium text-slate-700 dark:text-slate-200">
                   {(lang === 'fa' ? activeChromSpec.keyTraitsFa : activeChromSpec.keyTraitsEn).map(
                     (tr, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="text-sky-500 font-mono">0{i + 1}.</span>
-                        <span>{tr}</span>
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="text-sky-500 font-mono shrink-0">0{i + 1}.</span>
+                        <span className="leading-snug">{tr}</span>
                       </div>
                     )
                   )}
@@ -1378,14 +1402,14 @@ export const DNASimulatorPage: React.FC = () => {
             </div>
           </div>
 
-          {/* List of Mapped Gene Loci */}
+          {/* List of Mapped Gene Loci — Clean Rectangular Cards with Full Labels */}
           <div className="flex flex-col gap-2">
             <span className="text-xs font-mono text-slate-500">
               {lang === 'fa'
                 ? 'جایگاه‌های ژنی (Loci) و صفات فنوتیپی:'
                 : 'Mapped Trait Loci (Click to Inspect in 3D):'}
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
               {filteredLoci.map((locus) => {
                 const active = locus.id === activeLocus.id;
                 return (
@@ -1397,19 +1421,21 @@ export const DNASimulatorPage: React.FC = () => {
                       setSelectedChromId(locus.chromosome);
                       setSelectedAlleleIdx(0);
                     }}
-                    className={`p-2.5 rounded-xl text-start transition-all cursor-pointer ${
+                    className={`p-3 rounded-xl text-start transition-all cursor-pointer flex flex-col gap-1 ${
                       active
-                        ? 'bg-sky-500/15 border border-sky-500 text-slate-900 dark:text-white'
-                        : 'neu-btn text-slate-700 dark:text-slate-300'
+                        ? 'bg-sky-500/15 border border-sky-500 text-slate-900 dark:text-white shadow-xs'
+                        : 'neu-tile text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-xs font-mono">
+                    <div className="flex items-center justify-between gap-1 text-xs font-mono">
                       <span className="font-bold text-sky-600 dark:text-sky-400">
                         {locus.geneSymbol}
                       </span>
-                      <span className="text-[10px] text-slate-500">{locus.cytogeneticBand}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-slate-500/10 text-[10px] text-slate-500 dark:text-slate-400 shrink-0">
+                        Chr {locus.cytogeneticBand}
+                      </span>
                     </div>
-                    <div className="text-xs font-medium truncate mt-0.5">
+                    <div className="text-xs font-medium leading-snug">
                       {lang === 'fa' ? locus.traitTitleFa : locus.traitTitleEn}
                     </div>
                   </button>
@@ -1419,54 +1445,81 @@ export const DNASimulatorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right 7 Cols: Active Gene Locus, Allele Phenotype Simulator & Nucleotide Sequence */}
-        <div className="lg:col-span-7 neu-card p-5 flex flex-col justify-between gap-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="text-xs font-mono text-sky-600 dark:text-sky-400">
-                  {lang === 'fa' ? 'جایگاه سیتوژنتیک:' : 'Cytogenetic Locus:'}{' '}
-                  <strong>Chr {activeLocus.cytogeneticBand}</strong> · {activeLocus.geneSymbol}
+        {/* Right 7 Cols: Redesigned Clean Rectangular Gene & Allele Inspector */}
+        <div className="lg:col-span-7 neu-card p-5 sm:p-6 flex flex-col justify-between gap-5">
+          <div className="flex flex-col gap-4">
+            {/* Top Locus Header + Full Untruncated Active Phenotype Banner */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/25 text-xs font-mono text-sky-600 dark:text-sky-400">
+                  <span>{lang === 'fa' ? 'جایگاه سیتوژنتیک:' : 'Cytogenetic Locus:'}</span>
+                  <strong>Chr {activeLocus.cytogeneticBand}</strong>
+                  <span>·</span>
+                  <span className="font-bold">{activeLocus.geneSymbol}</span>
                 </div>
-                <h2 className="text-lg font-bold mt-0.5">
-                  {lang === 'fa' ? activeLocus.traitTitleFa : activeLocus.traitTitleEn}
-                </h2>
+
+                <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                  {lang === 'fa' ? 'الگوی وراثت:' : 'Inheritance:'}{' '}
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {lang === 'fa' ? activeLocus.inheritanceFa : activeLocus.inheritanceEn}
+                  </span>
+                </div>
               </div>
 
-              {/* Phenotype Color Swatch Preview */}
-              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl neu-inset">
-                <span
-                  className="w-6 h-6 rounded-lg border border-white/30 shrink-0"
-                  style={{ backgroundColor: activeAllele.previewColor }}
-                />
-                <div className="text-xs font-mono">
-                  <div className="text-[10px] text-slate-500">
-                    {lang === 'fa' ? 'فنوتیپ فعال' : 'Active Phenotype'}
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white leading-snug">
+                {lang === 'fa' ? activeLocus.traitTitleFa : activeLocus.traitTitleEn}
+              </h2>
+
+              {/* Full-Width Rectangular Active Phenotype & Genotype Readout Bar (Zero Truncation) */}
+              <div className="neu-inset p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-3 border border-sky-500/25">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className="w-8 h-8 rounded-lg border border-white/40 shadow-xs shrink-0"
+                    style={{ backgroundColor: activeAllele.previewColor }}
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-sky-500 font-semibold">
+                        {lang === 'fa' ? 'فنوتیپ و آلل فعال' : 'Active Phenotype & Genotype'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-600 dark:text-sky-300 text-xs font-mono font-bold">
+                        {activeAllele.genotype}
+                      </span>
+                    </div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mt-0.5 leading-snug">
+                      {lang === 'fa' ? activeAllele.labelFa : activeAllele.labelEn}
+                    </div>
                   </div>
-                  <div className="font-bold">{activeAllele.genotype.split(' ')[0]}</div>
                 </div>
+              </div>
+
+              {/* Molecular & Physiological Mechanism Box */}
+              <div className="p-3.5 rounded-xl bg-slate-500/5 dark:bg-slate-900/45 border border-slate-300/40 dark:border-slate-800/70">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {lang === 'fa' ? activeLocus.mechanismFa : activeLocus.mechanismEn}
+                </p>
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              {lang === 'fa' ? activeLocus.mechanismFa : activeLocus.mechanismEn}
-            </p>
+            {/* Step 2: Clean Rectangular Allele / Genotype Switcher Cards (Full Untruncated Text) */}
+            <div className="flex flex-col gap-2.5 pt-2 border-t border-slate-300/30 dark:border-slate-800/60">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                  {lang === 'fa'
+                    ? '۲. انتخاب واریانت آلل / ژنوتایپ (مشاهده اثر مستقیم روی فنوتیپ و توالی DNA)'
+                    : '2. Switch Allele Variant (Simulate Phenotype & Base-Pair Mutation)'}
+                </span>
+                <span className="text-[11px] font-mono text-slate-500">
+                  {activeLocus.alleles.length}{' '}
+                  {lang === 'fa' ? 'واریانت' : 'Variants'}
+                </span>
+              </div>
 
-            <div className="text-xs font-mono text-slate-500">
-              {lang === 'fa' ? 'الگوی وراثت:' : 'Inheritance Pattern:'}{' '}
-              <span className="text-slate-800 dark:text-slate-200">
-                {lang === 'fa' ? activeLocus.inheritanceFa : activeLocus.inheritanceEn}
-              </span>
-            </div>
-
-            {/* Interactive Allele / Genotype Switcher */}
-            <div className="flex flex-col gap-2 pt-2 border-t border-slate-300/30 dark:border-slate-800/60">
-              <span className="text-xs font-mono text-slate-500">
-                {lang === 'fa'
-                  ? '۲. تغییر آلل / ژنوتایپ (مشاهده اثر مستقیم روی فنوتیپ و توالی DNA):'
-                  : '2. Switch Allele Variant (Simulate Phenotype & Base-Pair Mutation):'}
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div
+                className={`grid grid-cols-1 ${
+                  activeLocus.alleles.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'
+                } gap-3`}
+              >
                 {activeLocus.alleles.map((al, idx) => {
                   const isSel = idx === selectedAlleleIdx;
                   return (
@@ -1474,25 +1527,49 @@ export const DNASimulatorPage: React.FC = () => {
                       key={al.id}
                       type="button"
                       onClick={() => setSelectedAlleleIdx(idx)}
-                      className={`p-3 rounded-xl text-start transition-all cursor-pointer flex flex-col gap-1 ${
+                      className={`p-3.5 rounded-xl text-start transition-all cursor-pointer flex flex-col justify-between gap-2 ${
                         isSel
-                          ? 'bg-sky-500/15 border border-sky-500'
-                          : 'neu-btn opacity-85 hover:opacity-100'
+                          ? 'bg-sky-500/15 border-2 border-sky-500 shadow-sm'
+                          : 'neu-tile opacity-90 hover:opacity-100'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-3.5 h-3.5 rounded-sm shrink-0 border border-white/30"
-                          style={{ backgroundColor: al.previewColor }}
-                        />
-                        <span className="text-xs font-bold font-mono text-sky-600 dark:text-sky-400 truncate">
-                          {al.genotype}
-                        </span>
+                      <div className="flex flex-col gap-1.5">
+                        {/* Top Status & Full Genotype Name */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-4 h-4 rounded-md shrink-0 border border-white/40"
+                              style={{ backgroundColor: al.previewColor }}
+                            />
+                            <span className="text-xs font-bold font-mono text-sky-600 dark:text-sky-400 leading-snug break-words">
+                              {al.genotype}
+                            </span>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
+                              isSel
+                                ? 'bg-[#7FD141]/20 text-[#7FD141] border border-[#7FD141]/40'
+                                : 'bg-slate-500/10 text-slate-500 dark:text-slate-400'
+                            }`}
+                          >
+                            {isSel
+                              ? lang === 'fa'
+                                ? 'فعال'
+                                : 'ACTIVE'
+                              : lang === 'fa'
+                              ? 'انتخاب'
+                              : 'SELECT'}
+                          </span>
+                        </div>
+
+                        {/* Full Phenotype Label */}
+                        <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                          {lang === 'fa' ? al.labelFa : al.labelEn}
+                        </div>
                       </div>
-                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-100">
-                        {lang === 'fa' ? al.labelFa : al.labelEn}
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+
+                      {/* Detailed Phenotype Mechanism */}
+                      <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pt-1.5 border-t border-slate-300/25 dark:border-slate-800/60">
                         {lang === 'fa' ? al.phenotypeFa : al.phenotypeEn}
                       </div>
                     </button>
@@ -1502,18 +1579,28 @@ export const DNASimulatorPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Interactive Nucleotide Base-Pair Strip (5' -> 3' and 3' -> 5') */}
-          <div className="neu-inset p-3.5 rounded-xl flex flex-col gap-2" dir="ltr">
-            <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-400">
-                5&apos;→3&apos; Coding Exon Motif (SNP highlighted at bp #{mutatedBpIndex + 1})
-              </span>
-              <span className="text-sky-400 font-bold tabular-nums">
-                GC Content: {gspAnalysis.gcContentPct}% · Codon Peak SNR: {gspAnalysis.codonPeakRatio}×
-              </span>
+          {/* Interactive Nucleotide Base-Pair Ladder (5' -> 3' Sense & 3' -> 5' Complement) */}
+          <div className="neu-inset p-4 rounded-xl flex flex-col gap-2.5" dir="ltr">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-slate-700 dark:text-slate-200 font-semibold">
+                  5&apos;→3&apos; Coding Exon Motif
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-[#7FD141]/20 border border-[#7FD141]/50 text-[#7FD141] font-bold">
+                  SNP at bp #{mutatedBpIndex + 1}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-500 font-bold tabular-nums">
+                  GC Content: {gspAnalysis.gcContentPct}%
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-500 font-bold tabular-nums">
+                  Codon Peak SNR: {gspAnalysis.codonPeakRatio}×
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5">
               {activeSequence
                 .slice(0, 28)
                 .split('')
@@ -1523,20 +1610,26 @@ export const DNASimulatorPage: React.FC = () => {
                   return (
                     <div
                       key={i}
-                      className={`flex flex-col items-center px-1.5 py-1 rounded font-mono text-xs shrink-0 ${
+                      className={`flex flex-col items-center min-w-[32px] px-2 py-1.5 rounded-lg font-mono text-xs shrink-0 transition-transform ${
                         isMut
-                          ? 'bg-[#7FD141]/25 border border-[#7FD141] scale-105'
-                          : 'bg-slate-900/60 border border-slate-800'
+                          ? 'bg-[#7FD141]/20 border-2 border-[#7FD141] shadow-sm'
+                          : 'bg-slate-900/75 border border-slate-800'
                       }`}
                     >
-                      <span className="text-[9px] text-slate-500">{i + 1}</span>
-                      <span className="font-bold" style={{ color: BASE_COLORS[b] }}>
+                      <span
+                        className={`text-[9px] tabular-nums ${
+                          isMut ? 'text-[#7FD141] font-bold' : 'text-slate-400'
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="font-bold text-xs mt-0.5" style={{ color: BASE_COLORS[b] }}>
                         {b}
                       </span>
-                      <span className="text-[9px] text-slate-500">
+                      <span className="text-[10px] text-slate-500 leading-none my-0.5">
                         {b === 'G' || b === 'C' ? '║' : '│'}
                       </span>
-                      <span className="font-bold" style={{ color: BASE_COLORS[comp] }}>
+                      <span className="font-bold text-xs" style={{ color: BASE_COLORS[comp] }}>
                         {comp}
                       </span>
                     </div>
@@ -1547,82 +1640,120 @@ export const DNASimulatorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Genomic Signal Processing (GSP) Numerical & Spectral Periodicity Analysis */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <InteractivePlot
-          title={
-            lang === 'fa'
-              ? `سیگنال عددی ژنومیک (Purine/Pyrimidine & EIIP) — ${activeLocus.geneSymbol}`
-              : `Genomic Numerical Indicator Signal — ${activeLocus.geneSymbol}`
-          }
-          subtitle={
-            lang === 'fa'
-              ? 'نگاشت بازهای پورین (A,G = +1) و پیریمیدین (C,T = -1) روی محور موقعیت نوکلئوتید'
-              : 'Purine (+1: A,G) vs. Pyrimidine (-1: C,T) indicator series across nucleotide base-pair index n'
-          }
-          xData={gspAnalysis.positions}
-          xLabel={lang === 'fa' ? 'موقعیت باز نوکلئوتیدی (bp)' : 'Base-Pair Index (n)'}
-          yLabel="u[n]"
-          series={[
-            {
-              id: 'purine-pyrimidine',
-              label: lang === 'fa' ? 'سیگنال پورین/پیریمیدین' : 'Purine-Pyrimidine u[n]',
-              data: gspAnalysis.purinePyrimidine,
-              color: '#38bdf8',
-            },
-          ]}
-          height={250}
-        />
-
-        <InteractivePlot
-          title={
-            lang === 'fa'
-              ? 'طیف توان ژنومیک (DFT) و پیک تناوب ۳ تایی کدون (f = 1/3)'
-              : 'Genomic Power Spectrum (DFT) & 3-Base Codon Periodicity (f = 0.333)'
-          }
-          subtitle={
-            lang === 'fa'
-              ? 'اگزون‌های کدکننده پروتئین در فرکانس f = 1/3 cycles/bp دارای رزونانس طیفی هستند'
-              : 'Protein-coding exons exhibit a prominent spectral resonance at normalized frequency f = 1/3 cycles/bp'
-          }
-          xData={gspAnalysis.freqAxis}
-          xLabel={lang === 'fa' ? 'فرکانس نرمال‌شده (cycles/bp)' : 'Normalized Frequency (cycles/bp)'}
-          yLabel="|X(f)|²"
-          series={[
-            {
-              id: 'eiip-power',
-              label: lang === 'fa' ? 'چگالی طیف توان EIIP' : 'EIIP Spectral Power',
-              data: gspAnalysis.spectralPower,
-              color: '#10b981',
-            },
-          ]}
-          height={250}
-        />
-      </div>
-
-      {/* Mathematical Formulation of Genomic Signal Processing */}
-      <div className="neu-card p-5 flex flex-col gap-3">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-          {lang === 'fa'
-            ? 'فرمولاسیون ریاضی پردازش سیگنال‌های ژنومیک (Genomic Signal Processing)'
-            : 'Mathematical Foundation of Genomic Signal Processing (Voss & EIIP Spectral Mapping)'}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            {lang === 'fa'
-              ? 'در پردازش سیگنال ژنومیک (GSP)، رشته‌های نوکلئوتیدی چهارحرفی S[n] ∈ {A, T, C, G} از طریق پتانسیل برهم‌کنش الکترون-یون (EIIP) یا شاخص‌های باینری ووس به سیگنال‌های گسسته تبدیل می‌شوند. تبدیل فوریه گسسته (DFT) این سیگنال در نواحی اگزون کدکننده پروتئین به دلیل ساختار کدون‌های ۳ نوکلئوتیدی، یک پیک مشخص در فرکانس f = 1/3 ایجاد می‌کند.'
-              : 'In Genomic Signal Processing (GSP), symbolic nucleotide sequences S[n] ∈ {A, T, C, G} are mapped into numerical sequences x[n] using Electron-Ion Interaction Potentials (EIIP) or Voss indicator vectors. Evaluating the Discrete Fourier Transform (DFT) reveals the universal period-3 peak at k = N/3 (f = 0.333 cycles/bp) characteristic of protein-coding exons.'}
-          </p>
-          <div
-            dir="ltr"
-            className="py-3 px-4 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 overflow-x-auto"
-          >
-            <MathFormula
-              tex="P_{\text{GSP}}(k) = \left| \sum_{n=0}^{N-1} x_{\text{EIIP}}[n] \, e^{-j \frac{2\pi k n}{N}} \right|^2, \quad f_{\text{codon}} = \frac{1}{3}\,\text{bp}^{-1}"
-              block={true}
-            />
+      {/* Collapsible Detail Drawer: 2D Genomic Signal Processing (GSP) & Spectral Periodicity */}
+      <div className="neu-card p-4 sm:p-5 flex flex-col gap-4">
+        <button
+          type="button"
+          onClick={() => setShowGspDrawer((v) => !v)}
+          className="w-full flex flex-wrap items-center justify-between gap-2 text-start cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <Activity className="w-4 h-4 text-sky-500 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                {lang === 'fa'
+                  ? `تحلیل دوبعدی پردازش سیگنال ژنومیک (GSP) و طیف کدون — ${activeLocus.geneSymbol}`
+                  : `2D Genomic Signal Processing (GSP) & Codon Spectral Analysis — ${activeLocus.geneSymbol}`}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {lang === 'fa'
+                  ? 'نگاشت عددی پورین/پیریمیدین، طیف توان DFT در فرکانس f = 1/3 و فرمولاسیون ریاضی'
+                  : 'Purine/Pyrimidine numerical series, DFT codon resonance (f = 1/3 cycles/bp), and mathematical formulation'}
+              </p>
+            </div>
           </div>
-        </div>
+
+          <span className="neu-btn px-3 py-1.5 rounded-xl text-xs font-mono flex items-center gap-1.5">
+            {showGspDrawer ? (
+              <>
+                <ChevronUp className="w-3.5 h-3.5 text-sky-500" />
+                <span>{lang === 'fa' ? 'بستن نمودارهای دوبعدی' : 'Hide 2D Charts'}</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3.5 h-3.5 text-sky-500" />
+                <span>{lang === 'fa' ? 'نمایش نمودارهای دوبعدی و فرمول' : 'Show 2D Charts & Math'}</span>
+              </>
+            )}
+          </span>
+        </button>
+
+        {showGspDrawer && (
+          <div className="flex flex-col gap-5 pt-3 border-t border-slate-300/30 dark:border-slate-800/60">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <InteractivePlot
+                title={
+                  lang === 'fa'
+                    ? `سیگنال عددی ژنومیک (Purine/Pyrimidine & EIIP) — ${activeLocus.geneSymbol}`
+                    : `Genomic Numerical Indicator Signal — ${activeLocus.geneSymbol}`
+                }
+                subtitle={
+                  lang === 'fa'
+                    ? 'نگاشت بازهای پورین (A,G = +1) و پیریمیدین (C,T = -1) روی محور موقعیت نوکلئوتید'
+                    : 'Purine (+1: A,G) vs. Pyrimidine (-1: C,T) indicator series across nucleotide base-pair index n'
+                }
+                xData={gspAnalysis.positions}
+                xLabel={lang === 'fa' ? 'موقعیت باز نوکلئوتیدی (bp)' : 'Base-Pair Index (n)'}
+                yLabel="u[n]"
+                series={[
+                  {
+                    id: 'purine-pyrimidine',
+                    label: lang === 'fa' ? 'سیگنال پورین/پیریمیدین' : 'Purine-Pyrimidine u[n]',
+                    data: gspAnalysis.purinePyrimidine,
+                    color: '#38bdf8',
+                  },
+                ]}
+                height={240}
+              />
+
+              <InteractivePlot
+                title={
+                  lang === 'fa'
+                    ? 'طیف توان ژنومیک (DFT) و پیک تناوب ۳ تایی کدون (f = 1/3)'
+                    : 'Genomic Power Spectrum (DFT) & 3-Base Codon Periodicity (f = 0.333)'
+                }
+                subtitle={
+                  lang === 'fa'
+                    ? 'اگزون‌های کدکننده پروتئین در فرکانس f = 1/3 cycles/bp دارای رزونانس طیفی هستند'
+                    : 'Protein-coding exons exhibit a prominent spectral resonance at normalized frequency f = 1/3 cycles/bp'
+                }
+                xData={gspAnalysis.freqAxis}
+                xLabel={
+                  lang === 'fa'
+                    ? 'فرکانس نرمال‌شده (cycles/bp)'
+                    : 'Normalized Frequency (cycles/bp)'
+                }
+                yLabel="|X(f)|²"
+                series={[
+                  {
+                    id: 'eiip-power',
+                    label: lang === 'fa' ? 'چگالی طیف توان EIIP' : 'EIIP Spectral Power',
+                    data: gspAnalysis.spectralPower,
+                    color: '#10b981',
+                  },
+                ]}
+                height={240}
+              />
+            </div>
+
+            <div className="neu-inset p-4 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                {lang === 'fa'
+                  ? 'در پردازش سیگنال ژنومیک (GSP)، رشته‌های نوکلئوتیدی چهارحرفی S[n] ∈ {A, T, C, G} از طریق پتانسیل برهم‌کنش الکترون-یون (EIIP) یا شاخص‌های باینری ووس به سیگنال‌های گسسته تبدیل می‌شوند. تبدیل فوریه گسسته (DFT) این سیگنال در نواحی اگزون کدکننده پروتئین به دلیل ساختار کدون‌های ۳ نوکلئوتیدی، یک پیک مشخص در فرکانس f = 1/3 ایجاد می‌کند.'
+                  : 'In Genomic Signal Processing (GSP), symbolic nucleotide sequences S[n] ∈ {A, T, C, G} are mapped into numerical sequences x[n] using Electron-Ion Interaction Potentials (EIIP) or Voss indicator vectors. Evaluating the Discrete Fourier Transform (DFT) reveals the universal period-3 peak at k = N/3 (f = 0.333 cycles/bp) characteristic of protein-coding exons.'}
+              </p>
+              <div
+                dir="ltr"
+                className="py-3 px-4 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/60 overflow-x-auto"
+              >
+                <MathFormula
+                  tex="P_{\text{GSP}}(k) = \left| \sum_{n=0}^{N-1} x_{\text{EIIP}}[n] \, e^{-j \frac{2\pi k n}{N}} \right|^2, \quad f_{\text{codon}} = \frac{1}{3}\,\text{bp}^{-1}"
+                  block={true}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

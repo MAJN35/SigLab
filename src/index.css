@@ -338,12 +338,16 @@ html[dir="rtl"] .mobile-glass-drawer {
   backdrop-filter: blur(20px) saturate(185%);
   -webkit-backdrop-filter: blur(20px) saturate(185%);
   border: 1px solid var(--glass-border);
-  border-radius: 18px;
+  border-radius: 14px;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45);
   transition:
     border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
     transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neu-inset.rounded-full {
+  border-radius: 9999px;
 }
 
 /* Dark-mode-first Oscilloscope & Spectrogram Frame */
@@ -362,7 +366,7 @@ html[dir="rtl"] .mobile-glass-drawer {
 .btn-primary-pill {
   background: var(--accent);
   color: #ffffff;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 0 6px 18px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
   font-weight: 600;
@@ -381,24 +385,24 @@ html[dir="rtl"] .mobile-glass-drawer {
 
 @media (hover: hover) {
   .btn-primary-pill:hover:not(:disabled) {
-    transform: translateY(-1.5px) scale(1.02);
+    transform: translateY(-1.5px) scale(1.015);
     filter: brightness(1.06);
     box-shadow: 0 12px 28px var(--accent-glow);
   }
 }
 
 .btn-primary-pill:active:not(:disabled) {
-  transform: translateY(0) scale(0.975);
+  transform: translateY(0) scale(0.98);
   transition-duration: 75ms;
 }
 
-/* 2. Secondary / Tool Pill */
+/* 2. Secondary / Active Tool Button */
 .btn-tool-pill,
 .neu-btn-active {
   background: linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(14, 165, 233, 0.22)) !important;
   border: 1px solid var(--accent) !important;
   color: var(--accent) !important;
-  border-radius: 999px;
+  border-radius: 12px;
   box-shadow: 0 4px 16px var(--accent-glow), inset 0 1px 1px rgba(255, 255, 255, 0.35);
   font-weight: 600;
   transition:
@@ -410,14 +414,14 @@ html[dir="rtl"] .mobile-glass-drawer {
 
 @media (hover: hover) {
   .btn-tool-pill:hover:not(:disabled) {
-    transform: translateY(-1.5px) scale(1.02);
+    transform: translateY(-1.5px) scale(1.015);
     box-shadow: 0 12px 28px var(--accent-glow);
   }
 }
 
 .btn-tool-pill:active:not(:disabled),
 .neu-btn-active:active:not(:disabled) {
-  transform: translateY(0) scale(0.975);
+  transform: translateY(0) scale(0.98);
   transition-duration: 75ms;
 }
 
@@ -458,13 +462,14 @@ html[dir="rtl"] .mobile-glass-drawer {
   transition-duration: 75ms;
 }
 
-/* Standard Interactive Glass Pill Button */
-.neu-btn {
+/* Standard Interactive Rectangular Button / Tile (never distorts multi-line cards into ovals) */
+.neu-btn,
+.neu-tile {
   background: var(--glass-surface-sm);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--glass-border);
-  border-radius: 999px;
+  border-radius: 12px;
   box-shadow: var(--glass-shadow);
   color: var(--text-main);
   transition:
@@ -476,16 +481,22 @@ html[dir="rtl"] .mobile-glass-drawer {
   will-change: transform;
 }
 
+.neu-tile {
+  border-radius: 14px;
+}
+
 @media (hover: hover) {
-  .neu-btn:hover:not(:disabled) {
-    transform: translateY(-1.5px) scale(1.02);
+  .neu-btn:hover:not(:disabled),
+  .neu-tile:hover:not(:disabled) {
+    transform: translateY(-1.5px) scale(1.01);
     border-color: var(--accent);
-    box-shadow: 0 12px 28px var(--accent-glow);
+    box-shadow: 0 10px 24px var(--accent-glow);
   }
 }
 
-.neu-btn:active:not(:disabled) {
-  transform: translateY(0) scale(0.975);
+.neu-btn:active:not(:disabled),
+.neu-tile:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
   transition-duration: 75ms;
 }
 

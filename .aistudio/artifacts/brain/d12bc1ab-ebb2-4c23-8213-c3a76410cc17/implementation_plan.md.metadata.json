@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan to fix the distorted circular allele cards and truncated labels in the DNA & 47 Chromosomes Lab while keeping all scientific details intact, and to streamline the website UI with a compact top control toolbar and collapsible detail drawers so 3D and 2D stages stay prominent.",
+  "updatedAt":  "2026-11-07T22:44:44.234453902Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

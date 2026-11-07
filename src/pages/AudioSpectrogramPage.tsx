@@ -3,6 +3,8 @@ import {
   Activity,
   AudioLines,
   BoxSelect,
+  ChevronDown,
+  ChevronUp,
   HelpCircle,
   Info,
   Layers,
@@ -194,6 +196,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
   // Choosable SNR & Human Voice Clarity Engine (works on Uploaded Music & Generator)
   const [snrEnabled, setSnrEnabled] = useState<boolean>(false);
+  const [showSnrDrawer, setShowSnrDrawer] = useState<boolean>(false);
   const [targetSnrDb, setTargetSnrDb] = useState<number>(6);
   const [snrMode, setSnrMode] = useState<'voice-in-music' | 'awgn' | 'pink' | 'babble' | 'hum'>(
     'voice-in-music'
@@ -2680,22 +2683,39 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         <div className="w-full h-7 skeleton-shimmer" />
       )}
 
-      {/* Choosable SNR & Human Voice Clarity Strip (Works on Uploaded Music & Generator) */}
-      <div className="neu-inset p-3.5 rounded-2xl flex flex-col gap-3 border border-sky-500/20">
+      {/* Compact SNR & Human Voice Clarity Bar + Collapsible Detail Drawer */}
+      <div className="neu-inset px-3.5 py-2.5 rounded-xl flex flex-col gap-3 border border-sky-500/20">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowSnrDrawer((v) => !v)}
+            className="flex items-center gap-2 text-start cursor-pointer"
+          >
             <AudioLines className="w-4 h-4 text-sky-500 shrink-0" />
             <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
               {lang === 'fa'
-                ? 'تنظیم انتخابی SNR (نسبت سیگنال به نویز) و شفاف‌سازی صدای انسان در موسیقی آپلودشده'
-                : 'Choosable SNR (dB) & Human Voice Clarity in Uploaded Music / Signals'}
+                ? 'تنظیم SNR (dB) و شفاف‌سازی صدای انسان در موسیقی'
+                : 'SNR (dB) & Voice Clarity Mixer'}
             </span>
             {sourceMode === 'uploaded' && uploadedFileName && (
               <span className="text-[11px] font-mono text-emerald-500 font-semibold">
                 ({uploadedFileName})
               </span>
             )}
-          </div>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 text-[11px] font-mono text-sky-500">
+              {showSnrDrawer ? (
+                <>
+                  <ChevronUp className="w-3 h-3" />
+                  <span>{lang === 'fa' ? 'بستن' : 'Less'}</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-3 h-3" />
+                  <span>{lang === 'fa' ? 'تنظیمات کامل' : 'Fine-Tune'}</span>
+                </>
+              )}
+            </span>
+          </button>
 
           {/* Quick Choosable SNR Buttons */}
           <div className="flex flex-wrap items-center gap-1 font-mono text-[11px]">
@@ -2730,158 +2750,162 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
-          {/* Column 1: Vocal Formant Clarity / Isolation Filter */}
-          <div>
-            <label className="block text-[11px] font-mono text-slate-500 mb-1">
-              {lang === 'fa'
-                ? 'تقویت و جداسازی صدای انسان (۳۰۰ تا ۳۴۰۰ هرتز)'
-                : 'Voice Isolation & Formant Clarity'}
-            </label>
-            <select
-              value={vocalClarityMode}
-              onChange={(e) => setVocalClarityMode(e.target.value as any)}
-              className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
-            >
-              <option value="off">
-                {lang === 'fa'
-                  ? 'طیف کامل اصلی (بدون فیلتر وکال)'
-                  : 'Original Full Spectrum (Off)'}
-              </option>
-              <option value="voice-boost">
-                {lang === 'fa'
-                  ? 'تقویت صدای خواننده/گوینده در موسیقی (+7.5 dB Formant Boost)'
-                  : 'Boost Voice in Uploaded Music (+7.5 dB Formants)'}
-              </option>
-              <option value="strict-voice-bandpass">
-                {lang === 'fa'
-                  ? 'جداسازی باند صدای انسان (فیلتر میان‌گذر 300Hz–3.4kHz)'
-                  : 'Isolate Voice Band Only (300 Hz – 3.4 kHz Bandpass)'}
-              </option>
-              <option value="instrumental-focus">
-                {lang === 'fa'
-                  ? 'تضعیف صدای خواننده (تمرکز بر سازها و موسیقی متن)'
-                  : 'Suppress Center Vocals (Instrumental Focus)'}
-              </option>
-            </select>
-          </div>
+        {showSnrDrawer && (
+          <div className="flex flex-col gap-3 pt-2.5 border-t border-slate-300/30 dark:border-slate-800/60">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+              {/* Column 1: Vocal Formant Clarity / Isolation Filter */}
+              <div>
+                <label className="block text-[11px] font-mono text-slate-500 mb-1">
+                  {lang === 'fa'
+                    ? 'تقویت و جداسازی صدای انسان (۳۰۰ تا ۳۴۰۰ هرتز)'
+                    : 'Voice Isolation & Formant Clarity'}
+                </label>
+                <select
+                  value={vocalClarityMode}
+                  onChange={(e) => setVocalClarityMode(e.target.value as any)}
+                  className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
+                >
+                  <option value="off">
+                    {lang === 'fa'
+                      ? 'طیف کامل اصلی (بدون فیلتر وکال)'
+                      : 'Original Full Spectrum (Off)'}
+                  </option>
+                  <option value="voice-boost">
+                    {lang === 'fa'
+                      ? 'تقویت صدای خواننده/گوینده در موسیقی (+7.5 dB Formant Boost)'
+                      : 'Boost Voice in Uploaded Music (+7.5 dB Formants)'}
+                  </option>
+                  <option value="strict-voice-bandpass">
+                    {lang === 'fa'
+                      ? 'جداسازی باند صدای انسان (فیلتر میان‌گذر 300Hz–3.4kHz)'
+                      : 'Isolate Voice Band Only (300 Hz – 3.4 kHz Bandpass)'}
+                  </option>
+                  <option value="instrumental-focus">
+                    {lang === 'fa'
+                      ? 'تضعیف صدای خواننده (تمرکز بر سازها و موسیقی متن)'
+                      : 'Suppress Center Vocals (Instrumental Focus)'}
+                  </option>
+                </select>
+              </div>
 
-          {/* Column 2: SNR Signal / Noise Mixing Mode */}
-          <div>
-            <label className="block text-[11px] font-mono text-slate-500 mb-1">
-              {lang === 'fa'
-                ? 'حالت ترکیب SNR (صدای انسان روی موسیقی یا نویز کالیبره)'
-                : 'SNR Target Channel (Voice-in-Music vs. Noise)'}
-            </label>
-            <select
-              value={snrMode}
-              onChange={(e) => {
-                setSnrMode(e.target.value as any);
-                setSnrEnabled(true);
-              }}
-              className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
-            >
-              <option value="voice-in-music">
-                {lang === 'fa'
-                  ? 'تزریق/شنیدن صدای گفتار انسان در موسیقی با SNR انتخابی'
-                  : 'Hear Human Voice in Music at Chosen SNR (dB)'}
-              </option>
-              <option value="awgn">
-                {lang === 'fa'
-                  ? 'نویز سفید گوسی (AWGN) با SNR انتخابی'
-                  : 'White Gaussian Noise (AWGN) at Chosen SNR'}
-              </option>
-              <option value="pink">
-                {lang === 'fa'
-                  ? 'نویز صورتی (1/f Pink Noise) با SNR انتخابی'
-                  : 'Pink 1/f Noise at Chosen SNR'}
-              </option>
-              <option value="babble">
-                {lang === 'fa'
-                  ? 'همهمه جمعیت (Cocktail Party Babble) با SNR انتخابی'
-                  : 'Cocktail Party Speech Babble at Chosen SNR'}
-              </option>
-              <option value="hum">
-                {lang === 'fa'
-                  ? 'نویز برق شهر (50/150 Hz Hum) با SNR انتخابی'
-                  : '50/150 Hz Powerline Hum at Chosen SNR'}
-              </option>
-            </select>
-          </div>
+              {/* Column 2: SNR Signal / Noise Mixing Mode */}
+              <div>
+                <label className="block text-[11px] font-mono text-slate-500 mb-1">
+                  {lang === 'fa'
+                    ? 'حالت ترکیب SNR (صدای انسان روی موسیقی یا نویز کالیبره)'
+                    : 'SNR Target Channel (Voice-in-Music vs. Noise)'}
+                </label>
+                <select
+                  value={snrMode}
+                  onChange={(e) => {
+                    setSnrMode(e.target.value as any);
+                    setSnrEnabled(true);
+                  }}
+                  className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
+                >
+                  <option value="voice-in-music">
+                    {lang === 'fa'
+                      ? 'تزریق/شنیدن صدای گفتار انسان در موسیقی با SNR انتخابی'
+                      : 'Hear Human Voice in Music at Chosen SNR (dB)'}
+                  </option>
+                  <option value="awgn">
+                    {lang === 'fa'
+                      ? 'نویز سفید گوسی (AWGN) با SNR انتخابی'
+                      : 'White Gaussian Noise (AWGN) at Chosen SNR'}
+                  </option>
+                  <option value="pink">
+                    {lang === 'fa'
+                      ? 'نویز صورتی (1/f Pink Noise) با SNR انتخابی'
+                      : 'Pink 1/f Noise at Chosen SNR'}
+                  </option>
+                  <option value="babble">
+                    {lang === 'fa'
+                      ? 'همهمه جمعیت (Cocktail Party Babble) با SNR انتخابی'
+                      : 'Cocktail Party Speech Babble at Chosen SNR'}
+                  </option>
+                  <option value="hum">
+                    {lang === 'fa'
+                      ? 'نویز برق شهر (50/150 Hz Hum) با SNR انتخابی'
+                      : '50/150 Hz Powerline Hum at Chosen SNR'}
+                  </option>
+                </select>
+              </div>
 
-          {/* Column 3: Continuous SNR (dB) Slider (-20 dB to +30 dB) */}
-          <div dir="ltr">
-            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
-              <span className="text-slate-500">
-                {lang === 'fa' ? 'مقدار دقیق SNR:' : 'Selected SNR Level:'}
-              </span>
-              <span
-                className={`font-bold ${
-                  !snrEnabled
-                    ? 'text-emerald-500'
-                    : targetSnrDb < 0
-                    ? 'text-rose-500'
-                    : 'text-sky-500'
-                }`}
-              >
-                {snrEnabled
-                  ? `${targetSnrDb > 0 ? '+' : ''}${targetSnrDb} dB`
-                  : 'Clean (∞ dB)'}
-              </span>
+              {/* Column 3: Continuous SNR (dB) Slider (-20 dB to +30 dB) */}
+              <div dir="ltr">
+                <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+                  <span className="text-slate-500">
+                    {lang === 'fa' ? 'مقدار دقیق SNR:' : 'Selected SNR Level:'}
+                  </span>
+                  <span
+                    className={`font-bold ${
+                      !snrEnabled
+                        ? 'text-emerald-500'
+                        : targetSnrDb < 0
+                        ? 'text-rose-500'
+                        : 'text-sky-500'
+                    }`}
+                  >
+                    {snrEnabled
+                      ? `${targetSnrDb > 0 ? '+' : ''}${targetSnrDb} dB`
+                      : 'Clean (∞ dB)'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={-20}
+                  max={30}
+                  step={1}
+                  value={targetSnrDb}
+                  onChange={(e) => {
+                    setSnrEnabled(true);
+                    setTargetSnrDb(Number(e.target.value));
+                  }}
+                  className="sci-slider w-full"
+                />
+              </div>
             </div>
-            <input
-              type="range"
-              min={-20}
-              max={30}
-              step={1}
-              value={targetSnrDb}
-              onChange={(e) => {
-                setSnrEnabled(true);
-                setTargetSnrDb(Number(e.target.value));
-              }}
-              className="sci-slider w-full"
-            />
-          </div>
-        </div>
 
-        {/* Optional Voice Fundamental Pitch Slider when Voice-in-Music SNR mode is active */}
-        {snrEnabled && snrMode === 'voice-in-music' && (
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-300/30 dark:border-slate-800/60 text-xs font-mono">
-            <span className="text-slate-500">
-              {lang === 'fa'
-                ? 'فرکانس پایه حنجره صدای گفتار (F0):'
-                : 'Injected Human Voice Fundamental Pitch (F0):'}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setVoicePitchHz(120)}
-                className={`px-2.5 py-0.5 rounded-lg cursor-pointer ${
-                  voicePitchHz === 120 ? 'bg-sky-500 text-slate-950 font-bold' : 'neu-btn'
-                }`}
-              >
-                {lang === 'fa' ? 'صدای مرد (120 Hz)' : 'Male Voice (120 Hz)'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setVoicePitchHz(215)}
-                className={`px-2.5 py-0.5 rounded-lg cursor-pointer ${
-                  voicePitchHz === 215 ? 'bg-sky-500 text-slate-950 font-bold' : 'neu-btn'
-                }`}
-              >
-                {lang === 'fa' ? 'صدای زن (215 Hz)' : 'Female Voice (215 Hz)'}
-              </button>
-              <input
-                type="range"
-                min={85}
-                max={260}
-                step={5}
-                value={voicePitchHz}
-                onChange={(e) => setVoicePitchHz(Number(e.target.value))}
-                className="sci-slider w-28"
-              />
-              <span className="text-sky-500 font-bold w-14 text-right">{voicePitchHz} Hz</span>
-            </div>
+            {/* Optional Voice Fundamental Pitch Slider when Voice-in-Music SNR mode is active */}
+            {snrEnabled && snrMode === 'voice-in-music' && (
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-300/30 dark:border-slate-800/60 text-xs font-mono">
+                <span className="text-slate-500">
+                  {lang === 'fa'
+                    ? 'فرکانس پایه حنجره صدای گفتار (F0):'
+                    : 'Injected Human Voice Fundamental Pitch (F0):'}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVoicePitchHz(120)}
+                    className={`px-2.5 py-0.5 rounded-lg cursor-pointer ${
+                      voicePitchHz === 120 ? 'bg-sky-500 text-slate-950 font-bold' : 'neu-btn'
+                    }`}
+                  >
+                    {lang === 'fa' ? 'صدای مرد (120 Hz)' : 'Male Voice (120 Hz)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVoicePitchHz(215)}
+                    className={`px-2.5 py-0.5 rounded-lg cursor-pointer ${
+                      voicePitchHz === 215 ? 'bg-sky-500 text-slate-950 font-bold' : 'neu-btn'
+                    }`}
+                  >
+                    {lang === 'fa' ? 'صدای زن (215 Hz)' : 'Female Voice (215 Hz)'}
+                  </button>
+                  <input
+                    type="range"
+                    min={85}
+                    max={260}
+                    step={5}
+                    value={voicePitchHz}
+                    onChange={(e) => setVoicePitchHz(Number(e.target.value))}
+                    className="sci-slider w-28"
+                  />
+                  <span className="text-sky-500 font-bold w-14 text-right">{voicePitchHz} Hz</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

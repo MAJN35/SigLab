@@ -48,10 +48,10 @@ export const DashboardPage: React.FC = () => {
                 key={m.id}
                 type="button"
                 onClick={() => setActivePage(m.id)}
-                className="neu-btn px-3.5 py-2.5 rounded-xl text-xs font-medium flex items-center gap-2.5 text-start cursor-pointer transition-transform hover:-translate-y-0.5"
+                className="neu-tile px-3.5 py-2.5 rounded-xl text-xs font-medium flex items-center gap-2.5 text-start cursor-pointer"
               >
-                <Icon className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                <span className="truncate">{lang === 'fa' ? m.faTitle : m.title}</span>
+                <Icon className="w-4 h-4 text-sky-500 shrink-0" />
+                <span className="leading-snug">{lang === 'fa' ? m.faTitle : m.title}</span>
               </button>
             );
           })}
