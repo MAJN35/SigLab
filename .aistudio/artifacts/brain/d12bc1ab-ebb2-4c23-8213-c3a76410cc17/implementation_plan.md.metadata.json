@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan to fix the distorted circular allele cards and truncated labels in the DNA & 47 Chromosomes Lab while keeping all scientific details intact, and to streamline the website UI with a compact top control toolbar and collapsible detail drawers so 3D and 2D stages stay prominent.",
-  "updatedAt":  "2026-11-07T22:44:44.234453902Z",
+  "summary":  "Implementation plan to replace Three.js with Babylon.js (@babylonjs/core) using native GlowLayer, MSAA 4x DefaultRenderingPipeline, Fresnel bioluminescent rim shaders, and continuous updatable Ribbon/Tube geometry across both the 3D Signal/FFT/Waterfall Visualizer and the 3D 47-Chromosome/DNA Lab.",
+  "updatedAt":  "2026-11-07T23:39:13.564056713Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

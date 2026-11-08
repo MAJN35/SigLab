@@ -1,7 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
-import * as THREE from 'three';
+import {
+  ArcRotateCamera,
+  Color3,
+  Color4,
+  DynamicTexture,
+  Engine,
+  FresnelParameters,
+  GlowLayer,
+  HemisphericLight,
+  ImageProcessingConfiguration,
+  Mesh,
+  MeshBuilder,
+  PointLight,
+  PointerEventTypes,
+  Quaternion,
+  Scene,
+  StandardMaterial,
+  TransformNode,
+  Vector3,
+} from '@babylonjs/core';
 import {
   Activity,
   Brain,
@@ -38,6 +55,8 @@ import {
 import { useLab } from '../store/LabContext';
 
 type DNA3DViewMode = 'dual-3d' | 'chrom-closeup' | 'karyotype-3d' | 'helix-3d';
+type DNACameraPreset = 'overview' | 'karyotype' | 'helix-macro' | 'groove-top';
+type DNAFinishMode = 'cryo-studio' | 'cpk-metallic' | 'bioluminescent';
 
 const TRAIT_CATEGORIES: {
   id: TraitCategory;
@@ -56,6 +75,91 @@ const TRAIT_CATEGORIES: {
   { id: 'trisomy-sex', labelEn: '47-Chr & Sex (XX/XY)', labelFa: '۴۷ کروموزوم و جنسیت', icon: UserCheck },
 ];
 
+/** Quantitative Human Genome Numeric Facts (Bilingual EN / FA) */
+const HUMAN_GENOME_NUMERIC_FACTS: {
+  stat: string;
+  unitEn: string;
+  unitFa: string;
+  titleEn: string;
+  titleFa: string;
+  detailEn: string;
+  detailFa: string;
+  accent: string;
+}[] = [
+  {
+    stat: '99.9%',
+    unitEn: 'Identical Across All Humans',
+    unitFa: 'تشابه ژنتیکی تمام انسان‌ها',
+    titleEn: 'Human Unity & 98.8% Primate Homology',
+    titleFa: 'وحدت ژنتیکی انسان و ۹۸.۸٪ همولوژی',
+    detailEn:
+      'Every human shares 99.9% identical DNA sequence (~98.8% shared with chimpanzees); just 0.1% (~3 million SNPs) creates all unique human traits.',
+    detailFa:
+      '۹۹.۹٪ توالی DNA در تمام انسان‌های جهان کاملاً یکسان است (و ~۹۸.۸٪ با شامپانزه اشتراک دارد)؛ تنها ۰.۱٪ (~۳ میلیون SNP) تفاوت‌های ظاهری را می‌سازد.',
+    accent: '#38bdf8',
+  },
+  {
+    stat: '98.5%',
+    unitEn: 'Non-Coding Regulatory DNA',
+    unitFa: 'DNA تنظیمی غیرکدکننده',
+    titleEn: 'Only ~1.5% Codes for Proteins',
+    titleFa: 'تنها ~۱.۵٪ کدکننده مستقیم پروتئین',
+    detailEn:
+      'Only ~1.5% of the human genome consists of protein-coding exons; the remaining 98.5% orchestrates enhancers, promoters, splicing, and 3D chromatin folding.',
+    detailFa:
+      'تنها حدود ۱.۵٪ ژنوم انسان مستقیماً پروتئین تولید می‌کند (اگزون‌ها) و ۹۸.۵٪ بقیه وظیفه حیاتی تنظیم بیان ژن، افزاینده‌ها و تاخوردگی کروماتین را بر عهده دارد.',
+    accent: '#7FD141',
+  },
+  {
+    stat: '3.2 Gb',
+    unitEn: 'Haploid · 6.4 Billion bp Diploid',
+    unitFa: 'هاپلوئید · ۶.۴ میلیارد جفت‌باز دیپلوئید',
+    titleEn: 'Total Nucleotide Base-Pair Capacity',
+    titleFa: 'ظرفیت کل جفت‌بازهای نوکلئوتیدی',
+    detailEn:
+      'A single human cell nucleus stores 6.4 billion base pairs across 46 chromosomes (~1.5 Gigabytes of pure quaternary A/T/C/G digital code).',
+    detailFa:
+      'هسته هر سلول سوماتیک انسان حاوی ۶.۴ میلیارد جفت‌باز در ۴۶ کروموزوم است که معادل ~۱.۵ گیگابایت کد دیجیتال چهارحرفی (A, T, C, G) است.',
+    accent: '#f59e0b',
+  },
+  {
+    stat: '2.0 m',
+    unitEn: 'DNA Packed in a 6 µm Nucleus',
+    unitFa: 'طول DNA در هسته ۶ میکرومتری',
+    titleEn: '10,000× Chromatin Compaction Ratio',
+    titleFa: 'نسبت فشرده‌سازی ۱۰٬۰۰۰ برابری کروماتین',
+    detailEn:
+      'Uncoiled DNA from one cell stretches ~2 meters. Across ~37 trillion cells in your body, total DNA spans ~74 billion km (~500× Earth–Sun distance).',
+    detailFa:
+      'اگر DNA یک سلول باز شود ۲ متر طول دارد! مجموع DNA در ~۳۷ تریلیون سلول بدن انسان به ~۷۴ میلیارد کیلومتر (۵۰۰ برابر فاصله زمین تا خورشید) می‌رسد.',
+    accent: '#ec4899',
+  },
+  {
+    stat: '20,500',
+    unitEn: 'Protein-Coding Human Genes',
+    unitFa: 'ژن کدکننده پروتئین در انسان',
+    titleEn: 'Distributed Across 24 Chromosome Types',
+    titleFa: 'توزیع‌شده در ۲۴ نوع کروموزوم انسانی',
+    detailEn:
+      'Chr 1 is the largest (248.9 Mb, 2,058 genes) while Chr 21 (46.7 Mb, 234 genes) and Chr Y (57.2 Mb, 72 genes) are the smallest.',
+    detailFa:
+      'کروموزوم ۱ بزرگ‌ترین (۲۴۸.۹ مگاباز و ۲۰۵۸ ژن) و کروموزوم ۲۱ (۲۳۴ ژن) و کروموزوم Y (۷۲ ژن) کوچک‌ترین کروموزوم‌های انسانی هستند.',
+    accent: '#10b981',
+  },
+  {
+    stat: '10.5 bp',
+    unitEn: '3.4 nm Pitch · 2.0 nm Diameter',
+    unitFa: 'گام ۳.۴ نانومتر · قطر ۲.۰ نانومتر',
+    titleEn: 'B-DNA Double Helix Geometry',
+    titleFa: 'هندسه دقیق مارپیچ دوگانه B-DNA',
+    detailEn:
+      'Right-handed B-DNA rotates 34.3° per base pair (0.34 nm rise/bp), forming a 22 Å wide Major Groove and a 12 Å narrow Minor Groove.',
+    detailFa:
+      'مارپیچ راست‌گرد B-DNA به ازای هر جفت‌باز ۳۴.۳ درجه می‌چرخد (فاصله ۰.۳۴ نانومتر) و شیار بزرگ (۲۲ آنگستروم) و شیار کوچک (۱۲ آنگستروم) را می‌سازد.',
+    accent: '#a855f7',
+  },
+];
+
 const BASE_COLORS: Record<string, string> = {
   A: '#38bdf8', // Adenine (Purine) - Sky Blue
   T: '#f59e0b', // Thymine (Pyrimidine) - Amber Gold
@@ -70,721 +174,1012 @@ const COMPLEMENT_BASE: Record<string, 'A' | 'T' | 'C' | 'G'> = {
   C: 'G',
 };
 
-// Cache for procedural Giemsa G-band chromatin textures per chromosome ID
-const _chromTextureCache = new Map<string, THREE.CanvasTexture>();
-
-function getChromatinGBandTexture(
-  spec: ChromosomeSpec,
-  isSelected: boolean,
-  isTrisomic: boolean
-): THREE.CanvasTexture {
-  const key = `${spec.id}-${isSelected ? 'sel' : 'norm'}-${isTrisomic ? 'tri' : ' dip'}`;
-  const cached = _chromTextureCache.get(key);
-  if (cached) return cached;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    // Base euchromatin tone
-    const baseBg = isTrisomic ? '#fef3c7' : isSelected ? '#e0f2fe' : '#cbd5e1';
-    ctx.fillStyle = baseBg;
-    ctx.fillRect(0, 0, 128, 512);
-
-    // Draw Cytogenetic Giemsa G-Bands along vertical axis
-    spec.bands.forEach((b) => {
-      const yCenter = b.pos * 512;
-      const bandHeight = 34;
-      const grad = ctx.createLinearGradient(0, yCenter - bandHeight, 0, yCenter + bandHeight);
-      let darkCol = '#334155';
-      if (b.stain === 'gpos100') darkCol = '#0f172a';
-      else if (b.stain === 'gpos75') darkCol = '#1e293b';
-      else if (b.stain === 'gpos50') darkCol = '#475569';
-      else if (b.stain === 'gpos25') darkCol = '#94a3b8';
-      else darkCol = baseBg;
-
-      grad.addColorStop(0, baseBg);
-      grad.addColorStop(0.3, darkCol);
-      grad.addColorStop(0.7, darkCol);
-      grad.addColorStop(1, baseBg);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, yCenter - bandHeight, 128, bandHeight * 2);
-    });
-
-    // Add fine 30nm solenoidal chromatin coil micro-striations for cryo-EM realism
-    ctx.strokeStyle = 'rgba(15, 23, 42, 0.22)';
-    ctx.lineWidth = 2;
-    for (let y = 4; y < 512; y += 6) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.bezierCurveTo(42, y - 3, 86, y + 3, 128, y);
-      ctx.stroke();
-    }
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.needsUpdate = true;
-  _chromTextureCache.set(key, tex);
-  return tex;
-}
-
-/** High-DPI 3D Billboard Sprite for Chromosome & SNP Labels (Zero React DOM Portals!) */
-function createBadgeSpriteTexture(
-  text: string,
-  borderColor: string,
-  bgColor = 'rgba(8, 13, 26, 0.92)',
-  textColor = '#f8fafc'
-): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 320;
-  canvas.height = 72;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.clearRect(0, 0, 320, 72);
-    ctx.fillStyle = bgColor;
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.roundRect(6, 8, 308, 56, 14);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = textColor;
-    ctx.font = 'bold 24px "IBM Plex Mono", monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, 160, 37);
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
-}
-
-const SpriteBadge3D: React.FC<{
-  text: string;
-  position: [number, number, number];
-  borderColor?: string;
-  bgColor?: string;
-  textColor?: string;
-  scale?: [number, number, number];
-}> = ({
-  text,
-  position,
-  borderColor = '#38bdf8',
-  bgColor = 'rgba(8, 13, 26, 0.92)',
-  textColor = '#f8fafc',
-  scale = [1.05, 0.24, 1],
-}) => {
-  const tex = useMemo(
-    () => createBadgeSpriteTexture(text, borderColor, bgColor, textColor),
-    [text, borderColor, bgColor, textColor]
-  );
-  useEffect(() => {
-    return () => tex.dispose();
-  }, [tex]);
-  return (
-    <sprite position={position} scale={scale}>
-      <spriteMaterial map={tex} transparent depthTest={false} />
-    </sprite>
-  );
+const BASE_COLOR3: Record<string, Color3> = {
+  A: new Color3(0.22, 0.74, 0.97), // Adenine (Purine) - Sky Blue
+  T: new Color3(0.96, 0.62, 0.04), // Thymine (Pyrimidine) - Amber Gold
+  G: new Color3(0.06, 0.73, 0.51), // Guanine (Purine) - Emerald Green
+  C: new Color3(0.96, 0.25, 0.37), // Cytosine (Pyrimidine) - Rose Crimson
 };
 
 /**
- * Realistic 3D Metaphase Chromosome Model:
- * - Organic curved X-shaped sister chromatids (TubeGeometry splines pinching at the centromere)
- * - Giemsa G-band & coiled chromatin surface texture with physical clearcoat sheen
- * - Primary constriction kinetochore complex + glowing telomere caps + acrocentric satellites
- * - Glowing Trait Gene Locus Beacons
+ * Helper to draw a high-contrast Confocal Giemsa G-Band DynamicTexture in Babylon.js
  */
-const Chromosome3DModel: React.FC<{
-  instance: KaryotypeInstance;
-  position: [number, number, number];
-  scale?: number;
-  isSelectedChromosome: boolean;
-  activeLociOnChrom: GeneLocus[];
-  selectedLocusId: string;
+function createChromatinGBandDynamicTexture(
+  name: string,
+  spec: ChromosomeSpec,
+  isSelected: boolean,
+  isTrisomic: boolean,
+  isSexChrom: boolean,
+  scene: Scene
+): DynamicTexture {
+  const dt = new DynamicTexture(name, { width: 128, height: 512 }, scene, true);
+  const ctx = dt.getContext() as unknown as CanvasRenderingContext2D;
+
+  const baseBg = isTrisomic
+    ? '#fbbf24'
+    : isSexChrom
+    ? '#f472b6'
+    : isSelected
+    ? '#38bdf8'
+    : '#60a5fa';
+  ctx.fillStyle = baseBg;
+  ctx.fillRect(0, 0, 128, 512);
+
+  spec.bands.forEach((b) => {
+    const yCenter = b.pos * 512;
+    const bandHeight = 30;
+    const grad = ctx.createLinearGradient(0, yCenter - bandHeight, 0, yCenter + bandHeight);
+    let darkCol = '#0f172a';
+    if (isTrisomic) {
+      darkCol = b.stain === 'gpos100' ? '#451a03' : b.stain === 'gpos75' ? '#78350f' : '#92400e';
+    } else if (isSexChrom) {
+      darkCol = b.stain === 'gpos100' ? '#500724' : b.stain === 'gpos75' ? '#831843' : '#9d174d';
+    } else {
+      if (b.stain === 'gpos100') darkCol = '#051024';
+      else if (b.stain === 'gpos75') darkCol = '#0a1f42';
+      else if (b.stain === 'gpos50') darkCol = '#143366';
+      else if (b.stain === 'gpos25') darkCol = '#1d478a';
+      else darkCol = baseBg;
+    }
+
+    grad.addColorStop(0, baseBg);
+    grad.addColorStop(0.28, darkCol);
+    grad.addColorStop(0.72, darkCol);
+    grad.addColorStop(1, baseBg);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, yCenter - bandHeight, 128, bandHeight * 2);
+  });
+
+  // Helical chromatin micro-striations
+  ctx.strokeStyle = 'rgba(2, 6, 23, 0.25)';
+  ctx.lineWidth = 1.5;
+  for (let y = 4; y < 512; y += 8) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.bezierCurveTo(42, y - 2.5, 86, y + 2.5, 128, y);
+    ctx.stroke();
+  }
+
+  dt.update();
+  return dt;
+}
+
+/**
+ * Helper to create a crisp 3D Billboard Badge in Babylon.js
+ */
+function createDNABillboardBadge(
+  name: string,
+  text: string,
+  borderColorHex: string,
+  bgColorCss: string,
+  textColorHex: string,
+  scene: Scene,
+  parent: TransformNode,
+  position: Vector3,
+  width = 0.92,
+  height = 0.21
+): { mesh: Mesh; dt: DynamicTexture } {
+  const plane = MeshBuilder.CreatePlane(name, { width, height }, scene);
+  plane.parent = parent;
+  plane.position.copyFrom(position);
+  plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+  plane.isPickable = false;
+
+  const dt = new DynamicTexture(`${name}_dt`, { width: 340, height: 72 }, scene, false);
+  dt.hasAlpha = true;
+  const ctx = dt.getContext() as unknown as CanvasRenderingContext2D;
+  ctx.clearRect(0, 0, 340, 72);
+  ctx.fillStyle = bgColorCss;
+  ctx.strokeStyle = borderColorHex;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(6, 8, 328, 56, 14);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = textColorHex;
+  ctx.font = 'bold 23px "IBM Plex Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 170, 37);
+  dt.update();
+
+  const mat = new StandardMaterial(`${name}_mat`, scene);
+  mat.diffuseTexture = dt;
+  mat.emissiveTexture = dt;
+  mat.opacityTexture = dt;
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+  plane.material = mat;
+
+  return { mesh: plane, dt };
+}
+
+function updateDNABillboardBadgeText(
+  dt: DynamicTexture,
+  text: string,
+  borderColorHex: string,
+  bgColorCss = 'rgba(6, 11, 24, 0.94)',
+  textColorHex = '#7FD141'
+) {
+  const ctx = dt.getContext() as unknown as CanvasRenderingContext2D;
+  ctx.clearRect(0, 0, 340, 72);
+  ctx.fillStyle = bgColorCss;
+  ctx.strokeStyle = borderColorHex;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(6, 8, 328, 56, 14);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = textColorHex;
+  ctx.font = 'bold 22px "IBM Plex Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 170, 37);
+  dt.update();
+}
+
+/**
+ * Babylon.js 3D Karyotype & B-DNA Confocal Fluorescence Viewport
+ * Uses Native GlowLayer, Fresnel Rim-Lighting Shaders, Smooth Sister Chromatid Capsules,
+ * and Continuous CreateTube B-DNA Helical Ribbons.
+ */
+const BabylonDNA3DViewport: React.FC<{
+  karyotypeInstances: KaryotypeInstance[];
+  selectedChromId: ChromosomeId;
+  activeLocus: GeneLocus;
+  activeSequence: string;
+  mutatedBpIndex: number;
+  viewMode3D: DNA3DViewMode;
+  cameraPreset: DNACameraPreset;
+  finishMode: DNAFinishMode;
+  autoRotateHelix: boolean;
   onSelectChromosome: (chromId: ChromosomeId) => void;
   onSelectLocus: (locus: GeneLocus) => void;
 }> = ({
-  instance,
-  position,
-  scale = 1,
-  isSelectedChromosome,
-  activeLociOnChrom,
-  selectedLocusId,
+  karyotypeInstances,
+  selectedChromId,
+  activeLocus,
+  activeSequence,
+  mutatedBpIndex,
+  viewMode3D,
+  cameraPreset,
+  finishMode,
+  autoRotateHelix,
   onSelectChromosome,
   onSelectLocus,
 }) => {
-  const groupRef = useRef<THREE.Group | null>(null);
-  const timeRef = useRef(instance.instanceIndex * 0.45);
-  const { spec, isTrisomicExtra, isSexChromosome } = instance;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const totalH = 0.72 + spec.lengthNorm * 1.98;
-  const cenY = totalH / 2 - totalH * spec.centromereRatio;
-  const radius = 0.088;
-
-  // Build organic curved Left & Right Sister Chromatid TubeGeometries that pinch at cenY
-  const { leftChromatidGeo, rightChromatidGeo, leftTelomeres, rightTelomeres } = useMemo(() => {
-    const buildSisterCurve = (side: -1 | 1) => {
-      const topY = totalH / 2;
-      const botY = -totalH / 2;
-      const pMidY = (topY + cenY) * 0.5;
-      const qMidY = (cenY + botY) * 0.5;
-
-      const pts = [
-        new THREE.Vector3(side * 0.135, topY, side * 0.015),
-        new THREE.Vector3(side * 0.105, pMidY, -side * 0.012),
-        new THREE.Vector3(side * 0.042, cenY, 0), // Pinch inward at centromere constriction!
-        new THREE.Vector3(side * 0.115, qMidY, side * 0.015),
-        new THREE.Vector3(side * 0.145, botY, -side * 0.012),
-      ];
-      const curve = new THREE.CatmullRomCurve3(pts);
-      const geo = new THREE.TubeGeometry(curve, 36, radius, 16, false);
-      return {
-        geo,
-        tips: {
-          top: [side * 0.135, topY, side * 0.015] as [number, number, number],
-          bot: [side * 0.145, botY, -side * 0.012] as [number, number, number],
-        },
-      };
-    };
-
-    const left = buildSisterCurve(-1);
-    const right = buildSisterCurve(1);
-    return {
-      leftChromatidGeo: left.geo,
-      rightChromatidGeo: right.geo,
-      leftTelomeres: left.tips,
-      rightTelomeres: right.tips,
-    };
-  }, [totalH, cenY, radius]);
+  const stateRef = useRef({
+    karyotypeInstances,
+    selectedChromId,
+    activeLocus,
+    activeSequence,
+    mutatedBpIndex,
+    viewMode3D,
+    cameraPreset,
+    finishMode,
+    autoRotateHelix,
+    onSelectChromosome,
+    onSelectLocus,
+  });
 
   useEffect(() => {
-    return () => {
-      leftChromatidGeo.dispose();
-      rightChromatidGeo.dispose();
+    stateRef.current = {
+      karyotypeInstances,
+      selectedChromId,
+      activeLocus,
+      activeSequence,
+      mutatedBpIndex,
+      viewMode3D,
+      cameraPreset,
+      finishMode,
+      autoRotateHelix,
+      onSelectChromosome,
+      onSelectLocus,
     };
-  }, [leftChromatidGeo, rightChromatidGeo]);
+  }, [
+    karyotypeInstances,
+    selectedChromId,
+    activeLocus,
+    activeSequence,
+    mutatedBpIndex,
+    viewMode3D,
+    cameraPreset,
+    finishMode,
+    autoRotateHelix,
+    onSelectChromosome,
+    onSelectLocus,
+  ]);
 
-  const gBandTex = useMemo(
-    () => getChromatinGBandTexture(spec, isSelectedChromosome, isTrisomicExtra),
-    [spec, isSelectedChromosome, isTrisomicExtra]
-  );
+  const camAnimRef = useRef({
+    active: false,
+    alpha: -Math.PI / 2,
+    beta: Math.PI / 2.08,
+    radius: 12.2,
+    target: new Vector3(0, 0.1, 0),
+  });
 
-  useFrame((_, delta) => {
-    if (!groupRef.current) return;
-    timeRef.current += delta;
-    const t = timeRef.current;
-    if (isSelectedChromosome || isTrisomicExtra) {
-      groupRef.current.rotation.y = Math.sin(t * 1.35) * 0.32;
-      groupRef.current.position.y = position[1] + Math.sin(t * 2.0) * 0.045;
+  useEffect(() => {
+    const anim = camAnimRef.current;
+    anim.active = true;
+    if (cameraPreset === 'karyotype') {
+      const tx = viewMode3D === 'dual-3d' ? -2.4 : 0;
+      anim.alpha = -Math.PI / 2;
+      anim.beta = Math.PI / 2.06;
+      anim.radius = 10.6;
+      anim.target.set(tx, 0.1, 0);
+    } else if (cameraPreset === 'helix-macro') {
+      const hx =
+        viewMode3D === 'dual-3d' ? 5.25 : viewMode3D === 'chrom-closeup' ? 3.1 : 0;
+      anim.alpha = -Math.PI / 2.15;
+      anim.beta = Math.PI / 2.1;
+      anim.radius = 5.6;
+      anim.target.set(hx, 0.15, 0.2);
+    } else if (cameraPreset === 'groove-top') {
+      const hx =
+        viewMode3D === 'dual-3d' ? 5.25 : viewMode3D === 'chrom-closeup' ? 3.1 : 0;
+      anim.alpha = -Math.PI / 2;
+      anim.beta = 0.22;
+      anim.radius = 8.4;
+      anim.target.set(hx, 0, 0.2);
     } else {
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, 0, 0.08);
-      groupRef.current.position.y = THREE.MathUtils.lerp(
-        groupRef.current.position.y,
-        position[1],
-        0.08
-      );
+      anim.alpha = -Math.PI / 2;
+      anim.beta = Math.PI / 2.08;
+      anim.radius = 12.2;
+      anim.target.set(0, 0.1, 0);
     }
-  });
-
-  const tintColor = isTrisomicExtra
-    ? '#fbbf24'
-    : isSelectedChromosome
-    ? '#7dd3fc'
-    : isSexChromosome
-    ? '#f472b6'
-    : '#e2e8f0';
-
-  const emissiveColor = isTrisomicExtra
-    ? '#f59e0b'
-    : isSelectedChromosome
-    ? spec.colorAccent
-    : isSexChromosome
-    ? '#ec4899'
-    : '#1e293b';
-
-  const emissiveIntensity = isTrisomicExtra
-    ? 0.35
-    : isSelectedChromosome
-    ? 0.28
-    : 0.06;
-
-  return (
-    <group
-      ref={groupRef}
-      position={position}
-      scale={scale}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelectChromosome(instance.chromId);
-        if (activeLociOnChrom.length > 0) {
-          onSelectLocus(activeLociOnChrom[0]);
-        }
-      }}
-    >
-      {/* Selection / Trisomy Pedestal Halo */}
-      {(isSelectedChromosome || isTrisomicExtra) && (
-        <mesh position={[0, -totalH / 2 - 0.16, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.25, 0.33, 36]} />
-          <meshBasicMaterial
-            color={isTrisomicExtra ? '#f59e0b' : '#38bdf8'}
-            side={THREE.DoubleSide}
-            transparent
-            opacity={0.9}
-          />
-        </mesh>
-      )}
-
-      {/* Left & Right Organic Curved Sister Chromatids with Giemsa G-Banding */}
-      <mesh geometry={leftChromatidGeo}>
-        <meshPhysicalMaterial
-          map={gBandTex}
-          color={tintColor}
-          emissive={emissiveColor}
-          emissiveIntensity={emissiveIntensity}
-          roughness={0.28}
-          metalness={0.14}
-          clearcoat={0.68}
-          clearcoatRoughness={0.2}
-        />
-      </mesh>
-      <mesh geometry={rightChromatidGeo}>
-        <meshPhysicalMaterial
-          map={gBandTex}
-          color={tintColor}
-          emissive={emissiveColor}
-          emissiveIntensity={emissiveIntensity}
-          roughness={0.28}
-          metalness={0.14}
-          clearcoat={0.68}
-          clearcoatRoughness={0.2}
-        />
-      </mesh>
-
-      {/* 4 Telomere Protective TTAGGG Caps (p-arm tips and q-arm tips) */}
-      {[leftTelomeres.top, leftTelomeres.bot, rightTelomeres.top, rightTelomeres.bot].map(
-        (tipPos, idx) => (
-          <mesh key={idx} position={tipPos}>
-            <sphereGeometry args={[radius * 0.96, 16, 16]} />
-            <meshPhysicalMaterial
-              color="#38bdf8"
-              emissive="#0284c7"
-              emissiveIntensity={0.65}
-              roughness={0.15}
-              metalness={0.3}
-              clearcoat={1}
-            />
-          </mesh>
-        )
-      )}
-
-      {/* Acrocentric Satellite Stalks (for Chr 13, 14, 15, 21, 22) */}
-      {spec.morphology === 'acrocentric' && (
-        <group position={[0, totalH / 2 + 0.1, 0]}>
-          <mesh position={[-0.13, 0, 0]}>
-            <sphereGeometry args={[0.048, 12, 12]} />
-            <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.6} />
-          </mesh>
-          <mesh position={[0.13, 0, 0]}>
-            <sphereGeometry args={[0.048, 12, 12]} />
-            <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.6} />
-          </mesh>
-        </group>
-      )}
-
-      {/* Central Kinetochore / Centromere Primary Constriction Ring */}
-      <group position={[0, cenY, 0]}>
-        <mesh>
-          <sphereGeometry args={[0.105, 20, 20]} />
-          <meshPhysicalMaterial
-            color={isTrisomicExtra ? '#f59e0b' : '#f8fafc'}
-            emissive={isTrisomicExtra ? '#f59e0b' : '#38bdf8'}
-            emissiveIntensity={0.55}
-            roughness={0.15}
-            metalness={0.75}
-            clearcoat={1}
-          />
-        </mesh>
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.13, 0.022, 12, 28]} />
-          <meshStandardMaterial
-            color={isTrisomicExtra ? '#f59e0b' : '#38bdf8'}
-            emissive={isTrisomicExtra ? '#f59e0b' : '#38bdf8'}
-            emissiveIntensity={0.7}
-          />
-        </mesh>
-      </group>
-
-      {/* Glowing Trait Gene Locus Beacons on this Chromosome */}
-      {activeLociOnChrom.map((locus) => {
-        const locusY = totalH / 2 - locus.normPos * totalH;
-        const isCurrentLocus = locus.id === selectedLocusId;
-        return (
-          <group
-            key={locus.id}
-            position={[0, locusY, 0.08]}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelectChromosome(instance.chromId);
-              onSelectLocus(locus);
-            }}
-          >
-            <mesh rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[isCurrentLocus ? 0.25 : 0.19, 0.026, 14, 32]} />
-              <meshStandardMaterial
-                color={isCurrentLocus ? '#7FD141' : '#38bdf8'}
-                emissive={isCurrentLocus ? '#7FD141' : '#38bdf8'}
-                emissiveIntensity={isCurrentLocus ? 1.25 : 0.65}
-              />
-            </mesh>
-            {isCurrentLocus && isSelectedChromosome && instance.copyNumber === 1 && (
-              <SpriteBadge3D
-                text={`${locus.geneSymbol} (${locus.cytogeneticBand})`}
-                position={[0, 0.24, 0.22]}
-                borderColor="#7FD141"
-                textColor="#7FD141"
-                scale={[1.28, 0.28, 1]}
-              />
-            )}
-          </group>
-        );
-      })}
-
-      {/* Crisp 3D Chromosome Label Sprite below each chromosome */}
-      <SpriteBadge3D
-        text={`#${instance.instanceIndex} ${instance.label}`}
-        position={[0, -totalH / 2 - 0.34, 0]}
-        borderColor={
-          isTrisomicExtra
-            ? '#f59e0b'
-            : isSelectedChromosome
-            ? '#38bdf8'
-            : isSexChromosome
-            ? '#ec4899'
-            : '#334155'
-        }
-        bgColor={
-          isTrisomicExtra
-            ? 'rgba(120, 53, 15, 0.92)'
-            : isSelectedChromosome
-            ? 'rgba(3, 105, 161, 0.92)'
-            : 'rgba(8, 13, 26, 0.88)'
-        }
-        textColor={isTrisomicExtra ? '#fde68a' : '#f8fafc'}
-        scale={[0.92, 0.21, 1]}
-      />
-    </group>
-  );
-};
-
-/**
- * Photorealistic 3D Molecular B-DNA Double Helix:
- * - Continuous Helical Sugar-Phosphate Backbone Ribbons (TubeGeometry along CatmullRomCurve3)
- * - True B-DNA Asymmetric Major Groove (22 Å) & Minor Groove (12 Å) via 138° glycosidic strand offset
- * - Deoxyribose Sugar & Phosphate Group Molecular Clusters
- * - Purine (Double-Ring A/G) vs Pyrimidine (Single-Ring T/C) Base Plates
- * - Explicit Hydrogen Bond Bridges (2 H-bonds for A=T, 3 H-bonds for G≡C)
- */
-const DNADoubleHelix3D: React.FC<{
-  sequence: string;
-  mutatedIndex: number;
-  geneSymbol: string;
-  position: [number, number, number];
-  scale?: number;
-  autoRotate?: boolean;
-}> = ({ sequence, mutatedIndex, geneSymbol, position, scale = 1, autoRotate = true }) => {
-  const helixGroupRef = useRef<THREE.Group | null>(null);
-  const bases = useMemo(() => sequence.slice(0, 28).split(''), [sequence]);
-
-  useFrame((_, delta) => {
-    if (helixGroupRef.current && autoRotate) {
-      helixGroupRef.current.rotation.y += delta * 0.52;
-    }
-  });
-
-  const radius = 1.08;
-  const risePerBp = 0.27;
-  const twistPerBp = (34.3 * Math.PI) / 180; // 10.5 base pairs per helical turn (real B-DNA)
-  const minorGrooveOffset = (138 * Math.PI) / 180; // 138° creates true Major Groove (222°) & Minor Groove (138°)!
-  const totalHeight = bases.length * risePerBp;
-
-  // Build smooth continuous 3D Sugar-Phosphate Backbone Tubes for Strand 1 (5'->3') and Strand 2 (3'->5')
-  const { strand1TubeGeo, strand2TubeGeo, strand1OuterGeo, strand2OuterGeo } = useMemo(() => {
-    const pts1: THREE.Vector3[] = [];
-    const pts2: THREE.Vector3[] = [];
-    const pts1Outer: THREE.Vector3[] = [];
-    const pts2Outer: THREE.Vector3[] = [];
-
-    for (let i = 0; i < bases.length; i++) {
-      const y = i * risePerBp - totalHeight / 2;
-      const a1 = i * twistPerBp;
-      const a2 = a1 + minorGrooveOffset;
-
-      pts1.push(new THREE.Vector3(Math.cos(a1) * radius, y, Math.sin(a1) * radius));
-      pts2.push(new THREE.Vector3(Math.cos(a2) * radius, y, Math.sin(a2) * radius));
-
-      pts1Outer.push(
-        new THREE.Vector3(Math.cos(a1 - 0.14) * (radius + 0.08), y, Math.sin(a1 - 0.14) * (radius + 0.08))
-      );
-      pts2Outer.push(
-        new THREE.Vector3(Math.cos(a2 + 0.14) * (radius + 0.08), y, Math.sin(a2 + 0.14) * (radius + 0.08))
-      );
-    }
-
-    const curve1 = new THREE.CatmullRomCurve3(pts1);
-    const curve2 = new THREE.CatmullRomCurve3(pts2);
-    const curve1Out = new THREE.CatmullRomCurve3(pts1Outer);
-    const curve2Out = new THREE.CatmullRomCurve3(pts2Outer);
-
-    return {
-      strand1TubeGeo: new THREE.TubeGeometry(curve1, 140, 0.072, 16, false),
-      strand2TubeGeo: new THREE.TubeGeometry(curve2, 140, 0.072, 16, false),
-      strand1OuterGeo: new THREE.TubeGeometry(curve1Out, 120, 0.032, 12, false),
-      strand2OuterGeo: new THREE.TubeGeometry(curve2Out, 120, 0.032, 12, false),
-    };
-  }, [bases.length, risePerBp, totalHeight, twistPerBp, minorGrooveOffset, radius]);
+  }, [cameraPreset, viewMode3D]);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const engine = new Engine(
+      canvas,
+      true,
+      {
+        preserveDrawingBuffer: true,
+        stencil: true,
+        antialias: true,
+        powerPreference: 'high-performance',
+      },
+      true
+    );
+
+    const scene = new Scene(engine);
+    scene.clearColor = new Color4(0.015, 0.03, 0.068, 1.0);
+    scene.fogMode = Scene.FOGMODE_EXP2;
+    scene.fogColor = new Color3(0.015, 0.03, 0.068);
+    scene.fogDensity = 0.014;
+
+    // ACES Filmic Tone Mapping
+    scene.imageProcessingConfiguration.toneMappingEnabled = true;
+    scene.imageProcessingConfiguration.toneMappingType =
+      ImageProcessingConfiguration.TONEMAPPING_ACES;
+    scene.imageProcessingConfiguration.exposure = 1.08;
+    scene.imageProcessingConfiguration.contrast = 1.22;
+
+    // Native Babylon.js Multi-Pass GlowLayer (Confocal Fluorescence & Bioluminescent Halo)
+    const glowLayer = new GlowLayer('dnaGlowLayer', scene, {
+      mainTextureSamples: 4,
+      blurKernelSize: 48,
+    });
+    glowLayer.intensity = 0.68;
+
+    const camera = new ArcRotateCamera(
+      'dnaCam',
+      -Math.PI / 2,
+      Math.PI / 2.08,
+      12.2,
+      new Vector3(0, 0.1, 0),
+      scene
+    );
+    camera.attachControl(canvas, true);
+    camera.inertia = 0.86;
+    camera.wheelPrecision = 24;
+    camera.lowerRadiusLimit = 3.2;
+    camera.upperRadiusLimit = 24;
+    camera.upperBetaLimit = Math.PI * 0.86;
+
+    // Studio Lighting
+    const hemi = new HemisphericLight('dnaHemi', new Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.78;
+    hemi.diffuse = new Color3(0.88, 0.96, 1.0);
+    hemi.groundColor = new Color3(0.05, 0.1, 0.22);
+
+    const keyLight = new PointLight('dnaKey', new Vector3(8, 12, -10), scene);
+    keyLight.intensity = 1.3;
+    keyLight.diffuse = new Color3(0.22, 0.74, 0.97);
+
+    const helixLight = new PointLight('dnaHelixLight', new Vector3(5.5, 3, -5), scene);
+    helixLight.intensity = 1.15;
+    helixLight.diffuse = new Color3(0.5, 0.82, 0.25);
+
+    // =========================================================================
+    // 0. DARK-FIELD CONFOCAL STAGE FLOOR DISC
+    // =========================================================================
+    const floorDisc = MeshBuilder.CreateDisc(
+      'dnaFloorDisc',
+      { radius: 15.0, tessellation: 96 },
+      scene
+    );
+    floorDisc.rotation.x = Math.PI / 2;
+    floorDisc.position.y = -4.35;
+    floorDisc.isPickable = false;
+
+    const floorDT = new DynamicTexture('dnaFloorDT', { width: 1024, height: 1024 }, scene, true);
+    const fCtx = floorDT.getContext() as unknown as CanvasRenderingContext2D;
+    fCtx.fillStyle = '#040812';
+    fCtx.fillRect(0, 0, 1024, 1024);
+    fCtx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+    fCtx.lineWidth = 1.5;
+    for (let i = 0; i <= 1024; i += 64) {
+      fCtx.beginPath();
+      fCtx.moveTo(i, 0);
+      fCtx.lineTo(i, 1024);
+      fCtx.stroke();
+      fCtx.beginPath();
+      fCtx.moveTo(0, i);
+      fCtx.lineTo(1024, i);
+      fCtx.stroke();
+    }
+    [180, 340, 490].forEach((r, idx) => {
+      fCtx.beginPath();
+      fCtx.arc(512, 512, r, 0, Math.PI * 2);
+      fCtx.strokeStyle =
+        idx % 2 === 0 ? 'rgba(56, 189, 248, 0.28)' : 'rgba(127, 209, 65, 0.22)';
+      fCtx.lineWidth = 2;
+      fCtx.stroke();
+    });
+    floorDT.update();
+
+    const floorMat = new StandardMaterial('dnaFloorMat', scene);
+    floorMat.diffuseTexture = floorDT;
+    floorMat.emissiveTexture = floorDT;
+    floorMat.emissiveColor = new Color3(0.28, 0.32, 0.38);
+    floorMat.specularColor = new Color3(0.05, 0.08, 0.14);
+    floorMat.backFaceCulling = false;
+    floorDisc.material = floorMat;
+
+    // =========================================================================
+    // 1. BUILD ALL 46 OR 47 CONFOCAL FLUORESCENCE CHROMOSOME NODES
+    // =========================================================================
+    const karyotypeRoot = new TransformNode('karyotypeRoot', scene);
+    const groupOrder: ChromosomeId[] = [
+      '1', '2', '3', '4', '5', '6', '7', '8',
+      '9', '10', '11', '12', '13', '14', '15', '16',
+      '17', '18', '19', '20', '21', '22', 'X', 'Y',
+    ];
+
+    interface ChromNodeEntry {
+      inst: KaryotypeInstance;
+      root: TransformNode;
+      armMat: StandardMaterial;
+      fresnel: FresnelParameters;
+      haloDisc: Mesh;
+      locusCollar: Mesh;
+      locusBadge: Mesh;
+      locusBadgeDT: DynamicTexture;
+      totalH: number;
+      gridCol: number;
+      gridRow: number;
+    }
+
+    const chromEntries: ChromNodeEntry[] = [];
+
+    stateRef.current.karyotypeInstances.forEach((inst) => {
+      const { spec, isTrisomicExtra, isSexChromosome } = inst;
+      const grpIdx = groupOrder.indexOf(inst.chromId);
+      const col = grpIdx % 8;
+      const row = Math.floor(grpIdx / 8);
+
+      const cRoot = new TransformNode(`chrom_${inst.instanceIndex}`, scene);
+      cRoot.parent = karyotypeRoot;
+
+      const totalH = 0.72 + spec.lengthNorm * 1.9;
+      const cenRatio = spec.centromereRatio;
+      const pArmLen = Math.max(0.16, totalH * cenRatio - 0.04);
+      const qArmLen = Math.max(0.24, totalH * (1 - cenRatio) - 0.04);
+      const cenY = totalH / 2 - totalH * cenRatio;
+      const armRadius = 0.082;
+      const xSpread = 0.098;
+
+      const gBandDT = createChromatinGBandDynamicTexture(
+        `gBand_${inst.instanceIndex}`,
+        spec,
+        inst.chromId === stateRef.current.selectedChromId,
+        isTrisomicExtra,
+        isSexChromosome,
+        scene
+      );
+
+      // Confocal Fluorescence Rim-Lit Chromatid Material
+      const armMat = new StandardMaterial(`chromMat_${inst.instanceIndex}`, scene);
+      armMat.diffuseTexture = gBandDT;
+      armMat.emissiveTexture = gBandDT;
+      armMat.specularColor = new Color3(0.6, 0.8, 1.0);
+      armMat.specularPower = 48;
+
+      const fresnel = new FresnelParameters();
+      fresnel.bias = 0.14;
+      fresnel.power = 2.0;
+      fresnel.leftColor = isTrisomicExtra
+        ? new Color3(1.0, 0.78, 0.18)
+        : isSexChromosome
+        ? new Color3(0.96, 0.38, 0.72)
+        : new Color3(0.22, 0.78, 0.98);
+      fresnel.rightColor = new Color3(0.04, 0.1, 0.22);
+      armMat.emissiveFresnelParameters = fresnel;
+
+      // Left & Right Sister Chromatids (Smooth p-arm and q-arm capsules meeting in an organic X-shape)
+      [-1, 1].forEach((side) => {
+        const pArm = MeshBuilder.CreateCapsule(
+          `pArm_${inst.instanceIndex}_${side}`,
+          {
+            radius: armRadius,
+            height: Math.max(armRadius * 2.1, pArmLen + armRadius * 0.6),
+            tessellation: 22,
+            subdivisions: 4,
+            capSubdivisions: 8,
+          },
+          scene
+        );
+        pArm.parent = cRoot;
+        pArm.position.set(side * xSpread, cenY + pArmLen * 0.5 + 0.02, 0);
+        pArm.rotation.z = -side * 0.085;
+        pArm.material = armMat;
+        pArm.metadata = { chromId: inst.chromId };
+
+        const qArm = MeshBuilder.CreateCapsule(
+          `qArm_${inst.instanceIndex}_${side}`,
+          {
+            radius: armRadius,
+            height: Math.max(armRadius * 2.1, qArmLen + armRadius * 0.6),
+            tessellation: 22,
+            subdivisions: 4,
+            capSubdivisions: 8,
+          },
+          scene
+        );
+        qArm.parent = cRoot;
+        qArm.position.set(side * xSpread, cenY - qArmLen * 0.5 - 0.02, 0);
+        qArm.rotation.z = side * 0.075;
+        qArm.material = armMat;
+        qArm.metadata = { chromId: inst.chromId };
+      });
+
+      // Glowing Centromere Primary Constriction Core
+      const cenSphere = MeshBuilder.CreateSphere(
+        `cen_${inst.instanceIndex}`,
+        { diameterX: 0.23, diameterY: 0.13, diameterZ: 0.17, segments: 16 },
+        scene
+      );
+      cenSphere.parent = cRoot;
+      cenSphere.position.set(0, cenY, 0);
+      cenSphere.metadata = { chromId: inst.chromId };
+      const cenMat = new StandardMaterial(`cenMat_${inst.instanceIndex}`, scene);
+      cenMat.diffuseColor = isTrisomicExtra
+        ? new Color3(1.0, 0.88, 0.45)
+        : new Color3(0.85, 0.96, 1.0);
+      cenMat.emissiveColor = isTrisomicExtra
+        ? new Color3(0.95, 0.6, 0.08)
+        : new Color3(0.18, 0.68, 0.95);
+      cenSphere.material = cenMat;
+
+      // Selection / Trisomy Pedestal Halo Ring
+      const haloDisc = MeshBuilder.CreateTorus(
+        `halo_${inst.instanceIndex}`,
+        { diameter: 0.54, thickness: 0.035, tessellation: 36 },
+        scene
+      );
+      haloDisc.parent = cRoot;
+      haloDisc.position.set(0, -totalH / 2 - 0.14, 0);
+      haloDisc.isPickable = false;
+      const haloMat = new StandardMaterial(`haloMat_${inst.instanceIndex}`, scene);
+      haloMat.diffuseColor = isTrisomicExtra
+        ? new Color3(0.96, 0.62, 0.04)
+        : new Color3(0.22, 0.74, 0.97);
+      haloMat.emissiveColor = isTrisomicExtra
+        ? new Color3(0.96, 0.62, 0.04)
+        : new Color3(0.22, 0.74, 0.97);
+      haloDisc.material = haloMat;
+
+      // Active Gene Locus Collar & Callout Badge (Shown when this chromosome holds the active locus)
+      const locusCollar = MeshBuilder.CreateTorus(
+        `locusCollar_${inst.instanceIndex}`,
+        { diameter: 0.38, thickness: 0.036, tessellation: 32 },
+        scene
+      );
+      locusCollar.parent = cRoot;
+      locusCollar.scaling.set(1.2, 1, 0.85);
+      locusCollar.isPickable = false;
+      const locusMat = new StandardMaterial(`locusMat_${inst.instanceIndex}`, scene);
+      locusMat.diffuseColor = new Color3(0.5, 0.82, 0.25);
+      locusMat.emissiveColor = new Color3(0.5, 0.88, 0.25);
+      locusCollar.material = locusMat;
+
+      const { mesh: locusBadge, dt: locusBadgeDT } = createDNABillboardBadge(
+        `locusBadge_${inst.instanceIndex}`,
+        '',
+        '#7FD141',
+        'rgba(6, 11, 24, 0.94)',
+        '#7FD141',
+        scene,
+        cRoot,
+        new Vector3(0, 0, -0.25),
+        1.24,
+        0.26
+      );
+
+      // Chromosome Label Badge below each chromosome
+      createDNABillboardBadge(
+        `chrLbl_${inst.instanceIndex}`,
+        `#${inst.instanceIndex} ${inst.label}`,
+        isTrisomicExtra
+          ? '#f59e0b'
+          : isSexChromosome
+          ? '#ec4899'
+          : '#0ea5e9',
+        isTrisomicExtra
+          ? 'rgba(120, 53, 15, 0.94)'
+          : 'rgba(6, 11, 24, 0.9)',
+        isTrisomicExtra ? '#fde68a' : '#f8fafc',
+        scene,
+        cRoot,
+        new Vector3(0, -totalH / 2 - 0.32, 0),
+        0.88,
+        0.2
+      );
+
+      chromEntries.push({
+        inst,
+        root: cRoot,
+        armMat,
+        fresnel,
+        haloDisc,
+        locusCollar,
+        locusBadge,
+        locusBadgeDT,
+        totalH,
+        gridCol: col,
+        gridRow: row,
+      });
+    });
+
+    // =========================================================================
+    // 2. CONTINUOUS BABYLON.JS B-DNA DOUBLE HELIX + BASE-PAIR RUNGS + SNP RING
+    // =========================================================================
+    const dnaRoot = new TransformNode('dnaRoot', scene);
+    const NUM_BP = 28;
+    const HELIX_RADIUS = 1.08;
+    const RISE_PER_BP = 0.27;
+    const TWIST_PER_BP = (34.3 * Math.PI) / 180;
+    const MINOR_GROOVE_OFFSET = (138 * Math.PI) / 180;
+    const TOTAL_HELIX_H = NUM_BP * RISE_PER_BP;
+
+    // Smooth interpolated helical paths (160 points) for the two antiparallel sugar-phosphate ribbons
+    const curvePts1: Vector3[] = [];
+    const curvePts2: Vector3[] = [];
+    const INTERP_STEPS = 160;
+    for (let s = 0; s <= INTERP_STEPS; s++) {
+      const bpFloat = (s / INTERP_STEPS) * (NUM_BP - 1);
+      const y = bpFloat * RISE_PER_BP - TOTAL_HELIX_H / 2;
+      const a1 = bpFloat * TWIST_PER_BP;
+      const a2 = a1 + MINOR_GROOVE_OFFSET;
+      curvePts1.push(new Vector3(Math.cos(a1) * HELIX_RADIUS, y, Math.sin(a1) * HELIX_RADIUS));
+      curvePts2.push(new Vector3(Math.cos(a2) * HELIX_RADIUS, y, Math.sin(a2) * HELIX_RADIUS));
+    }
+
+    const strand1Tube = MeshBuilder.CreateTube(
+      'dnaStrand1',
+      { path: curvePts1, radius: 0.084, tessellation: 22, cap: Mesh.CAP_ALL },
+      scene
+    );
+    strand1Tube.parent = dnaRoot;
+    strand1Tube.isPickable = false;
+    const strand1Mat = new StandardMaterial('strand1Mat', scene);
+    strand1Mat.diffuseColor = new Color3(0.22, 0.74, 0.97);
+    strand1Mat.emissiveColor = new Color3(0.08, 0.45, 0.78);
+    strand1Mat.specularColor = new Color3(0.9, 0.96, 1.0);
+    strand1Mat.specularPower = 64;
+    const s1Fresnel = new FresnelParameters();
+    s1Fresnel.bias = 0.15;
+    s1Fresnel.power = 2.0;
+    s1Fresnel.leftColor = new Color3(0.55, 0.92, 1.0);
+    s1Fresnel.rightColor = new Color3(0.05, 0.28, 0.55);
+    strand1Mat.emissiveFresnelParameters = s1Fresnel;
+    strand1Tube.material = strand1Mat;
+
+    const strand2Tube = MeshBuilder.CreateTube(
+      'dnaStrand2',
+      { path: curvePts2, radius: 0.084, tessellation: 22, cap: Mesh.CAP_ALL },
+      scene
+    );
+    strand2Tube.parent = dnaRoot;
+    strand2Tube.isPickable = false;
+    const strand2Mat = new StandardMaterial('strand2Mat', scene);
+    strand2Mat.diffuseColor = new Color3(0.51, 0.55, 0.97);
+    strand2Mat.emissiveColor = new Color3(0.28, 0.25, 0.75);
+    strand2Mat.specularColor = new Color3(0.9, 0.9, 1.0);
+    strand2Mat.specularPower = 64;
+    const s2Fresnel = new FresnelParameters();
+    s2Fresnel.bias = 0.15;
+    s2Fresnel.power = 2.0;
+    s2Fresnel.leftColor = new Color3(0.78, 0.82, 1.0);
+    s2Fresnel.rightColor = new Color3(0.18, 0.15, 0.48);
+    strand2Mat.emissiveFresnelParameters = s2Fresnel;
+    strand2Tube.material = strand2Mat;
+
+    // 28 Base-Pair Rungs (A=T, G≡C) & Hydrogen-Bond Core Sleeves
+    interface BpRungEntry {
+      half1Mat: StandardMaterial;
+      half2Mat: StandardMaterial;
+      node1Mat: StandardMaterial;
+      node2Mat: StandardMaterial;
+      hBondSleeve: Mesh;
+      hBondMat: StandardMaterial;
+      y: number;
+    }
+
+    const bpEntries: BpRungEntry[] = [];
+    const upAxis = new Vector3(0, 1, 0);
+
+    for (let idx = 0; idx < NUM_BP; idx++) {
+      const y = idx * RISE_PER_BP - TOTAL_HELIX_H / 2;
+      const a1 = idx * TWIST_PER_BP;
+      const a2 = a1 + MINOR_GROOVE_OFFSET;
+
+      const p1 = new Vector3(Math.cos(a1) * HELIX_RADIUS, y, Math.sin(a1) * HELIX_RADIUS);
+      const p2 = new Vector3(Math.cos(a2) * HELIX_RADIUS, y, Math.sin(a2) * HELIX_RADIUS);
+      const mid = Vector3.Lerp(p1, p2, 0.5);
+      const mid1 = Vector3.Lerp(p1, mid, 0.5);
+      const mid2 = Vector3.Lerp(p2, mid, 0.5);
+
+      const dir = p2.subtract(p1);
+      const totalSpan = dir.length();
+      const unitDir = dir.normalize();
+      const rungQuat = new Quaternion();
+      Quaternion.FromUnitVectorsToRef(upAxis, unitDir, rungQuat);
+
+      // Phosphodiester Backbone Nodes
+      const node1 = MeshBuilder.CreateSphere(
+        `bpNode1_${idx}`,
+        { diameter: 0.19, segments: 14 },
+        scene
+      );
+      node1.parent = dnaRoot;
+      node1.position.copyFrom(p1);
+      node1.isPickable = false;
+      const node1Mat = new StandardMaterial(`bpNode1Mat_${idx}`, scene);
+      node1.material = node1Mat;
+
+      const node2 = MeshBuilder.CreateSphere(
+        `bpNode2_${idx}`,
+        { diameter: 0.19, segments: 14 },
+        scene
+      );
+      node2.parent = dnaRoot;
+      node2.position.copyFrom(p2);
+      node2.isPickable = false;
+      const node2Mat = new StandardMaterial(`bpNode2Mat_${idx}`, scene);
+      node2.material = node2Mat;
+
+      // Primary & Complementary Base Rung Cylinders
+      const half1 = MeshBuilder.CreateCylinder(
+        `bpHalf1_${idx}`,
+        { height: totalSpan * 0.46, diameter: 0.08, tessellation: 14 },
+        scene
+      );
+      half1.parent = dnaRoot;
+      half1.position.copyFrom(mid1);
+      half1.rotationQuaternion = rungQuat.clone();
+      half1.isPickable = false;
+      const half1Mat = new StandardMaterial(`bpHalf1Mat_${idx}`, scene);
+      half1.material = half1Mat;
+
+      const half2 = MeshBuilder.CreateCylinder(
+        `bpHalf2_${idx}`,
+        { height: totalSpan * 0.46, diameter: 0.08, tessellation: 14 },
+        scene
+      );
+      half2.parent = dnaRoot;
+      half2.position.copyFrom(mid2);
+      half2.rotationQuaternion = rungQuat.clone();
+      half2.isPickable = false;
+      const half2Mat = new StandardMaterial(`bpHalf2Mat_${idx}`, scene);
+      half2.material = half2Mat;
+
+      // Central Glowing Hydrogen-Bond Connector Sleeve
+      const hBondSleeve = MeshBuilder.CreateCylinder(
+        `bpHBond_${idx}`,
+        { height: 0.16, diameter: 0.1, tessellation: 14 },
+        scene
+      );
+      hBondSleeve.parent = dnaRoot;
+      hBondSleeve.position.copyFrom(mid);
+      hBondSleeve.rotationQuaternion = rungQuat.clone();
+      hBondSleeve.isPickable = false;
+      const hBondMat = new StandardMaterial(`bpHBondMat_${idx}`, scene);
+      hBondSleeve.material = hBondMat;
+
+      bpEntries.push({
+        half1Mat,
+        half2Mat,
+        node1Mat,
+        node2Mat,
+        hBondSleeve,
+        hBondMat,
+        y,
+      });
+    }
+
+    // Active SNP / Variant Orbital Scanner Ring & Callout Badge on the Helix
+    const snpRing = MeshBuilder.CreateTorus(
+      'snpScannerRing',
+      { diameter: HELIX_RADIUS * 2.48, thickness: 0.048, tessellation: 64 },
+      scene
+    );
+    snpRing.parent = dnaRoot;
+    snpRing.isPickable = false;
+    const snpRingMat = new StandardMaterial('snpRingMat', scene);
+    snpRingMat.diffuseColor = new Color3(0.5, 0.88, 0.25);
+    snpRingMat.emissiveColor = new Color3(0.5, 0.92, 0.25);
+    snpRing.material = snpRingMat;
+
+    const { mesh: snpBadgeMesh, dt: snpBadgeDT } = createDNABillboardBadge(
+      'snpCalloutBadge',
+      '',
+      '#7FD141',
+      'rgba(6, 11, 24, 0.94)',
+      '#7FD141',
+      scene,
+      dnaRoot,
+      new Vector3(0, 0, -HELIX_RADIUS * 1.28),
+      1.82,
+      0.34
+    );
+
+    // =========================================================================
+    // POINTER CLICK RAYCASTING FOR CHROMOSOME SELECTION
+    // =========================================================================
+    scene.onPointerObservable.add((pointerInfo) => {
+      if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+        const pick = scene.pick(scene.pointerX, scene.pointerY, (m) =>
+          Boolean(m.metadata && m.metadata.chromId)
+        );
+        if (pick?.hit && pick.pickedMesh?.metadata?.chromId) {
+          const cid = pick.pickedMesh.metadata.chromId as ChromosomeId;
+          stateRef.current.onSelectChromosome(cid);
+          const loci = GENE_LOCI.filter((l) => l.chromosome === cid);
+          if (loci.length > 0) {
+            stateRef.current.onSelectLocus(loci[0]);
+          }
+        }
+      }
+    });
+
+    // =========================================================================
+    // 60 FPS BABYLON RENDER & STATE SYNCHRONIZATION LOOP
+    // =========================================================================
+    let elapsed = 0;
+    let lastSeqKey = '';
+
+    scene.registerBeforeRender(() => {
+      const dt = Math.min(0.05, engine.getDeltaTime() / 1000);
+      elapsed += dt;
+      const st = stateRef.current;
+
+      // 1. Smooth Camera Preset Interpolation
+      const camAnim = camAnimRef.current;
+      if (camAnim.active) {
+        const damp = 1 - Math.exp(-6.5 * dt);
+        camera.alpha += (camAnim.alpha - camera.alpha) * damp;
+        camera.beta += (camAnim.beta - camera.beta) * damp;
+        camera.radius += (camAnim.radius - camera.radius) * damp;
+        Vector3.LerpToRef(camera.target, camAnim.target, damp, camera.target);
+        if (
+          Math.abs(camera.alpha - camAnim.alpha) < 0.01 &&
+          Math.abs(camera.beta - camAnim.beta) < 0.01 &&
+          Math.abs(camera.radius - camAnim.radius) < 0.05
+        ) {
+          camAnim.active = false;
+        }
+      }
+
+      // 2. Update Chromosome Layout, Selection Glow & Active Gene Locus Marker
+      const showAllKaryotype =
+        st.viewMode3D === 'dual-3d' || st.viewMode3D === 'karyotype-3d';
+      const showCloseupChrom = st.viewMode3D === 'chrom-closeup';
+      const showHelix =
+        st.viewMode3D === 'dual-3d' ||
+        st.viewMode3D === 'chrom-closeup' ||
+        st.viewMode3D === 'helix-3d';
+
+      karyotypeRoot.setEnabled(showAllKaryotype || showCloseupChrom);
+      dnaRoot.setEnabled(showHelix);
+
+      const xOffsetStage = st.viewMode3D === 'dual-3d' ? -2.75 : 0;
+      const selectedCopies = chromEntries.filter(
+        (e) => e.inst.chromId === st.selectedChromId
+      );
+
+      chromEntries.forEach((entry) => {
+        const isSelChrom = entry.inst.chromId === st.selectedChromId;
+        const isTri = entry.inst.isTrisomicExtra;
+        const isSex = entry.inst.isSexChromosome;
+
+        if (showCloseupChrom) {
+          entry.root.setEnabled(isSelChrom);
+          if (isSelChrom) {
+            const idxInSel = selectedCopies.indexOf(entry);
+            const count = selectedCopies.length;
+            const xPos = -2.6 + (idxInSel - (count - 1) / 2) * 1.38;
+            entry.root.position.set(
+              xPos,
+              0.2 + Math.sin(elapsed * 2.0 + entry.inst.instanceIndex) * 0.04,
+              0
+            );
+            entry.root.scaling.setAll(1.82);
+            entry.root.rotation.y = Math.sin(elapsed * 1.35 + entry.inst.instanceIndex) * 0.32;
+          }
+        } else {
+          entry.root.setEnabled(true);
+          const baseX = xOffsetStage + (entry.gridCol - 3.5) * 1.44;
+          const baseY = (1 - entry.gridRow) * 2.58;
+          const copyShift = (entry.inst.copyNumber - 1.5) * 0.36;
+          const hoverBob =
+            isSelChrom || isTri
+              ? Math.sin(elapsed * 2.0 + entry.inst.instanceIndex * 0.5) * 0.045
+              : 0;
+
+          entry.root.position.set(baseX + copyShift, baseY + hoverBob, 0);
+          entry.root.scaling.setAll(1.0);
+          entry.root.rotation.y =
+            isSelChrom || isTri
+              ? Math.sin(elapsed * 1.35 + entry.inst.instanceIndex * 0.4) * 0.32
+              : 0;
+        }
+
+        // Update Fresnel Rim Glow & Halo visibility
+        entry.haloDisc.setEnabled(isSelChrom || isTri);
+        if (isTri) {
+          entry.fresnel.leftColor.set(1.0, 0.78, 0.18);
+          entry.armMat.emissiveColor.set(0.45, 0.32, 0.08);
+        } else if (isSelChrom) {
+          entry.fresnel.leftColor.set(0.5, 0.92, 0.25);
+          entry.armMat.emissiveColor.set(0.22, 0.48, 0.65);
+        } else if (isSex) {
+          entry.fresnel.leftColor.set(0.96, 0.38, 0.72);
+          entry.armMat.emissiveColor.set(0.32, 0.14, 0.26);
+        } else {
+          entry.fresnel.leftColor.set(0.22, 0.76, 0.98);
+          entry.armMat.emissiveColor.set(0.14, 0.26, 0.42);
+        }
+
+        // Active Gene Locus Collar on Selected Chromosome
+        const hasActiveLocus =
+          isSelChrom && st.activeLocus.chromosome === entry.inst.chromId;
+        entry.locusCollar.setEnabled(hasActiveLocus);
+        entry.locusBadge.setEnabled(hasActiveLocus && entry.inst.copyNumber === 1);
+        if (hasActiveLocus) {
+          const locusY = entry.totalH / 2 - st.activeLocus.normPos * entry.totalH;
+          entry.locusCollar.position.y = locusY;
+          entry.locusBadge.position.y = locusY + 0.26;
+        }
+      });
+
+      // 3. Update B-DNA Double Helix Position, Rotation & Nucleotide Base-Pair Colors
+      if (showHelix) {
+        if (st.viewMode3D === 'dual-3d') {
+          dnaRoot.position.set(5.3, 0.2, 0.35);
+          dnaRoot.scaling.setAll(0.96);
+        } else if (st.viewMode3D === 'chrom-closeup') {
+          dnaRoot.position.set(3.1, 0.2, 0.2);
+          dnaRoot.scaling.setAll(0.96);
+        } else {
+          dnaRoot.position.set(0, 0.2, 0);
+          dnaRoot.scaling.setAll(1.24);
+        }
+
+        if (st.autoRotateHelix) {
+          dnaRoot.rotation.y += dt * 0.52;
+        }
+
+        const seqKey = `${st.activeSequence}-${st.mutatedBpIndex}-${st.activeLocus.geneSymbol}-${st.finishMode}`;
+        if (seqKey !== lastSeqKey) {
+          lastSeqKey = seqKey;
+          const bases = st.activeSequence.slice(0, NUM_BP).split('');
+
+          chromEntries.forEach((entry) => {
+            if (
+              entry.inst.chromId === st.selectedChromId &&
+              entry.inst.copyNumber === 1
+            ) {
+              updateDNABillboardBadgeText(
+                entry.locusBadgeDT,
+                `${st.activeLocus.geneSymbol} (${st.activeLocus.cytogeneticBand})`,
+                '#7FD141'
+              );
+            }
+          });
+
+          for (let idx = 0; idx < NUM_BP; idx++) {
+            const base = bases[idx] || 'A';
+            const comp = COMPLEMENT_BASE[base] || 'T';
+            const c1 = BASE_COLOR3[base] || BASE_COLOR3.A;
+            const c2 = BASE_COLOR3[comp] || BASE_COLOR3.T;
+            const isMut = idx === st.mutatedBpIndex;
+            const isGC = base === 'G' || base === 'C';
+            const bp = bpEntries[idx];
+
+            bp.half1Mat.diffuseColor.copyFrom(c1);
+            bp.half1Mat.emissiveColor.copyFrom(c1.scale(isMut ? 0.9 : 0.48));
+
+            bp.half2Mat.diffuseColor.copyFrom(c2);
+            bp.half2Mat.emissiveColor.copyFrom(c2.scale(isMut ? 0.9 : 0.48));
+
+            bp.node1Mat.diffuseColor = isMut
+              ? new Color3(0.5, 0.92, 0.25)
+              : new Color3(0.45, 0.82, 0.98);
+            bp.node1Mat.emissiveColor = isMut
+              ? new Color3(0.45, 0.88, 0.22)
+              : new Color3(0.12, 0.48, 0.78);
+
+            bp.node2Mat.diffuseColor = isMut
+              ? new Color3(0.5, 0.92, 0.25)
+              : new Color3(0.75, 0.78, 0.98);
+            bp.node2Mat.emissiveColor = isMut
+              ? new Color3(0.45, 0.88, 0.22)
+              : new Color3(0.28, 0.25, 0.72);
+
+            bp.hBondMat.diffuseColor = new Color3(0.98, 0.99, 1.0);
+            bp.hBondMat.emissiveColor = isMut
+              ? new Color3(0.5, 0.92, 0.25)
+              : new Color3(0.22, 0.74, 0.97);
+
+            if (isMut) {
+              snpRing.position.y = bp.y;
+              snpBadgeMesh.position.y = bp.y + 0.34;
+              updateDNABillboardBadgeText(
+                snpBadgeDT,
+                `SNP bp #${idx + 1}: ${base}${isGC ? '≡' : '='}${comp} (${st.activeLocus.geneSymbol})`,
+                '#7FD141'
+              );
+            }
+          }
+        }
+      }
+    });
+
+    engine.runRenderLoop(() => {
+      scene.render();
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      engine.resize();
+    });
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
     return () => {
-      strand1TubeGeo.dispose();
-      strand2TubeGeo.dispose();
-      strand1OuterGeo.dispose();
-      strand2OuterGeo.dispose();
+      resizeObserver.disconnect();
+      scene.dispose();
+      engine.dispose();
     };
-  }, [strand1TubeGeo, strand2TubeGeo, strand1OuterGeo, strand2OuterGeo]);
+  }, [karyotypeInstances]);
 
   return (
-    <group position={position} scale={scale} ref={helixGroupRef}>
-      {/* Continuous 5' -> 3' Sugar-Phosphate Backbone Tube + Ribbon Accent */}
-      <mesh geometry={strand1TubeGeo}>
-        <meshPhysicalMaterial
-          color="#0ea5e9"
-          emissive="#0369a1"
-          emissiveIntensity={0.32}
-          roughness={0.14}
-          metalness={0.35}
-          clearcoat={1}
-          clearcoatRoughness={0.1}
-        />
-      </mesh>
-      <mesh geometry={strand1OuterGeo}>
-        <meshPhysicalMaterial
-          color="#7dd3fc"
-          emissive="#38bdf8"
-          emissiveIntensity={0.45}
-          roughness={0.1}
-          metalness={0.5}
-          clearcoat={1}
-        />
-      </mesh>
-
-      {/* Continuous 3' -> 5' Antiparallel Sugar-Phosphate Backbone Tube + Ribbon Accent */}
-      <mesh geometry={strand2TubeGeo}>
-        <meshPhysicalMaterial
-          color="#818cf8"
-          emissive="#4338ca"
-          emissiveIntensity={0.28}
-          roughness={0.16}
-          metalness={0.38}
-          clearcoat={1}
-          clearcoatRoughness={0.1}
-        />
-      </mesh>
-      <mesh geometry={strand2OuterGeo}>
-        <meshPhysicalMaterial
-          color="#c7d2fe"
-          emissive="#6366f1"
-          emissiveIntensity={0.35}
-          roughness={0.12}
-          metalness={0.5}
-          clearcoat={1}
-        />
-      </mesh>
-
-      {/* Individual Nucleotide Base Pairs, Pentose Sugars, and Hydrogen Bonds */}
-      {bases.map((base, idx) => {
-        const y = idx * risePerBp - totalHeight / 2;
-        const a1 = idx * twistPerBp;
-        const a2 = a1 + minorGrooveOffset;
-
-        const p1 = new THREE.Vector3(Math.cos(a1) * radius, 0, Math.sin(a1) * radius);
-        const p2 = new THREE.Vector3(Math.cos(a2) * radius, 0, Math.sin(a2) * radius);
-
-        const compBase = COMPLEMENT_BASE[base] || 'T';
-        const color1 = BASE_COLORS[base] || '#38bdf8';
-        const color2 = BASE_COLORS[compBase] || '#f59e0b';
-        const isMutatedSite = idx === mutatedIndex;
-
-        // Purines (A, G) are 2-ring structures (longer); Pyrimidines (T, C) are 1-ring structures
-        const isPurine1 = base === 'A' || base === 'G';
-        const frac1 = isPurine1 ? 0.56 : 0.44;
-        const isGC = base === 'G' || base === 'C'; // G≡C has 3 H-bonds; A=T has 2 H-bonds
-
-        const hBondCenter = new THREE.Vector3().lerpVectors(p1, p2, frac1);
-        const dir1To2 = new THREE.Vector3().subVectors(p2, p1);
-        const totalSpan = dir1To2.length();
-        const unitDir = dir1To2.clone().normalize();
-        const upVec = new THREE.Vector3(0, 1, 0);
-        const rungQuat = new THREE.Quaternion().setFromUnitVectors(upVec, unitDir);
-
-        const mid1 = new THREE.Vector3().lerpVectors(p1, hBondCenter, 0.46);
-        const mid2 = new THREE.Vector3().lerpVectors(p2, hBondCenter, 0.46);
-        const len1 = totalSpan * frac1 * 0.86;
-        const len2 = totalSpan * (1 - frac1) * 0.86;
-
-        return (
-          <group key={idx} position={[0, y, 0]}>
-            {/* Strand 1 Phosphate Group (PO4-) & Deoxyribose Sugar Ring */}
-            <mesh position={[p1.x, 0, p1.z]}>
-              <sphereGeometry args={[isMutatedSite ? 0.145 : 0.105, 16, 16]} />
-              <meshPhysicalMaterial
-                color={isMutatedSite ? '#7FD141' : '#38bdf8'}
-                emissive={isMutatedSite ? '#7FD141' : '#0284c7'}
-                emissiveIntensity={isMutatedSite ? 0.95 : 0.3}
-                roughness={0.14}
-                metalness={0.45}
-                clearcoat={1}
-              />
-            </mesh>
-            <mesh position={[p1.x * 0.84, 0, p1.z * 0.84]} rotation={[Math.PI / 2, 0, -a1]}>
-              <cylinderGeometry args={[0.065, 0.065, 0.032, 5]} />
-              <meshStandardMaterial color="#e0f2fe" roughness={0.25} metalness={0.3} />
-            </mesh>
-
-            {/* Strand 2 Phosphate Group & Deoxyribose Pentose Ring */}
-            <mesh position={[p2.x, 0, p2.z]}>
-              <sphereGeometry args={[isMutatedSite ? 0.145 : 0.105, 16, 16]} />
-              <meshPhysicalMaterial
-                color={isMutatedSite ? '#f59e0b' : '#a5b4fc'}
-                emissive={isMutatedSite ? '#f59e0b' : '#4f46e5'}
-                emissiveIntensity={isMutatedSite ? 0.85 : 0.25}
-                roughness={0.16}
-                metalness={0.45}
-                clearcoat={1}
-              />
-            </mesh>
-            <mesh position={[p2.x * 0.84, 0, p2.z * 0.84]} rotation={[Math.PI / 2, 0, -a2]}>
-              <cylinderGeometry args={[0.065, 0.065, 0.032, 5]} />
-              <meshStandardMaterial color="#e0e7ff" roughness={0.25} metalness={0.3} />
-            </mesh>
-
-            {/* Base 1 Aromatic Molecular Plate / Rung */}
-            <mesh position={mid1} quaternion={rungQuat}>
-              <cylinderGeometry
-                args={[
-                  isMutatedSite ? 0.064 : 0.046,
-                  isMutatedSite ? 0.064 : 0.046,
-                  len1,
-                  6,
-                ]}
-              />
-              <meshPhysicalMaterial
-                color={color1}
-                emissive={color1}
-                emissiveIntensity={isMutatedSite ? 0.85 : 0.35}
-                roughness={0.2}
-                metalness={0.25}
-                clearcoat={0.8}
-              />
-            </mesh>
-
-            {/* Base 2 Complementary Aromatic Molecular Plate / Rung */}
-            <mesh position={mid2} quaternion={rungQuat}>
-              <cylinderGeometry
-                args={[
-                  isMutatedSite ? 0.064 : 0.046,
-                  isMutatedSite ? 0.064 : 0.046,
-                  len2,
-                  6,
-                ]}
-              />
-              <meshPhysicalMaterial
-                color={color2}
-                emissive={color2}
-                emissiveIntensity={isMutatedSite ? 0.85 : 0.35}
-                roughness={0.2}
-                metalness={0.25}
-                clearcoat={0.8}
-              />
-            </mesh>
-
-            {/* Hydrogen Bonds at Center (2 H-bonds for A=T, 3 H-bonds for G≡C) */}
-            {(isGC ? [-0.042, 0, 0.042] : [-0.026, 0.026]).map((yOff, hbIdx) => (
-              <mesh key={hbIdx} position={[hBondCenter.x, yOff, hBondCenter.z]}>
-                <sphereGeometry args={[isMutatedSite ? 0.042 : 0.028, 10, 10]} />
-                <meshBasicMaterial color={isMutatedSite ? '#ffffff' : '#e2e8f0'} />
-              </mesh>
-            ))}
-
-            {/* Highlight Orbital Ring & 3D Sprite Callout on Active SNP / Variant Site */}
-            {isMutatedSite && (
-              <>
-                <mesh rotation={[Math.PI / 2, 0, 0]}>
-                  <torusGeometry args={[radius * 1.24, 0.024, 14, 48]} />
-                  <meshStandardMaterial
-                    color="#7FD141"
-                    emissive="#7FD141"
-                    emissiveIntensity={1.2}
-                  />
-                </mesh>
-                <SpriteBadge3D
-                  text={`SNP bp #${idx + 1}: ${base}${isGC ? '≡' : '='}${compBase} (${geneSymbol})`}
-                  position={[0, 0.36, radius * 1.25]}
-                  borderColor="#7FD141"
-                  textColor="#7FD141"
-                  scale={[1.85, 0.36, 1]}
-                />
-              </>
-            )}
-          </group>
-        );
-      })}
-    </group>
-  );
-};
-
-/**
- * 3D Uncoiling Chromatin Fiber Bridge connecting the Selected Chromosome to the B-DNA Double Helix
- */
-const ChromatinUncoilingBridge3D: React.FC<{
-  fromPos: [number, number, number];
-  toPos: [number, number, number];
-}> = ({ fromPos, toPos }) => {
-  const geo = useMemo(() => {
-    const start = new THREE.Vector3(...fromPos);
-    const end = new THREE.Vector3(...toPos);
-    const pts: THREE.Vector3[] = [];
-    const steps = 48;
-    for (let i = 0; i <= steps; i++) {
-      const u = i / steps;
-      const basePt = new THREE.Vector3().lerpVectors(start, end, u);
-      const coilAmp = Math.sin(u * Math.PI) * 0.28;
-      basePt.y += Math.sin(u * Math.PI * 10) * coilAmp;
-      basePt.z += Math.cos(u * Math.PI * 10) * coilAmp + Math.sin(u * Math.PI) * 0.6;
-      pts.push(basePt);
-    }
-    const curve = new THREE.CatmullRomCurve3(pts);
-    return new THREE.TubeGeometry(curve, 96, 0.022, 10, false);
-  }, [fromPos, toPos]);
-
-  useEffect(() => {
-    return () => geo.dispose();
-  }, [geo]);
-
-  return (
-    <mesh geometry={geo}>
-      <meshStandardMaterial
-        color="#38bdf8"
-        emissive="#7FD141"
-        emissiveIntensity={0.65}
-        transparent
-        opacity={0.75}
+    <div ref={containerRef} className="w-full h-full relative">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full block outline-none cursor-grab active:cursor-grabbing"
       />
-    </mesh>
+    </div>
   );
 };
 
@@ -798,13 +1193,17 @@ export const DNASimulatorPage: React.FC = () => {
   const [selectedLocusId, setSelectedLocusId] = useState<string>('herc2-oca2-eye');
   const [selectedAlleleIdx, setSelectedAlleleIdx] = useState<number>(0);
   const [viewMode3D, setViewMode3D] = useState<DNA3DViewMode>('dual-3d');
+  const [cameraPreset, setCameraPreset] = useState<DNACameraPreset>('overview');
+  const [finishMode, setFinishMode] = useState<DNAFinishMode>('cryo-studio');
   const [autoRotateHelix, setAutoRotateHelix] = useState<boolean>(true);
   const [dockCollapsed, setDockCollapsed] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showPresetDetails, setShowPresetDetails] = useState<boolean>(false);
+  const [showNumericFacts, setShowNumericFacts] = useState<boolean>(true);
   const [showGspDrawer, setShowGspDrawer] = useState<boolean>(true);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const controlsRef = useRef<any>(null);
 
   const activePreset = useMemo(
     () => KARYOTYPE_PRESETS.find((k) => k.id === karyotypeMode) || KARYOTYPE_PRESETS[0],
@@ -909,26 +1308,24 @@ export const DNASimulatorPage: React.FC = () => {
     return positionsMap;
   }, [karyotypeInstances, viewMode3D]);
 
-  // Selected Chromosome Instances for Close-Up 3D Inspector Mode
   const selectedChromInstances = useMemo(
     () => karyotypeInstances.filter((inst) => inst.chromId === selectedChromId),
     [karyotypeInstances, selectedChromId]
   );
 
-  // Selected chromosome 3D origin for uncoiling bridge
-  const selectedChromBridgeOrigin = useMemo((): [number, number, number] => {
-    if (viewMode3D === 'chrom-closeup') {
-      return [-1.8, 0.2, 0];
-    }
-    const firstInst = selectedChromInstances[0];
-    if (!firstInst) return [-2.5, 0, 0];
-    return karyotypePositions.get(firstInst.instanceIndex) || [-2.5, 0, 0];
-  }, [karyotypePositions, selectedChromInstances, viewMode3D]);
-
   const mutatedBpIndex = Math.max(
     0,
     Math.min(27, activeAllele.mutatedCodonIndex * 3 + 1)
   );
+
+  const stageBgColor =
+    finishMode === 'cpk-metallic'
+      ? '#080705'
+      : finishMode === 'bioluminescent'
+      ? '#030b12'
+      : darkMode
+      ? '#040812'
+      : '#070d1c';
 
   return (
     <div className="flex flex-col gap-5">
@@ -946,6 +1343,10 @@ export const DNASimulatorPage: React.FC = () => {
               <span className="px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 font-bold tabular-nums">
                 {activePreset.totalChromosomes} {lang === 'fa' ? 'کروموزوم' : 'Chromosomes'}
               </span>
+              <span>·</span>
+              <span className="px-2 py-0.5 rounded-md bg-[#7FD141]/15 border border-[#7FD141]/30 text-[#7FD141] font-bold tabular-nums">
+                {lang === 'fa' ? '۹۹.۹٪ تشابه DNA انسان‌ها' : '99.9% Shared Human DNA'}
+              </span>
             </div>
             <h1 className="text-lg sm:text-xl font-bold tracking-tight">
               {lang === 'fa' ? activePreset.titleFa : activePreset.titleEn}
@@ -953,6 +1354,19 @@ export const DNASimulatorPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowNumericFacts((v) => !v)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer ${
+                showNumericFacts ? 'btn-tool-pill' : 'neu-btn'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-sky-500" />
+              <span>
+                {lang === 'fa' ? 'حقایق عددی DNA انسان (۹۹.۹٪)' : 'DNA Numeric Facts (99.9%)'}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => setShowPresetDetails((v) => !v)}
@@ -964,7 +1378,7 @@ export const DNASimulatorPage: React.FC = () => {
                 <ChevronDown className="w-3.5 h-3.5 text-sky-500" />
               )}
               <span>
-                {lang === 'fa' ? 'توضیحات علمی کاریوتایپ' : 'Karyotype Notes'}
+                {lang === 'fa' ? 'توضیحات کاریوتایپ' : 'Karyotype Notes'}
               </span>
             </button>
 
@@ -983,6 +1397,36 @@ export const DNASimulatorPage: React.FC = () => {
         {showPresetDetails && (
           <div className="neu-inset p-3.5 rounded-xl text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
             {lang === 'fa' ? activePreset.descriptionFa : activePreset.descriptionEn}
+          </div>
+        )}
+
+        {/* Quantitative Human Genome Numeric Facts Grid (99.9% Identity, 98.5% Non-Coding, 3.2B bp, 2.0m Length) */}
+        {showNumericFacts && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-2 border-t border-slate-300/30 dark:border-slate-800/60">
+            {HUMAN_GENOME_NUMERIC_FACTS.map((fact, idx) => (
+              <div
+                key={idx}
+                className="neu-inset p-3.5 rounded-xl flex flex-col justify-between gap-1.5 border border-slate-300/40 dark:border-slate-800/80"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span
+                    className="text-xl sm:text-2xl font-extrabold font-mono tracking-tight tabular-nums"
+                    style={{ color: fact.accent }}
+                  >
+                    {fact.stat}
+                  </span>
+                  <span className="text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400 text-end">
+                    {lang === 'fa' ? fact.unitFa : fact.unitEn}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                  {lang === 'fa' ? fact.titleFa : fact.titleEn}
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {lang === 'fa' ? fact.detailFa : fact.detailEn}
+                </p>
+              </div>
+            ))}
           </div>
         )}
 
@@ -1072,15 +1516,15 @@ export const DNASimulatorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main 3D Viewport Stage (Unobstructed Center + Collapsible Bottom Dock) */}
+      {/* Main 3D Viewport Stage (Unobstructed Center + Top Camera Bar + Collapsible Bottom Dock) */}
       <div
         className={`relative rounded-2xl overflow-hidden border border-slate-300/50 dark:border-slate-800/80 bg-[#040812] ${
-          isFullscreen ? 'fixed inset-3 z-50 h-auto' : 'h-[520px] sm:h-[600px]'
+          isFullscreen ? 'fixed inset-3 z-50 h-auto' : 'h-[540px] sm:h-[620px]'
         }`}
       >
         {/* Unified Non-Overlapping Top HUD Bar */}
         <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-          <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/88 border border-slate-800 text-xs font-mono text-slate-200 shadow-lg">
+          <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs font-mono text-slate-200 shadow-lg">
             <span className="text-sky-400 font-bold">{karyotypeMode}</span>
             <span>·</span>
             <span>
@@ -1095,128 +1539,71 @@ export const DNASimulatorPage: React.FC = () => {
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsFullscreen((f) => !f)}
-            className="pointer-events-auto px-2.5 py-1.5 rounded-xl bg-slate-950/88 border border-slate-800 text-xs font-mono text-slate-200 hover:border-sky-400 flex items-center gap-1 cursor-pointer shadow-lg"
-          >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            <span>
-              {isFullscreen
-                ? lang === 'fa'
-                  ? 'خروج'
-                  : 'Exit'
-                : lang === 'fa'
-                ? 'تمام‌صفحه'
-                : 'Fullscreen'}
-            </span>
-          </button>
+          <div className="pointer-events-auto flex items-center gap-1.5">
+            {/* Interactive 3D Camera Preset Switcher */}
+            <div className="hidden sm:flex items-center gap-1 bg-slate-950/90 border border-slate-800 rounded-xl p-1 shadow-lg font-mono text-[11px]">
+              {(
+                [
+                  { id: 'overview', en: 'Overview', fa: 'نمای کلی' },
+                  { id: 'karyotype', en: 'Karyotype', fa: 'کاریوتایپ' },
+                  { id: 'helix-macro', en: 'Helix Macro', fa: 'نمای نزدیک DNA' },
+                  { id: 'groove-top', en: 'Groove Top', fa: 'از بالا' },
+                ] as { id: DNACameraPreset; en: string; fa: string }[]
+              ).map((cam) => (
+                <button
+                  key={cam.id}
+                  type="button"
+                  onClick={() => setCameraPreset(cam.id)}
+                  className={`px-2.5 py-1 rounded-lg cursor-pointer transition-colors whitespace-nowrap ${
+                    cameraPreset === cam.id
+                      ? 'bg-[#7FD141] text-slate-950 font-bold'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {lang === 'fa' ? cam.fa : cam.en}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsFullscreen((f) => !f)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs font-mono text-slate-200 hover:border-sky-400 flex items-center gap-1 cursor-pointer shadow-lg"
+            >
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              <span>
+                {isFullscreen
+                  ? lang === 'fa'
+                    ? 'خروج'
+                    : 'Exit'
+                  : lang === 'fa'
+                  ? 'تمام‌صفحه'
+                  : 'Fullscreen'}
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* Three.js Canvas */}
-        <Canvas
-          camera={{ position: [0, 0.3, 11.4], fov: 43 }}
-          dpr={[1, 2]}
-          gl={{ antialias: true, powerPreference: 'high-performance' }}
-        >
-          <color attach="background" args={[darkMode ? '#040812' : '#070d1c']} />
-          <fog attach="fog" args={[darkMode ? '#040812' : '#070d1c', 15, 30]} />
-
-          {/* Multi-Point Scientific Cryo-EM & Molecular Studio Lighting */}
-          <ambientLight intensity={0.75} />
-          <hemisphereLight args={['#38bdf8', '#091326', 0.7]} />
-          <directionalLight position={[9, 13, 10]} intensity={1.6} color="#ffffff" />
-          <directionalLight position={[-9, -5, 8]} intensity={0.75} color="#22d3ee" />
-          <pointLight position={[4.5, 2, 4]} intensity={1.1} color="#7FD141" distance={18} />
-
-          {/* Native Three.js Reference Floor Grid */}
-          <gridHelper args={[26, 26, '#0284c7', '#162238']} position={[0, -4.35, 0]} />
-
-          {/* 1) All 46 or 47 Chromosomes in 3D Karyotype Grid */}
-          {(viewMode3D === 'karyotype-3d' || viewMode3D === 'dual-3d') &&
-            karyotypeInstances.map((inst) => {
-              const pos = karyotypePositions.get(inst.instanceIndex) || [0, 0, 0];
-              const lociOnChrom = GENE_LOCI.filter((l) => l.chromosome === inst.chromId);
-              return (
-                <Chromosome3DModel
-                  key={`${inst.chromId}-${inst.copyNumber}-${inst.instanceIndex}`}
-                  instance={inst}
-                  position={pos}
-                  isSelectedChromosome={selectedChromId === inst.chromId}
-                  activeLociOnChrom={lociOnChrom}
-                  selectedLocusId={selectedLocusId}
-                  onSelectChromosome={(cid) => setSelectedChromId(cid)}
-                  onSelectLocus={(loc) => {
-                    setSelectedLocusId(loc.id);
-                    setSelectedAlleleIdx(0);
-                  }}
-                />
-              );
-            })}
-
-          {/* 2) Close-Up 3D Chromosome Homologous Pair / Trisomic Triplet Inspector */}
-          {viewMode3D === 'chrom-closeup' &&
-            selectedChromInstances.map((inst, idx) => {
-              const count = selectedChromInstances.length;
-              const xPos = -2.6 + (idx - (count - 1) / 2) * 1.35;
-              const lociOnChrom = GENE_LOCI.filter((l) => l.chromosome === inst.chromId);
-              return (
-                <Chromosome3DModel
-                  key={`closeup-${inst.chromId}-${inst.copyNumber}`}
-                  instance={inst}
-                  position={[xPos, 0.2, 0]}
-                  scale={1.85}
-                  isSelectedChromosome={true}
-                  activeLociOnChrom={lociOnChrom}
-                  selectedLocusId={selectedLocusId}
-                  onSelectChromosome={(cid) => setSelectedChromId(cid)}
-                  onSelectLocus={(loc) => {
-                    setSelectedLocusId(loc.id);
-                    setSelectedAlleleIdx(0);
-                  }}
-                />
-              );
-            })}
-
-          {/* 3) Uncoiling Chromatin Fiber Bridge from Selected Chromosome to B-DNA Helix */}
-          {(viewMode3D === 'dual-3d' || viewMode3D === 'chrom-closeup') && (
-            <ChromatinUncoilingBridge3D
-              fromPos={selectedChromBridgeOrigin}
-              toPos={viewMode3D === 'dual-3d' ? [5.15, 0.1, 0.2] : [2.8, 0.1, 0.2]}
-            />
-          )}
-
-          {/* 4) Photorealistic 3D B-DNA Double Helix with Continuous Backbones & Major/Minor Grooves */}
-          {(viewMode3D === 'helix-3d' ||
-            viewMode3D === 'dual-3d' ||
-            viewMode3D === 'chrom-closeup') && (
-            <DNADoubleHelix3D
-              sequence={activeSequence}
-              mutatedIndex={mutatedBpIndex}
-              geneSymbol={activeLocus.geneSymbol}
-              position={
-                viewMode3D === 'dual-3d'
-                  ? [5.35, 0.2, 0.35]
-                  : viewMode3D === 'chrom-closeup'
-                  ? [3.1, 0.2, 0.2]
-                  : [0, 0.2, 0]
-              }
-              scale={viewMode3D === 'helix-3d' ? 1.24 : 0.96}
-              autoRotate={autoRotateHelix}
-            />
-          )}
-
-          <OrbitControls
-            enableDamping
-            dampingFactor={0.08}
-            minDistance={3.2}
-            maxDistance={21}
-            maxPolarAngle={Math.PI * 0.85}
-          />
-        </Canvas>
+        {/* Babylon.js Confocal Fluorescence 3D Karyotype & B-DNA Molecular Stage */}
+        <BabylonDNA3DViewport
+          karyotypeInstances={karyotypeInstances}
+          selectedChromId={selectedChromId}
+          activeLocus={activeLocus}
+          activeSequence={activeSequence}
+          mutatedBpIndex={mutatedBpIndex}
+          viewMode3D={viewMode3D}
+          cameraPreset={cameraPreset}
+          finishMode={finishMode}
+          autoRotateHelix={autoRotateHelix}
+          onSelectChromosome={(cid) => setSelectedChromId(cid)}
+          onSelectLocus={(loc) => {
+            setSelectedLocusId(loc.id);
+            setSelectedAlleleIdx(0);
+          }}
+        />
 
         {/* Unified Collapsible Bottom Control Dock (Zero Viewport Occlusion) */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 w-[min(980px,95vw)] flex flex-col items-center">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 w-[min(1020px,96vw)] flex flex-col items-center">
           <button
             type="button"
             onClick={() => setDockCollapsed((c) => !c)}
@@ -1235,7 +1622,7 @@ export const DNASimulatorPage: React.FC = () => {
           </button>
 
           {!dockCollapsed && (
-            <div className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/92 border border-slate-800 flex flex-wrap items-center justify-between gap-2.5 text-xs font-mono text-slate-200">
+            <div className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/94 border border-slate-800 flex flex-wrap items-center justify-between gap-2.5 text-xs font-mono text-slate-200">
               {/* 3D View Mode Switcher */}
               <div className="flex flex-wrap items-center gap-1">
                 {(
@@ -1257,8 +1644,8 @@ export const DNASimulatorPage: React.FC = () => {
                     },
                     {
                       id: 'helix-3d',
-                      en: '3D B-DNA Double Helix',
-                      fa: 'مارپیچ دوگانه B-DNA',
+                      en: '3D Atomic B-DNA Helix',
+                      fa: 'مارپیچ اتمی B-DNA',
                     },
                   ] as { id: DNA3DViewMode; en: string; fa: string }[]
                 ).map((m) => (
@@ -1278,7 +1665,7 @@ export const DNASimulatorPage: React.FC = () => {
               </div>
 
               {/* Base Pair Color Legend */}
-              <div className="flex items-center gap-3 text-[11px]">
+              <div className="hidden xl:flex items-center gap-2.5 text-[11px]">
                 <span className="flex items-center gap-1">
                   <span className="w-2.5 h-2.5 rounded-xs bg-[#38bdf8] inline-block" /> A (Purine)
                 </span>
@@ -1293,23 +1680,48 @@ export const DNASimulatorPage: React.FC = () => {
                 </span>
               </div>
 
-              {/* Helix Spin Toggle */}
-              <button
-                type="button"
-                onClick={() => setAutoRotateHelix((r) => !r)}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[11px] hover:border-sky-400 flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCcw className="w-3 h-3 text-sky-400" />
-                <span>
-                  {autoRotateHelix
-                    ? lang === 'fa'
-                      ? 'چرخش مارپیچ: فعال'
-                      : 'Helix Spin: On'
-                    : lang === 'fa'
-                    ? 'چرخش مارپیچ: متوقف'
-                    : 'Helix Spin: Paused'}
-                </span>
-              </button>
+              {/* Molecular Finish Switcher + Helix Spin Toggle */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+                  {(
+                    [
+                      { id: 'cryo-studio', en: 'Cryo-EM', fa: 'کرایو-EM' },
+                      { id: 'cpk-metallic', en: 'CPK Gloss', fa: 'براق اتمی' },
+                      { id: 'bioluminescent', en: 'Bio-Glow', fa: 'بیولومینسانس' },
+                    ] as { id: DNAFinishMode; en: string; fa: string }[]
+                  ).map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setFinishMode(f.id)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] cursor-pointer transition-colors ${
+                        finishMode === f.id
+                          ? 'bg-sky-500 text-slate-950 font-bold'
+                          : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {lang === 'fa' ? f.fa : f.en}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAutoRotateHelix((r) => !r)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[11px] hover:border-sky-400 flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3 text-sky-400" />
+                  <span>
+                    {autoRotateHelix
+                      ? lang === 'fa'
+                        ? 'چرخش: فعال'
+                        : 'Spin: On'
+                      : lang === 'fa'
+                      ? 'چرخش: متوقف'
+                      : 'Spin: Off'}
+                  </span>
+                </button>
+              </div>
             </div>
           )}
         </div>

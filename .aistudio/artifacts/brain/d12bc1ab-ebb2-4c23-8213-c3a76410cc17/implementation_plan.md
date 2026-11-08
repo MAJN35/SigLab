@@ -1,44 +1,86 @@
-# UI Simplification & Scientific Inspector Redesign Plan
+# Babylon.js 3D Engine Upgrade with Native Glow, Shaders & Continuous Ribbon Geometry
 
-## Overview
-We will redesign the **Gene & Allele Inspector** section in the 3D DNA & 47 Chromosomes Lab (`DNASimulatorPage.tsx`) and streamline the overall website UI (`index.css`, `App.tsx`, `AudioSpectrogramPage.tsx`, `DashboardPage.tsx`) so that every interactive card, control bar, and visualization is clean, scannable, and effortless to use—while keeping **100% of the scientific details, allele variants, nucleotide sequences, and DSP controls**.
+This plan replaces the Three.js visualizers across both the **Signal, FFT & Spectrogram Stage** and the **Human Karyotype & B-DNA Lab** with a custom **Babylon.js WebGL2 engine** featuring native multi-pass `GlowLayer` bloom, 4× MSAA post-processing, Fresnel edge-lit fluorescence shaders, and seamless continuous ribbon/tube geometry.
 
----
+## User Review & Critical Decisions
 
-## 1. Visual Direction & Domain Exemplars
-- **Aesthetic Direction**: High-craft scientific lab interface inspired by **BioRender / Mol\* 3D Viewer** and **Linear / Desmos**—clean rectangular glass cards (`border-radius: 14px–16px`), crisp 1px structural borders, tabular monospace readouts (`JetBrains Mono`), and zero distorted circular/oval containers on multi-line content.
-- **Root Cause Fix for the "Weirdo" Section**:
-  - Currently in `src/index.css`, `.neu-btn` forces `border-radius: 999px` (a pill/circle border). When applied to multi-line cards like the **Allele Variant** cards, **Trait Locus** cards, and **Chromosome Grid** buttons, it warps them into awkward ovals and clips the text inside.
-  - Furthermore, `truncate` and `.split(' ')[0]` cut off genotype titles (e.g., showing only `"Advanced"` instead of `"Advanced Phase Variant"` and `"Delayed Phase Vari..."`).
-
----
-
-## 2. Key UI & UX Improvements
-
-### A. Fix Distorted Oval Cards & Truncated Labels Globally (`src/index.css`)
-- Introduce a dedicated `.neu-tile` / rectangular interactive surface rule (`border-radius: 14px`) and update multi-line interactive cards across all pages so `border-radius: 999px` is reserved strictly for single-line pills or icon buttons.
-- Ensure all genotype names, phenotype badges, and trait titles wrap cleanly with full untruncated labels.
-
-### B. Clean Rectangular Gene & Allele Inspector (`src/pages/DNASimulatorPage.tsx`)
-- **Header & Active Phenotype Banner**:
-  - Display the full **Cytogenetic Locus** (`Chr 2q37.3 · PER2 / CLOCK`), full **Trait Title**, and **Inheritance Pattern** in a structured header.
-  - Replace the cramped `"Advanced"` badge with a full-width or well-proportioned rectangular **Active Phenotype & Genotype Badge** showing the color swatch, complete genotype name, and active phenotype summary without truncation.
-- **Clean Rectangular Allele Variant Cards**:
-  - Present the 2–3 allele variants in clean rectangular cards (`rounded-xl`) with a clear top status row (color swatch + full genotype label + `Active` / `Select` indicator), bold phenotype title, and concise mechanism description.
-- **Readable 5'→3' Coding Exon Base-Pair Sequence Strip**:
-  - Replace the narrow cramped vertical pills with a clean, well-spaced horizontal base-pair ladder showing base index, 5'→3' sense strand, hydrogen-bond indicator (`║` for G≡C triple bond, `│` for A=T double bond), 3'→5' complement strand, and a clear highlight badge on the mutated SNP locus (`bp #23`), plus GC Content and Codon Peak SNR badges.
-- **Collapsible Scientific Details & Math Drawer**:
-  - Keep the 2D Genomic Signal Processing (GSP) plots and mathematical formulation accessible via a clean collapsible section so the 3D Karyotype & B-DNA Helix stage and Gene/Allele Inspector remain uncluttered.
-
-### C. Compact Top Control Toolbar & Collapsible Detail Drawers Across the Website (`src/pages/DNASimulatorPage.tsx`, `src/pages/AudioSpectrogramPage.tsx`, `src/App.tsx`)
-- **DNA Lab Top Toolbar**:
-  - Consolidate the karyotype preset selector (`46,XX`, `46,XY`, `47,XY +21`, `47,XXY`, `47,XXX`), category filter (`All`, `Appearance`, `Sensory`, `Neuro & Sleep`, `Metabolism & Blood`), and 3D view mode switcher into a single compact toolbar directly above the 3D stage.
-- **Audio & Spectrogram Lab Streamlining**:
-  - Group the primary source selector (Tone Generator, Upload Audio, Live Microphone), waveform picker, and Play/Stop transport into a single clean top toolbar right above the 3D/2D visual stage.
-  - Place secondary synthesis tools (Multi-Click Pinned Signal Synthesizer, Frequency Range Player, and SNR / Voice Clarity Engine) into clean, clearly labeled collapsible drawers so the 3D Waterfall & 2D Spectrogram stage stays front-and-center.
+> [!IMPORTANT]
+> All core decisions have been confirmed based on your answers:
+> - ** Confirmed Decision 1 (Rendering Engine)**: Replace Three.js with **Babylon.js** (`@babylonjs/core`) powered by native `GlowLayer`, `DefaultRenderingPipeline` (4× MSAA + HDR bloom), and Fresnel rim-lighting shaders.
+> - **Confirmed Decision 2 (Replacement Scope)**: Upgrade **both** the 3D Signal/FFT/Waterfall Visualizer (used on Dashboard, Fourier, and Audio Spectrogram pages) and the 3D 47-Chromosome Karyotype & B-DNA Visualizer (DNA Lab).
+> - **Confirmed Decision 3 (Preserved Features)**: Keep all interactive audio synthesis, live microphone input, clickable FFT frequency tone auditioning, 46/47-chromosome karyotype presets, and bilingual (`EN`/`FA`) Human Genome Numeric Facts (`99.9%` human DNA identity, `98.5%` non-coding DNA, `3.2 Gb` genome, `2.0 m` DNA length).
 
 ---
 
-## 3. Verification Plan
-- Compile and lint the TypeScript codebase (`compile_applet` + `lint_applet`) with zero errors.
-- Verify both English (`LTR`) and Persian (`RTL`) layouts, light and dark themes, and responsive behavior across desktop and mobile viewports.
+## 1. Overview & Core Concept
+
+- **What It Does**: Replaces blocky procedural Three.js primitives with a dedicated **Babylon.js** scientific rendering pipeline that delivers smooth continuous 3D wave ribbons, optical phosphor bloom (`GlowLayer`), and confocal-microscopy Fresnel fluorescence shaders for human chromosomes and DNA.
+- **Target Audience / Persona**: Students, educators, audio engineers, and genomics enthusiasts exploring real-time signal processing and human genetics.
+- **Key Value**: Eliminates beaded/blocky low-poly artifacts and washed-out lighting by leveraging Babylon.js's native `CreateRibbon`, updatable `CreateTube`, `GlowLayer`, and Fresnel edge-glow shaders.
+
+---
+
+## 2. User Experience & Visual Design
+
+### A. Visual Identity & Shader Direction
+- **Aesthetic Direction**: **Dark-Field Optical & Confocal Fluorescence Instrumentation** — inspired by high-end hardware spectrum analyzers and dark-field fluorescence microscopy.
+- **Color Palette & Mood**:
+  - **60% Dominant Canvas**: Deep Space Obsidian (`#040711` / `#070B16`) with exponential depth fog and a dark circular calibration stage.
+  - **30% Structural Surfaces**: Slate glass panels (`#0F172A`), crisp `1px` hairline borders (`#1E293B`), and `IBM Plex Mono` tabular readouts (`tabular-nums`).
+  - **10% Optical Phosphor & Fluorescence Accents**: Electric Cyan (`#06B6D4`), Phosphor Lime (`#7FD141`), Telemetry Amber (`#F59E0B`), and Rose Crimson (`#F43F5E`).
+- **Babylon.js Native Visual Upgrades**:
+  1. **Multi-Pass `GlowLayer` + 4× MSAA Pipeline**: Every active signal trace, FFT peak-hold crown, DNA hydrogen-bond bridge, and gene locus band emits a true optical glow halo with 4× hardware anti-aliasing.
+  2. **Continuous Updatable `CreateTube` & `CreateRibbon` Waveforms**: Instead of joining 150 separate cylinder and sphere primitives (which created beaded lumps), Babylon.js updates a single continuous `CreateTube` mesh and a smooth `CreateRibbon` amplitude curtain at 60 FPS.
+  3. **Confocal Fluorescence Fresnel Shaders for Chromosomes & DNA**: Each sister chromatid and DNA sugar-phosphate backbone uses Babylon's `emissiveFresnelParameters` (rim-lighting shader) combined with high-contrast Giemsa G-band textures so chromosomes look like authentic translucent dark-field confocal microscopy specimens rather than flat plastic sticks.
+
+### B. Key User Flows
+1. **Babylon.js 3D Signal, FFT & Waterfall Stage**:
+   - Switch seamlessly between **All 3D**, **Signal & Harmonics**, **3D Waterfall Terrain**, and **360° FFT Arena**.
+   - Hover or click any 3D FFT spectrum pillar to inspect its exact frequency (`Hz` / `kHz`) and `dB` level and audition a synthesized pure tone.
+   - Switch camera views (**3D Orbit**, **Time X-Y**, **FFT Z-Y**, **Top Map**) with smooth Babylon `ArcRotateCamera` inertial damping (`inertia = 0.88`), and toggle visual shader themes (**Cyber Cyan**, **Gold Obsidian**, **Bio-Neon**).
+2. **Babylon.js 3D Karyotype & B-DNA Molecular Stage**:
+   - Inspect all **46 or 47 human chromosomes** rendered with smooth organic p-arm and q-arm sister chromatid geometry, glowing centromere constrictions, and Fresnel edge-lit Giemsa G-bands.
+   - Click any chromosome or trait category to highlight its cytogenetic locus and inspect the rotating **3D B-DNA Double Helix** with smooth helical ribbons, color-coded base-pair rungs (`A=T`, `G≡C`), glowing hydrogen-bond cores, and active SNP mutation ring.
+
+---
+
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1: Babylon.js (`@babylonjs/core`) Direct Engine Lifecycle vs. Heavy Wrapper Libraries**
+  - *Chosen Approach*: Use `@babylonjs/core` directly inside clean React `useEffect` / `useRef` canvas controllers with `Engine`, `Scene`, `ArcRotateCamera`, `GlowLayer`, and `Scene.registerBeforeRender`.
+  - *Why*: Direct `@babylonjs/core` integration avoids React reconciliation overhead during 60 FPS vertex buffer updates (`MeshBuilder.CreateTube` / `CreateRibbon` / `updateVerticesData`), guarantees deterministic disposal on unmount, and provides full access to Babylon's shader and glow pipeline.
+- **Decision 2: Fresnel Rim-Glow & Dynamic Vertex Ribbons Instead of Segmented Primitives**
+  - *Chosen Approach*: Use Babylon's `MeshBuilder.CreateRibbon` for the 3D waterfall spectrogram and signal curtain, `MeshBuilder.CreateTube` for continuous analytic waves and DNA helical backbones, and `FresnelParameters` for organic edge luminescence.
+  - *Why*: Eliminates the segmented "beaded worm" and "lollipop ball" artifacts of basic primitives.
+
+---
+
+## 4. Technical Architecture & Data Strategy
+
+### Architecture & Component Diagram
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                     React Application & Audio/Genomic State               │
+│   • Web Audio API AnalyserNode (Waveform, Log-FFT dB, Waterfall Matrix)   │
+│   • Human Karyotype Engine (46,XX / 46,XY / 47,+21) & Gene Loci + Facts   │
+└───────────────────┬───────────────────────────────────────┬───────────────┘
+                    │                                       │
+                    ▼                                       ▼
+┌───────────────────────────────────────┐ ┌─────────────────────────────────┐
+│   Babylon.js Signal & FFT 3D Engine   │ │  Babylon.js Karyotype & DNA 3D  │
+│  • Engine (antialias, adaptToDevice)  │ │  • Engine + Scene + GlowLayer   │
+│  • ArcRotateCamera (smooth inertia)   │ │  • ArcRotateCamera Presets      │
+│  • GlowLayer (kernel 64, neon bloom)  │ │  • 46/47 Sister Chromatid Pairs │
+│  • Continuous Updatable Signal Tube   │ │    with Fresnel Rim Shaders &   │
+│    & Ribbon Amplitude Curtain         │ │    Giemsa G-Band DynamicTexture │
+│  • 64-Bin PBR Spectrum Towers +       │ │  • Continuous B-DNA Ribbon      │
+│    Floating Glowing Peak-Hold Crowns  │ │    Tubes + A=T / G≡C Rungs +    │
+│  • High-Density Ribbon Waterfall Mesh │ │    Glowing SNP Scanner Halo     │
+└───────────────────────────────────────┘ └─────────────────────────────────┘
+```
+
+### Interactive Component & State Mapping
+- **Camera Choreography (`ArcRotateCamera`)**: Preset buttons smoothly animate `alpha`, `beta`, `radius`, and `target` using frame-rate-independent exponential damping inside `scene.registerBeforeRender`.
+- **Pointer Picking (`scene.onPointerObservable`)**: Hovering over 3D FFT spectrum bars or clicking 3D chromosomes uses Babylon's raycast picking (`pickInfo.pickedMesh.metadata`) to update the HUD readout, trigger audio tone synthesis, or select the active chromosome and gene locus.
+- **Resize & WebGL Context Safety**: Automatically attaches a `ResizeObserver` calling `engine.resize()` and cleans up all meshes, materials, textures, and the Babylon `Engine` instance on component unmount.
