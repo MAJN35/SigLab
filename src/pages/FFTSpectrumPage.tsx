@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { Suspense, lazy, useEffect, useId, useRef, useState } from 'react';
+import { BarChart3, RotateCcw } from 'lucide-react';
 import { InteractiveHeatmap, InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
-import { Signal3DStage } from '../components/Signal3DStage';
+import type { Signal3DStageProps } from '../components/Signal3DStage';
+import { PageHeader, ParamSlider } from '../components/ui';
+import { getSeriesColor, getSeriesDash } from '../theme/palette';
 import { useLab } from '../store/LabContext';
 import { WindowFunctionType } from '../types';
 import { calculateRMSE } from '../utils/math';
@@ -14,8 +17,68 @@ const WINDOWS: { id: WindowFunctionType; label: string; faLabel: string; sidelob
   { id: 'flattop', label: 'Flat-Top (Amplitude Calibrated)', faLabel: 'فلت‌تاپ (کالیبره دامنه)', sidelobe: '-93 dB' },
 ];
 
+// Babylon.js is heavy: load the 3D stage only when it is about to be seen.
+const Signal3DStage = lazy(() =>
+  import('../components/Signal3DStage').then((m) => ({ default: m.Signal3DStage }))
+);
+
+const STAGE_HEIGHT_CLASS = 'h-[460px] sm:h-[520px]';
+
+const StagePlaceholder: React.FC<{ isFa: boolean }> = ({ isFa }) => (
+  <div
+    className={`neu-card ${STAGE_HEIGHT_CLASS} flex items-center justify-center text-xs font-mono text-slate-500 dark:text-slate-400`}
+    role="status"
+    aria-live="polite"
+  >
+    {isFa ? 'در حال بارگذاری صحنه سه‌بعدی…' : 'Loading 3D stage…'}
+  </div>
+);
+
+/** Mounts the lazy Signal3DStage once its container scrolls near the viewport. */
+const LazySignal3DStage: React.FC<Signal3DStageProps & { isFa: boolean }> = ({ isFa, ...props }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (visible) return;
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '300px 0px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible]);
+
+  return (
+    <div ref={ref}>
+      {visible ? (
+        <Suspense fallback={<StagePlaceholder isFa={isFa} />}>
+          <Signal3DStage {...props} />
+        </Suspense>
+      ) : (
+        <StagePlaceholder isFa={isFa} />
+      )}
+    </div>
+  );
+};
+
 export const FFTSpectrumPage: React.FC = () => {
-  const { experiment, setExperiment, computed, lang, darkMode } = useLab();
+  const { experiment, setExperiment, computed, lang, darkMode, resetExperiment } = useLab();
+  const isFa = lang === 'fa';
+  const fftSizeLabelId = useId();
+  const windowSelectId = useId();
+  const scaleLabelId = useId();
   const fftCfg = experiment.analysis.fft;
 
   const updateFFT = (patch: Partial<typeof fftCfg>) => {
@@ -51,42 +114,51 @@ export const FFTSpectrumPage: React.FC = () => {
     <div className="flex flex-col gap-6">
       {/* Top Controls Card */}
       <div className="neu-card p-5 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {lang === 'fa'
-                ? 'آزمایشگاه تبدیل فوریه سریع (FFT)، چگالی طیف توان (PSD) و STFT'
-                : 'Fast Fourier Transform (FFT), PSD & STFT Laboratory'}
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {lang === 'fa'
-                ? 'تحلیل طیف دامنه و فاز تبدیل فوریه سریع، چگالی طیف توان (PSD)، طیف‌نگار زمان-فرکانس (STFT) و بازسازی دقیق سیگنال با تبدیل فوریه معکوس (IFFT).'
-                : 'Analyze forward FFT magnitude, phase, Power Spectral Density (PSD), Short-Time Fourier Transform (STFT), and exact Inverse FFT reconstruction.'}
-            </p>
-          </div>
-          <div className="text-xs font-mono text-slate-500">
-            {lang === 'fa' ? 'تفکیک‌پذیری فرکانسی Δf = ' : 'Bin Resolution Δf = '}
-            <strong className="text-sky-500">
-              {(experiment.signal.samplingRate / fftCfg.fftSize).toFixed(2)} Hz
-            </strong>{' '}
-            · {lang === 'fa' ? 'خطای بازسازی IFFT = ' : 'IFFT RMSE = '}
-            <strong className="text-emerald-500">{ifftRmse.toExponential(2)}</strong>
-          </div>
-        </div>
+        <PageHeader
+          icon={<BarChart3 className="w-5 h-5" />}
+          title={
+            isFa
+              ? 'آزمایشگاه تبدیل فوریه سریع (FFT)، چگالی طیف توان (PSD) و STFT'
+              : 'Fast Fourier Transform (FFT), PSD & STFT Laboratory'
+          }
+          subtitle={
+            isFa
+              ? 'تحلیل طیف دامنه و فاز تبدیل فوریه سریع، چگالی طیف توان (PSD)، طیف‌نگار زمان-فرکانس (STFT) و بازسازی دقیق سیگنال با تبدیل فوریه معکوس (IFFT).'
+              : 'Analyze forward FFT magnitude, phase, Power Spectral Density (PSD), Short-Time Fourier Transform (STFT), and exact Inverse FFT reconstruction.'
+          }
+          stats={[
+            {
+              label: isFa ? 'تفکیک‌پذیری فرکانسی Δf' : 'Bin Resolution Δf',
+              value: `${(experiment.signal.samplingRate / fftCfg.fftSize).toFixed(2)} Hz`,
+            },
+            { label: isFa ? 'خطای بازسازی IFFT' : 'IFFT RMSE', value: ifftRmse.toExponential(2) },
+          ]}
+          actions={
+            <button
+              type="button"
+              onClick={resetExperiment}
+              className="neu-btn rounded-full px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              {isFa ? 'بازنشانی به پیش‌فرض' : 'Reset to defaults'}
+            </button>
+          }
+        />
 
         {/* FFT Parameters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
-            <label className="block text-xs font-mono text-slate-500 mb-1.5">
+            <span id={fftSizeLabelId} className="block text-xs font-mono text-slate-500 mb-1.5">
               {lang === 'fa' ? 'اندازه پنجره FFT (N)' : 'FFT Radix-2 Size (N)'}
-            </label>
-            <div className="flex flex-wrap gap-1">
+            </span>
+            <div className="flex flex-wrap gap-1" role="group" aria-labelledby={fftSizeLabelId}>
               {([128, 256, 512, 1024, 2048] as const).map((sz) => (
                 <button
                   key={sz}
                   type="button"
                   onClick={() => updateFFT({ fftSize: sz })}
-                  className={`neu-btn px-2.5 py-1 rounded text-xs font-mono cursor-pointer ${
+                  aria-pressed={fftCfg.fftSize === sz}
+                  className={`neu-btn px-2.5 py-1 rounded-chip text-xs font-mono cursor-pointer ${
                     fftCfg.fftSize === sz ? 'neu-btn-active text-sky-500 font-bold' : ''
                   }`}
                 >
@@ -97,13 +169,14 @@ export const FFTSpectrumPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-mono text-slate-500 mb-1.5">
+            <label htmlFor={windowSelectId} className="block text-xs font-mono text-slate-500 mb-1.5">
               {lang === 'fa' ? 'پنجره هموارسازی طیفی w[n]' : 'Apodization Window w[n]'}
             </label>
             <select
+              id={windowSelectId}
               value={fftCfg.windowType}
               onChange={(e) => updateFFT({ windowType: e.target.value as WindowFunctionType })}
-              className="neu-inset w-full px-3 py-1.5 rounded-lg text-xs font-mono bg-transparent"
+              className="neu-inset w-full px-3 py-1.5 rounded-control text-xs font-mono"
             >
               {WINDOWS.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -113,53 +186,43 @@ export const FFTSpectrumPage: React.FC = () => {
             </select>
           </div>
 
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'نرخ نمونه‌برداری (fs)' : 'Sampling Rate (fs)'}</span>
-              <span className="text-sky-500 font-semibold">
-                {experiment.signal.samplingRate} Hz
-              </span>
-            </div>
-            <input
-              type="range"
-              min={64}
-              max={1024}
-              step={32}
-              value={experiment.signal.samplingRate}
-              onChange={(e) =>
-                setExperiment((prev) => ({
-                  ...prev,
-                  signal: { ...prev.signal, samplingRate: Number(e.target.value) },
-                }))
-              }
-              className="sci-slider"
-            />
-          </div>
+          <ParamSlider
+            label="Sampling Rate (fs)"
+            faLabel="نرخ نمونه‌برداری (fs)"
+            value={experiment.signal.samplingRate}
+            min={64}
+            max={1024}
+            step={32}
+            unit="Hz"
+            onChange={(v) =>
+              setExperiment((prev) => ({
+                ...prev,
+                signal: { ...prev.signal, samplingRate: v },
+              }))
+            }
+          />
 
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'حداکثر فرکانس نمایش' : 'Frequency Display Limit'}</span>
-              <span className="text-sky-500 font-semibold">{fftCfg.maxFreqLimit} Hz</span>
-            </div>
-            <input
-              type="range"
-              min={20}
-              max={512}
-              step={10}
-              value={fftCfg.maxFreqLimit}
-              onChange={(e) => updateFFT({ maxFreqLimit: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
+          <ParamSlider
+            label="Frequency Display Limit"
+            faLabel="حداکثر فرکانس نمایش"
+            value={fftCfg.maxFreqLimit}
+            min={20}
+            max={512}
+            step={10}
+            unit="Hz"
+            onChange={(v) => updateFFT({ maxFreqLimit: v })}
+          />
 
           <div className="flex flex-col justify-between">
-            <span className="text-xs font-mono text-slate-500">
+            <span id={scaleLabelId} className="text-xs font-mono text-slate-500">
               {lang === 'fa' ? 'مقیاس محور دامنه' : 'Amplitude Axis Scale'}
             </span>
             <button
               type="button"
+              aria-describedby={scaleLabelId}
+              aria-pressed={fftCfg.logScale}
               onClick={() => updateFFT({ logScale: !fftCfg.logScale })}
-              className="neu-btn py-1.5 px-3 rounded-lg text-xs font-mono font-semibold text-sky-500 cursor-pointer"
+              className="neu-btn py-1.5 px-3 rounded-control text-xs font-mono font-semibold text-sky-600 dark:text-sky-400 cursor-pointer"
             >
               {fftCfg.logScale
                 ? lang === 'fa'
@@ -177,7 +240,11 @@ export const FFTSpectrumPage: React.FC = () => {
           <span className="text-xs font-mono font-semibold text-slate-500">
             {lang === 'fa' ? 'قله‌های فرکانسی غالب شناسایی‌شده:' : 'Detected Dominant Spectral Peaks:'}
           </span>
-          <div className="flex flex-wrap items-center gap-4 text-xs font-mono tabular-nums">
+          <div
+            className="flex flex-wrap items-center gap-4 text-xs font-mono tabular-nums"
+            role="status"
+            aria-live="polite"
+          >
             {computed.peaks.length === 0 ? (
               <span className="text-slate-400">
                 {lang === 'fa'
@@ -200,7 +267,8 @@ export const FFTSpectrumPage: React.FC = () => {
       </div>
 
       {/* 3D Interactive FFT, Signal Helix & Time-Frequency Stage */}
-      <Signal3DStage
+      <LazySignal3DStage
+        isFa={isFa}
         fallbackWave={computed.noisySignal}
         fallbackFilteredWave={computed.filteredSignal}
         fallbackSpectrumMag={computed.spectrum.magnitude}
@@ -209,7 +277,7 @@ export const FFTSpectrumPage: React.FC = () => {
         waveType={experiment.signal.type}
         lang={lang}
         darkMode={darkMode}
-        heightClass="h-[460px] sm:h-[520px]"
+        heightClass={STAGE_HEIGHT_CLASS}
       />
 
       {/* Magnitude Spectrum & Power Spectral Density */}
@@ -236,6 +304,8 @@ export const FFTSpectrumPage: React.FC = () => {
               ? 'دامنه |X(f)|'
               : 'Amplitude |X(f)|'
           }
+          xUnit="Hz"
+          yUnit={fftCfg.logScale ? 'dB' : undefined}
           height={265}
           peaks={computed.peaks.map((pk) => ({
             x: pk.frequency,
@@ -253,7 +323,7 @@ export const FFTSpectrumPage: React.FC = () => {
                 ? 'دامنه |X(f)|'
                 : 'Magnitude |X(f)|',
               data: mag,
-              color: '#0ea5e9',
+              color: getSeriesColor(0),
               lineWidth: 2,
             },
           ]}
@@ -267,26 +337,36 @@ export const FFTSpectrumPage: React.FC = () => {
           }
           subtitle={
             lang === 'fa'
-              ? 'امکان مشاهده هم‌زمان چگالی طیف توان (dB/Hz) و زاویه فاز (درجه)'
-              : 'Toggle visibility between Periodogram PSD (dB/Hz) and Phase Angle (degrees)'
+              ? 'چگالی طیف توان (dB/Hz، محور چپ) و زاویه فاز (درجه، محور راست)'
+              : 'Periodogram PSD (dB/Hz, left axis) and Phase Angle (degrees, right axis)'
           }
           xData={freqs}
           xLabel={lang === 'fa' ? 'فرکانس (Hz)' : 'Frequency (Hz)'}
-          yLabel={lang === 'fa' ? 'چگالی توان (dB/Hz) / فاز (°)' : 'PSD (dB/Hz) / Phase (°)'}
+          yLabel={lang === 'fa' ? 'چگالی توان (dB/Hz)' : 'PSD (dB/Hz)'}
+          yLabelRight={lang === 'fa' ? 'فاز (°)' : 'Phase (°)'}
+          yDomainRightOverride={[-180, 180]}
+          xUnit="Hz"
+          yUnit="dB/Hz"
+          yUnitRight="°"
           height={265}
           series={[
             {
               id: 'psd-curve',
               label: lang === 'fa' ? 'چگالی طیف توان (dB/Hz)' : 'Power Spectral Density (dB/Hz)',
               data: psd,
-              color: '#10b981',
+              color: getSeriesColor(0),
+              dash: getSeriesDash(0),
+              unit: 'dB/Hz',
               lineWidth: 1.9,
             },
             {
               id: 'phase-curve',
               label: lang === 'fa' ? 'طیف فاز (درجه)' : 'Phase Spectrum (deg)',
               data: phase,
-              color: '#f59e0b',
+              color: getSeriesColor(1),
+              dash: getSeriesDash(1),
+              yAxis: 'right',
+              unit: '°',
               lineWidth: 1.3,
               visible: false,
             },
@@ -312,6 +392,11 @@ export const FFTSpectrumPage: React.FC = () => {
           matrix={computed.spectrogram.matrix}
           xLabel={lang === 'fa' ? 'زمان (ثانیه)' : 'Time (s)'}
           yLabel={lang === 'fa' ? 'فرکانس (Hz)' : 'Frequency (Hz)'}
+          xProbeLabel={lang === 'fa' ? 'زمان' : 'Time'}
+          xProbeUnit=" s"
+          yProbeLabel={lang === 'fa' ? 'فرکانس' : 'Frequency'}
+          yProbeUnit=" Hz"
+          valueProbeLabel={lang === 'fa' ? 'انرژی' : 'Energy'}
           height={260}
         />
 
@@ -329,20 +414,22 @@ export const FFTSpectrumPage: React.FC = () => {
           xData={computed.time.slice(0, ifftLen)}
           xLabel={lang === 'fa' ? 'زمان (ثانیه)' : 'Time (s)'}
           yLabel={lang === 'fa' ? 'دامنه (V)' : 'Amplitude (V)'}
+          xUnit="s"
+          yUnit="V"
           height={260}
           series={[
             {
               id: 'orig-ifft',
               label: lang === 'fa' ? 'سیگنال ورودی اصلی x[n]' : 'Original Input Signal x[n]',
               data: computed.noisySignal.slice(0, ifftLen),
-              color: '#0ea5e9',
+              color: getSeriesColor(0),
               lineWidth: 2,
             },
             {
               id: 'rec-ifft',
               label: lang === 'fa' ? 'سیگنال بازسازی‌شده با IFFT' : 'IFFT Reconstructed x̂[n]',
               data: computed.spectrum.ifftReconstructed,
-              color: '#10b981',
+              color: getSeriesColor(1),
               lineWidth: 1.8,
               dashed: true,
             },

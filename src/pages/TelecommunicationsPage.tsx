@@ -1,7 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
+import { Radio, RotateCcw } from 'lucide-react';
 import { LAB_IMAGES } from '../assets/labImages';
 import { InteractivePlot } from '../components/InteractivePlot';
-import { TheoryAccordion } from '../components/MathBlock';
+import { LiveEquation, TheoryAccordion } from '../components/MathBlock';
+import { PageHeader, ParamSlider } from '../components/ui';
+import { getSeriesColor, getSeriesDash, MARKER_COLOR } from '../theme/palette';
 import { computeFFTSpectrum } from '../simulations/fft';
 import { simulateAnalogModulation } from '../simulations/modulation';
 import { useLab } from '../store/LabContext';
@@ -27,9 +30,21 @@ const NOISE_TYPES: { id: NoiseType; label: string; faLabel: string }[] = [
 ];
 
 export const TelecommunicationsPage: React.FC = () => {
-  const { experiment, setExperiment, computed, lang } = useLab();
+  const { experiment, setExperiment, computed, lang, resetExperiment } = useLab();
+  const isFa = lang === 'fa';
   const analogCfg = experiment.modulation.analog;
   const noiseCfg = experiment.noise;
+  const modGroupId = useId();
+  const noiseGroupId = useId();
+
+  // Which noise parameters the selected noise model actually uses
+  // (mirrors the switch in simulations/signals addNoise).
+  const nt = noiseCfg.type;
+  const usesSnr = nt !== 'gaussian';
+  const usesAmplitude = nt !== 'awgn';
+  const usesVariance = nt === 'gaussian';
+  const usesInterference = nt === 'powerline' || nt === 'sinusoidal' || nt === 'custom';
+  const usesImpulse = nt === 'impulse' || nt === 'custom';
 
   const updateAnalog = (patch: Partial<typeof analogCfg>) => {
     setExperiment((prev) => ({
@@ -58,35 +73,63 @@ export const TelecommunicationsPage: React.FC = () => {
     [sim]
   );
 
+  // Approximate transmission bandwidth for the selected scheme (display only).
+  const isAngle = analogCfg.type === 'FM' || analogCfg.type === 'PM';
+  const bandwidthHz = isAngle
+    ? 2 * analogCfg.messageFreq * (analogCfg.modulationIndex + 1)
+    : analogCfg.type === 'SSB'
+      ? analogCfg.messageFreq
+      : 2 * analogCfg.messageFreq;
+  const bandwidthTex = isAngle
+    ? 'B_T \\approx 2f_m(\\beta + 1) = 2 \\cdot {{fm}}\\,\\text{Hz} \\cdot ({{beta}} + 1) = {{bw}}\\,\\text{Hz}'
+    : analogCfg.type === 'SSB'
+      ? 'B_T = f_m = {{bw}}\\,\\text{Hz}'
+      : 'B_T = 2f_m = 2 \\cdot {{fm}}\\,\\text{Hz} = {{bw}}\\,\\text{Hz}';
+  const spectrumMarkers = useMemo(
+    () => [{ x: analogCfg.carrierFreq, label: `fc = ${analogCfg.carrierFreq} Hz`, color: MARKER_COLOR }],
+    [analogCfg.carrierFreq]
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {/* Analog Modulation Section Header + Transceiver Block Diagram */}
       <div className="neu-card p-5 flex flex-col gap-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
           <div className="lg:col-span-8 flex flex-col gap-3">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">
-                {lang === 'fa'
-                  ? 'آزمایشگاه مخابرات آنالوگ و مدل‌سازی نویز کانال'
-                  : 'Telecommunications & Noise Laboratory'}
-              </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {lang === 'fa'
+            <PageHeader
+              icon={<Radio className="w-5 h-5" />}
+              title={isFa ? 'مخابرات آنالوگ' : 'Analog Telecom'}
+              subtitle={
+                isFa
                   ? 'شبیه‌سازی کامل زنجیره فرستنده-گیرنده مخابرات آنالوگ (AM, DSB-SC, SSB, FM, PM) و آزمایشگاه تزریق نویز و تداخل کانال.'
-                  : 'End-to-end Analog Transceiver chain (AM, DSB-SC, SSB, FM, PM) and multi-distribution Channel Noise Laboratory.'}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
+                  : 'End-to-end Analog Transceiver chain (AM, DSB-SC, SSB, FM, PM) and multi-distribution Channel Noise Laboratory.'
+              }
+              actions={
+                <button
+                  type="button"
+                  onClick={resetExperiment}
+                  className="neu-btn rounded-control px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                  {isFa ? 'بازنشانی پیش‌فرض‌ها' : 'Reset to defaults'}
+                </button>
+              }
+            />
+            <span id={modGroupId} className="text-xs font-medium text-slate-600 dark:text-slate-300">
+              {isFa ? 'نوع مدولاسیون' : 'Modulation type'}
+            </span>
+            <div role="group" aria-labelledby={modGroupId} className="flex flex-wrap gap-1.5">
               {ANALOG_MODS.map((m) => (
                 <button
                   key={m.id}
                   type="button"
+                  aria-pressed={analogCfg.type === m.id}
                   onClick={() => updateAnalog({ type: m.id })}
                   className={`neu-btn px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer ${
                     analogCfg.type === m.id ? 'btn-tool-pill' : ''
                   }`}
                 >
-                  {lang === 'fa' ? m.faLabel : m.label}
+                  {isFa ? m.faLabel : m.label}
                 </button>
               ))}
             </div>
@@ -100,7 +143,7 @@ export const TelecommunicationsPage: React.FC = () => {
                 referrerPolicy="no-referrer"
                 className="w-full h-32 object-cover opacity-90"
               />
-              <div className="p-2 bg-slate-950/85 border-t border-sky-400/20 text-[10px] font-mono text-slate-300 flex justify-between">
+              <div className="p-2 bg-slate-950/85 border-t border-sky-400/20 text-2xs font-mono text-slate-300 flex justify-between gap-2">
                 <span>
                   {lang === 'fa'
                     ? 'طیف باند عبوری و حامل فرکانس رادیویی (RF)'
@@ -148,10 +191,12 @@ export const TelecommunicationsPage: React.FC = () => {
               <React.Fragment key={node.step}>
                 <div className="neu-card-sm px-3 py-2 text-center">
                   <div className="font-semibold text-sky-600 dark:text-sky-400">{node.step}</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">{node.detail}</div>
+                  <div className="text-2xs text-slate-500 mt-0.5">{node.detail}</div>
                 </div>
                 {idx < arr.length - 1 && (
-                  <span className="text-slate-400 font-bold px-1">→</span>
+                  <span aria-hidden="true" className="text-slate-400 font-bold px-1 rtl:rotate-180">
+                    →
+                  </span>
                 )}
               </React.Fragment>
             ))}
@@ -159,88 +204,68 @@ export const TelecommunicationsPage: React.FC = () => {
         </div>
 
         {/* Analog Modulation Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 pt-1">
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'فرکانس پیام (fm)' : 'Message Freq (fm)'}</span>
-              <span className="text-sky-500 font-semibold">{analogCfg.messageFreq} Hz</span>
-            </div>
-            <input
-              type="range"
-              min={2}
-              max={20}
-              step={1}
-              value={analogCfg.messageFreq}
-              onChange={(e) => updateAnalog({ messageFreq: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'فرکانس حامل (fc)' : 'Carrier Freq (fc)'}</span>
-              <span className="text-sky-500 font-semibold">{analogCfg.carrierFreq} Hz</span>
-            </div>
-            <input
-              type="range"
-              min={30}
-              max={150}
-              step={5}
-              value={analogCfg.carrierFreq}
-              onChange={(e) => updateAnalog({ carrierFreq: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'شاخص مدولاسیون (m / β)' : 'Modulation Index (m / β)'}</span>
-              <span className="text-sky-500 font-semibold">
-                {analogCfg.modulationIndex.toFixed(2)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0.1}
-              max={3.5}
-              step={0.05}
-              value={analogCfg.modulationIndex}
-              onChange={(e) => updateAnalog({ modulationIndex: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'دامنه حامل (Ac)' : 'Carrier Amp (Ac)'}</span>
-              <span className="text-sky-500 font-semibold">{analogCfg.carrierAmp.toFixed(1)} V</span>
-            </div>
-            <input
-              type="range"
-              min={0.5}
-              max={3.0}
-              step={0.1}
-              value={analogCfg.carrierAmp}
-              onChange={(e) => updateAnalog({ carrierAmp: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'نسبت سیگنال به نویز کانال' : 'Channel SNR'}</span>
-              <span className="text-amber-500 font-semibold">{analogCfg.snrDb} dB</span>
-            </div>
-            <input
-              type="range"
-              min={-2}
-              max={35}
-              step={1}
-              value={analogCfg.snrDb}
-              onChange={(e) => updateAnalog({ snrDb: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-1">
+          <ParamSlider
+            label="Message Freq (fm)"
+            faLabel="فرکانس پیام (fm)"
+            value={analogCfg.messageFreq}
+            min={2}
+            max={20}
+            step={1}
+            unit="Hz"
+            lang={lang}
+            onChange={(v) => updateAnalog({ messageFreq: v })}
+          />
+          <ParamSlider
+            label="Carrier Freq (fc)"
+            faLabel="فرکانس حامل (fc)"
+            value={analogCfg.carrierFreq}
+            min={30}
+            max={150}
+            step={5}
+            unit="Hz"
+            lang={lang}
+            onChange={(v) => updateAnalog({ carrierFreq: v })}
+          />
+          <ParamSlider
+            label={isAngle ? 'Modulation Index (β)' : 'Modulation Index (m)'}
+            faLabel={isAngle ? 'شاخص مدولاسیون (β)' : 'شاخص مدولاسیون (m)'}
+            value={analogCfg.modulationIndex}
+            min={0.1}
+            max={3.5}
+            step={0.05}
+            lang={lang}
+            onChange={(v) => updateAnalog({ modulationIndex: v })}
+            warning={
+              analogCfg.type === 'AM' && analogCfg.modulationIndex > 1
+                ? isFa
+                  ? 'm > 1: فرامدولاسیون — آشکارساز پوش اعوجاج ایجاد می‌کند'
+                  : 'm > 1: over-modulation — envelope detection distorts'
+                : undefined
+            }
+          />
+          <ParamSlider
+            label="Carrier Amp (Ac)"
+            faLabel="دامنه حامل (Ac)"
+            value={analogCfg.carrierAmp}
+            min={0.5}
+            max={3.0}
+            step={0.1}
+            unit="V"
+            lang={lang}
+            onChange={(v) => updateAnalog({ carrierAmp: v })}
+          />
+          <ParamSlider
+            label="Channel SNR"
+            faLabel="نسبت سیگنال به نویز کانال"
+            value={analogCfg.snrDb}
+            min={-2}
+            max={35}
+            step={1}
+            unit="dB"
+            lang={lang}
+            onChange={(v) => updateAnalog({ snrDb: v })}
+          />
         </div>
       </div>
 
@@ -258,22 +283,25 @@ export const TelecommunicationsPage: React.FC = () => {
               : 'Inspect carrier envelope / phase modulation and additive channel noise'
           }
           xData={sim.time}
-          xLabel="Time (s)"
-          yLabel="Amplitude (V)"
+          xLabel={isFa ? 'زمان (s)' : 'Time (s)'}
+          xUnit="s"
+          yLabel={isFa ? 'دامنه (V)' : 'Amplitude (V)'}
+          yUnit="V"
           height={260}
           series={[
             {
               id: 'mod-clean',
               label: lang === 'fa' ? `سیگنال مدوله‌شده ${analogCfg.type}` : `Modulated ${analogCfg.type}`,
               data: sim.modulated,
-              color: '#0ea5e9',
+              color: getSeriesColor(0),
               lineWidth: 1.8,
             },
             {
               id: 'mod-noisy',
               label: lang === 'fa' ? 'دریافتی نویزی r(t)' : 'Noisy Channel r(t)',
               data: sim.noisy,
-              color: '#f59e0b',
+              color: getSeriesColor(1),
+              dash: getSeriesDash(1),
               lineWidth: 1.1,
               visible: false,
             },
@@ -281,9 +309,9 @@ export const TelecommunicationsPage: React.FC = () => {
               id: 'carrier-ref',
               label: lang === 'fa' ? 'موج حامل خام c(t)' : 'Unmodulated Carrier',
               data: sim.carrier,
-              color: '#94a3b8',
+              color: MARKER_COLOR,
               lineWidth: 1,
-              dashed: true,
+              dash: getSeriesDash(2),
               visible: false,
             },
           ]}
@@ -301,22 +329,25 @@ export const TelecommunicationsPage: React.FC = () => {
               : 'Compare transmitted baseband waveform against receiver low-pass output'
           }
           xData={sim.time}
-          xLabel="Time (s)"
-          yLabel="Amplitude (V)"
+          xLabel={isFa ? 'زمان (s)' : 'Time (s)'}
+          xUnit="s"
+          yLabel={isFa ? 'دامنه (V)' : 'Amplitude (V)'}
+          yUnit="V"
           height={260}
           series={[
             {
               id: 'msg-orig',
               label: lang === 'fa' ? 'پیام ارسالی m(t)' : 'Transmitted Message m(t)',
               data: sim.message,
-              color: '#0ea5e9',
+              color: getSeriesColor(0),
               lineWidth: 2,
             },
             {
               id: 'msg-rec',
               label: lang === 'fa' ? 'پیام بازیابی‌شده m̂(t)' : 'Demodulated Recovered m̂(t)',
               data: sim.recovered,
-              color: '#10b981',
+              color: getSeriesColor(2),
+              dash: getSeriesDash(1),
               lineWidth: 2,
             },
           ]}
@@ -335,19 +366,32 @@ export const TelecommunicationsPage: React.FC = () => {
             : `Centered around Carrier Frequency fc = ${analogCfg.carrierFreq} Hz with sidebands at fc ± k·fm`
         }
         xData={modSpectrum.frequencies.slice(0, 260)}
-        xLabel="Frequency (Hz)"
-        yLabel="Magnitude |S(f)|"
+        xLabel={isFa ? 'فرکانس (Hz)' : 'Frequency (Hz)'}
+        xUnit="Hz"
+        yLabel={isFa ? 'اندازه |S(f)|' : 'Magnitude |S(f)|'}
         height={230}
+        markers={spectrumMarkers}
         series={[
           {
             id: 'mod-spec',
             label: lang === 'fa' ? `طیف فرکانسی ${analogCfg.type}` : `${analogCfg.type} Passband Spectrum`,
             data: modSpectrum.magnitude.slice(0, 260),
-            color: '#8b5cf6',
+            color: getSeriesColor(7),
             lineWidth: 2,
           },
         ]}
       />
+      <div className="neu-card px-4 py-3 overflow-x-auto -mt-3">
+        <LiveEquation
+          tex={bandwidthTex}
+          values={{ fm: analogCfg.messageFreq, beta: analogCfg.modulationIndex, bw: bandwidthHz }}
+          caption={
+            isFa
+              ? `پهنای باند تقریبی ${analogCfg.type} حول fc = ${analogCfg.carrierFreq} Hz`
+              : `Approximate ${analogCfg.type} transmission bandwidth around fc = ${analogCfg.carrierFreq} Hz`
+          }
+        />
+      </div>
 
       {/* Dedicated Noise Laboratory Section */}
       <div className="neu-card p-5 flex flex-col gap-4">
@@ -364,11 +408,15 @@ export const TelecommunicationsPage: React.FC = () => {
                 : 'Inject stochastic and deterministic interference models and evaluate real-time SNR degradation and filter recovery.'}
             </p>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <span id={noiseGroupId} className="sr-only">
+            {isFa ? 'مدل نویز' : 'Noise model'}
+          </span>
+          <div role="group" aria-labelledby={noiseGroupId} className="flex flex-wrap gap-1.5">
             {NOISE_TYPES.map((n) => (
               <button
                 key={n.id}
                 type="button"
+                aria-pressed={noiseCfg.type === n.id}
                 onClick={() => updateNoise({ type: n.id })}
                 className={`neu-btn px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer ${
                   noiseCfg.type === n.id ? 'btn-tool-pill font-semibold' : ''
@@ -380,95 +428,80 @@ export const TelecommunicationsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'نسبت SNR هدف' : 'Target SNR'}</span>
-              <span className="text-amber-500 font-semibold">{noiseCfg.snrDb} dB</span>
-            </div>
-            <input
-              type="range"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {usesSnr && (
+            <ParamSlider
+              label="Target SNR"
+              faLabel="نسبت SNR هدف"
+              value={noiseCfg.snrDb}
               min={-5}
               max={35}
               step={1}
-              value={noiseCfg.snrDb}
-              onChange={(e) => updateNoise({ snrDb: Number(e.target.value) })}
-              className="sci-slider"
+              unit="dB"
+              lang={lang}
+              onChange={(v) => updateNoise({ snrDb: v })}
             />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'دامنه نویز' : 'Noise Amplitude'}</span>
-              <span className="text-amber-500 font-semibold">
-                {noiseCfg.amplitude.toFixed(2)} V
-              </span>
-            </div>
-            <input
-              type="range"
+          )}
+          {usesAmplitude && (
+            <ParamSlider
+              label="Noise Amplitude"
+              faLabel="دامنه نویز"
+              value={noiseCfg.amplitude}
               min={0.05}
               max={2.5}
               step={0.05}
-              value={noiseCfg.amplitude}
-              onChange={(e) => updateNoise({ amplitude: Number(e.target.value) })}
-              className="sci-slider"
+              unit="V"
+              lang={lang}
+              onChange={(v) => updateNoise({ amplitude: v })}
             />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'واریانس (σ²)' : 'Variance (σ²)'}</span>
-              <span className="text-amber-500 font-semibold">
-                {noiseCfg.variance.toFixed(2)}
-              </span>
-            </div>
-            <input
-              type="range"
+          )}
+          {usesVariance && (
+            <ParamSlider
+              label="Variance (σ²)"
+              faLabel="واریانس (σ²)"
+              value={noiseCfg.variance}
               min={0.05}
               max={2.0}
               step={0.05}
-              value={noiseCfg.variance}
-              onChange={(e) => updateNoise({ variance: Number(e.target.value) })}
-              className="sci-slider"
+              lang={lang}
+              onChange={(v) => updateNoise({ variance: v })}
             />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'فرکانس تداخل' : 'Interference Freq'}</span>
-              <span className="text-amber-500 font-semibold">
-                {noiseCfg.interferenceFreq} Hz
-              </span>
-            </div>
-            <input
-              type="range"
+          )}
+          {usesInterference && (
+            <ParamSlider
+              label="Interference Freq"
+              faLabel="فرکانس تداخل"
+              value={noiseCfg.interferenceFreq}
               min={10}
               max={100}
               step={5}
-              value={noiseCfg.interferenceFreq}
-              onChange={(e) => updateNoise({ interferenceFreq: Number(e.target.value) })}
-              className="sci-slider"
+              unit="Hz"
+              lang={lang}
+              onChange={(v) => updateNoise({ interferenceFreq: v })}
             />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'احتمال نویز ضربه‌ای' : 'Impulse Probability'}</span>
-              <span className="text-amber-500 font-semibold">
-                {(noiseCfg.impulseProbability * 100).toFixed(1)}%
-              </span>
-            </div>
-            <input
-              type="range"
+          )}
+          {usesImpulse && (
+            <ParamSlider
+              label="Impulse Probability"
+              faLabel="احتمال نویز ضربه‌ای"
+              value={noiseCfg.impulseProbability}
               min={0.005}
               max={0.2}
               step={0.005}
-              value={noiseCfg.impulseProbability}
-              onChange={(e) => updateNoise({ impulseProbability: Number(e.target.value) })}
-              className="sci-slider"
+              format={(v) => `${(v * 100).toFixed(1)}%`}
+              lang={lang}
+              onChange={(v) => updateNoise({ impulseProbability: v })}
             />
-          </div>
+          )}
         </div>
+
+        <p role="status" aria-live="polite" className="text-xs font-mono tabular-nums">
+          {isFa ? 'SNR ورودی: ' : 'Input SNR: '}
+          <strong className="text-amber-600 dark:text-amber-400">{computed.empiricalSnrDb.toFixed(2)} dB</strong>
+          {' → '}
+          {isFa ? 'SNR خروجی فیلتر: ' : 'Filtered SNR: '}
+          <strong className="text-emerald-600 dark:text-emerald-400">{computed.filteredSnrDb.toFixed(2)} dB</strong>
+        </p>
 
         <InteractivePlot
           title={
@@ -482,29 +515,33 @@ export const TelecommunicationsPage: React.FC = () => {
               : `Input SNR = ${computed.empiricalSnrDb.toFixed(2)} dB → Output Filtered SNR = ${computed.filteredSnrDb.toFixed(2)} dB`
           }
           xData={computed.time}
-          xLabel="Time (s)"
-          yLabel="Amplitude (V)"
+          xLabel={isFa ? 'زمان (s)' : 'Time (s)'}
+          xUnit="s"
+          yLabel={isFa ? 'دامنه (V)' : 'Amplitude (V)'}
+          yUnit="V"
           height={250}
           series={[
             {
               id: 'nl-clean',
               label: lang === 'fa' ? 'سیگنال تمیز' : 'Clean Signal',
               data: computed.cleanSignal,
-              color: '#0ea5e9',
+              color: getSeriesColor(0),
               lineWidth: 2,
             },
             {
               id: 'nl-noisy',
               label: lang === 'fa' ? `نویزی (${noiseCfg.type.toUpperCase()})` : `Noisy (${noiseCfg.type.toUpperCase()})`,
               data: computed.noisySignal,
-              color: '#f59e0b',
+              color: getSeriesColor(1),
+              dash: getSeriesDash(1),
               lineWidth: 1.2,
             },
             {
               id: 'nl-filt',
               label: lang === 'fa' ? 'خروجی فیلترشده' : 'Filtered Output',
               data: computed.filteredSignal,
-              color: '#10b981',
+              color: getSeriesColor(2),
+              dash: getSeriesDash(3),
               lineWidth: 2.2,
             },
           ]}

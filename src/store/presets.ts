@@ -6,6 +6,10 @@ export interface EducationalPreset {
   category: 'Telecommunications' | 'Signal Processing' | 'EEG' | 'Machine Learning';
   targetPage: PageId;
   description: string;
+  /** Persian (FA) title shown when the UI language is Persian. */
+  faTitle?: string;
+  /** Persian (FA) description shown when the UI language is Persian. */
+  faDescription?: string;
   applyPatch: Partial<Experiment>;
 }
 
@@ -203,6 +207,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'telecommunications',
     description:
       'Double-sideband Amplitude Modulation with 80% modulation index transmitted across an AWGN channel (SNR = 11 dB) and recovered via envelope detection.',
+    faTitle: 'مدولاسیون AM همراه با نویز',
+    faDescription:
+      'مدولاسیون دامنه دوباندکناری با ضریب مدولاسیون ۸۰٪ که از کانال نویز سفید گاوسی (AWGN، با SNR = ۱۱ دسی‌بل) عبور می‌کند و با آشکارساز پوش بازیابی می‌شود.',
     applyPatch: {
       name: 'AM Envelope Modulation under AWGN',
       modulation: {
@@ -226,6 +233,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'telecommunications',
     description:
       'Wideband Frequency Modulation (modulation index β = 2.4) demonstrating constant-envelope immunity against amplitude fluctuations.',
+    faTitle: 'مدولاسیون FM همراه با نویز',
+    faDescription:
+      'مدولاسیون فرکانس پهن‌باند (ضریب مدولاسیون β = ۲٫۴) که نشان می‌دهد پوش ثابت سیگنال FM آن را در برابر نوسانات دامنه مقاوم می‌کند.',
     applyPatch: {
       name: 'Wideband FM Noise Immunity',
       modulation: {
@@ -249,6 +259,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'modulation-ber',
     description:
       'Antipodal Binary Phase Shift Keying (BPSK) evaluated at Eb/N0 = 6 dB with theoretical Q-function benchmark comparison.',
+    faTitle: 'آزمایش نرخ خطای بیت BPSK',
+    faDescription:
+      'کلیدزنی دودویی تغییر فاز (BPSK) با سیگنال‌های متقابل در Eb/N0 = ۶ دسی‌بل، همراه با مقایسه با منحنی نظری تابع Q.',
     applyPatch: {
       name: 'BPSK Antipodal Signaling & BER',
       modulation: {
@@ -270,6 +283,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'modulation-ber',
     description:
       'Quadrature Phase Shift Keying doubling spectral efficiency (2 bits/symbol) while maintaining identical Eb/N0 bit error probability to BPSK.',
+    faTitle: 'مقایسه QPSK و BPSK',
+    faDescription:
+      'کلیدزنی تغییر فاز تربیعی (QPSK) که بازده طیفی را دو برابر می‌کند (۲ بیت در هر نماد) و در همان Eb/N0 احتمال خطای بیتی برابر با BPSK دارد.',
     applyPatch: {
       name: 'QPSK vs BPSK Spectral Efficiency',
       modulation: {
@@ -291,6 +307,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'modulation-ber',
     description:
       'High-order Quadrature Amplitude Modulation comparison highlighting Euclidean minimum-distance crowding at 4 vs 6 bits/symbol.',
+    faTitle: 'مقایسه 16-QAM و 64-QAM',
+    faDescription:
+      'مقایسه مدولاسیون دامنه تربیعی مرتبه بالا و نشان دادن کاهش کمینه فاصله اقلیدسی بین نمادها در ۴ در برابر ۶ بیت در هر نماد.',
     applyPatch: {
       name: '16-QAM vs 64-QAM High-Order Constellation',
       modulation: {
@@ -312,6 +331,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'modulation-ber',
     description:
       '64-QAM IQ symbol clouds under severe AWGN (Eb/N0 = 11 dB) demonstrating Gray-coded decision boundary crossings.',
+    faTitle: 'منظومه نمادها زیر نویز',
+    faDescription:
+      'ابرهای نمادهای IQ در 64-QAM زیر نویز شدید AWGN (Eb/N0 = ۱۱ دسی‌بل) که عبور نمادها از مرزهای تصمیم با کدگذاری گری را نشان می‌دهد.',
     applyPatch: {
       name: '64-QAM Constellation Cloud under AWGN',
       modulation: {
@@ -335,6 +357,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'fft-spectrum',
     description:
       'Three-tone composite waveform (7 Hz, 24 Hz, 58 Hz) buried in noise, resolved into sharp spectral peaks using a 1024-point Blackman window FFT.',
+    faTitle: 'تشخیص فرکانس با FFT',
+    faDescription:
+      'شکل موج ترکیبی سه‌تُنی (۷، ۲۴ و ۵۸ هرتز) پنهان در نویز که با FFT هزار و بیست‌وچهار نقطه‌ای و پنجره بلکمن به قله‌های طیفی واضح تفکیک می‌شود.',
     applyPatch: {
       name: 'Multi-Tone FFT Spectral Peak Detection',
       signal: {
@@ -368,6 +393,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'signal-generator',
     description:
       'High-frequency 52 Hz sinusoid sampled near the Nyquist limit (fs = 64 Hz), illustrating spectral folding and apparent 12 Hz alias wave.',
+    faTitle: 'نمونه‌برداری و همپوشانی طیفی (Aliasing)',
+    faDescription:
+      'سیگنال سینوسی ۵۲ هرتزی که نزدیک حد نایکوئیست (fs = ۶۴ هرتز) نمونه‌برداری می‌شود و تاخوردگی طیف و موج کاذب ظاهری ۱۲ هرتزی را نشان می‌دهد.',
     applyPatch: {
       name: 'Nyquist Sampling Theorem & Aliasing',
       signal: {
@@ -391,6 +419,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'filtering',
     description:
       '6 Hz fundamental signal corrupted by 50 Hz power-line interference, cleaned via a sharp 6th-order low-pass / notch filter.',
+    faTitle: 'فیلتر کردن سیگنال نویزی',
+    faDescription:
+      'سیگنال پایه ۶ هرتزی آغشته به تداخل برق شهر ۵۰ هرتز که با یک فیلتر پایین‌گذر/ناچ تیز مرتبه ۶ پاک‌سازی می‌شود.',
     applyPatch: {
       name: '50 Hz Power-Line Hum Rejection',
       signal: {
@@ -426,6 +457,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'wavelet-analysis',
     description:
       'Linear frequency-swept chirp (4 Hz to 48 Hz) decomposed with Daubechies D4 wavelets and Morlet time-frequency scalogram.',
+    faTitle: 'تحلیل موجک',
+    faDescription:
+      'سیگنال چیرپ با جاروب خطی فرکانس (۴ تا ۴۸ هرتز) که با موجک‌های دابشیز D4 تجزیه و با اسکالوگرام زمان-فرکانس مورله نمایش داده می‌شود.',
     applyPatch: {
       name: 'Non-Stationary Chirp Wavelet Scalogram',
       signal: {
@@ -457,6 +491,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'eeg-simulator',
     description:
       'Synthetic 10 Hz occipital alpha rhythm spindles simulating eyes-closed relaxed wakefulness (Synthetic educational model only).',
+    faTitle: 'ریتم آلفای مصنوعی',
+    faDescription:
+      'دوک‌های ریتم آلفای پس‌سری ۱۰ هرتزی مصنوعی که بیداری آرام با چشمان بسته را شبیه‌سازی می‌کند (فقط مدل آموزشی مصنوعی).',
     applyPatch: {
       name: 'Synthetic Occipital Alpha Rhythm (10 Hz)',
       eeg: {
@@ -479,6 +516,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'eeg-simulator',
     description:
       'Simulates ocular eye-blink deflections, high-frequency cranial EMG bursts, and 50 Hz mains interference with automated preprocessing recovery.',
+    faTitle: 'شبیه‌سازی آرتیفکت‌های EEG',
+    faDescription:
+      'شبیه‌سازی انحراف‌های ناشی از پلک زدن، انفجارهای فرکانس بالای EMG عضلات سر و تداخل برق ۵۰ هرتز، همراه با بازیابی خودکار با پیش‌پردازش.',
     applyPatch: {
       name: 'EEG Ocular & EMG Artifact Removal',
       eeg: {
@@ -509,6 +549,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'filtering',
     description:
       'Isolates the 8–13 Hz Alpha band from a multi-band composite waveform using a 4th-order Butterworth Band-Pass filter.',
+    faTitle: 'فیلتر میان‌گذر EEG',
+    faDescription:
+      'جداسازی باند آلفای ۸ تا ۱۳ هرتز از یک شکل موج ترکیبی چندباندی با فیلتر میان‌گذر باترورث مرتبه ۴.',
     applyPatch: {
       name: '8–13 Hz Alpha Band-Pass Extraction',
       signal: {
@@ -537,6 +580,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'ica',
     description:
       'Separates 4 linearly mixed independent sources (Sine, Square, Sawtooth, and Transient EEG Spike) using FastICA fixed-point negentropy maximization.',
+    faTitle: 'جداسازی آرتیفکت با ICA',
+    faDescription:
+      'جداسازی ۴ منبع مستقل که به‌صورت خطی مخلوط شده‌اند (سینوسی، مربعی، دندان‌اره‌ای و اسپایک گذرای EEG) با الگوریتم FastICA و بیشینه‌سازی نگانتروپی.',
     applyPatch: {
       name: 'FastICA Blind Source & Artifact Separation',
       analysis: {
@@ -556,6 +602,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'pca',
     description:
       'Projects 6-channel correlated oscillatory sensor arrays onto the top 2 orthogonal Principal Components, capturing >85% variance.',
+    faTitle: 'کاهش ابعاد با PCA',
+    faDescription:
+      'تصویر کردن آرایه حسگرهای نوسانی همبسته ۶ کاناله روی ۲ مؤلفه اصلی متعامد برتر که بیش از ۸۵٪ واریانس را در بر می‌گیرند.',
     applyPatch: {
       name: '6-Channel Sensor Array PCA Compression',
       analysis: {
@@ -579,6 +628,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'deep-learning',
     description:
       'Trains a 1D Convolutional Neural Network in TensorFlow.js to classify noisy Sine vs. Square waveforms directly in the browser.',
+    faTitle: 'طبقه‌بندی سیگنال با CNN',
+    faDescription:
+      'آموزش یک شبکه عصبی کانولوشنی یک‌بعدی در TensorFlow.js برای تشخیص موج سینوسی از موج مربعی نویزی، مستقیماً در مرورگر.',
     applyPatch: {
       name: '1D-CNN Waveform Classifier',
     },
@@ -590,6 +642,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'deep-learning',
     description:
       'Trains a bottleneck Autoencoder neural network to reconstruct clean sinusoidal waveforms from noise-corrupted observations.',
+    faTitle: 'حذف نویز با خودرمزگذار',
+    faDescription:
+      'آموزش یک شبکه عصبی خودرمزگذار (Autoencoder) با لایه گلوگاهی برای بازسازی موج سینوسی تمیز از مشاهدات نویزی.',
     applyPatch: {
       name: 'Neural Autoencoder Signal Denoiser',
     },
@@ -601,6 +656,9 @@ export const EDUCATIONAL_PRESETS: EducationalPreset[] = [
     targetPage: 'deep-learning',
     description:
       'Classifies Delta (2 Hz), Alpha (10 Hz), and Beta (21 Hz) synthetic EEG epochs using an in-browser neural network.',
+    faTitle: 'طبقه‌بندی EEG مصنوعی',
+    faDescription:
+      'طبقه‌بندی قطعه‌های EEG مصنوعی دلتا (۲ هرتز)، آلفا (۱۰ هرتز) و بتا (۲۱ هرتز) با یک شبکه عصبی درون مرورگر.',
     applyPatch: {
       name: 'Synthetic EEG Band Neural Classifier',
     },

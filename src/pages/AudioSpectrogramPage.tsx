@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   AudioLines,
@@ -28,8 +28,61 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { GuideModal } from '../components/GuideModal';
-import { Signal3DStage } from '../components/Signal3DStage';
+import type { Signal3DStageProps } from '../components/Signal3DStage';
+import { PageHeader, StatusMessage } from '../components/ui';
 import { useLab } from '../store/LabContext';
+
+// Babylon.js is heavy: load the 3D stage on demand and only mount it once its
+// container scrolls near the viewport.
+const Signal3DStage = lazy(() =>
+  import('../components/Signal3DStage').then((m) => ({ default: m.Signal3DStage }))
+);
+
+const Stage3DPlaceholder: React.FC<{ heightClass: string; label: string }> = ({ heightClass, label }) => (
+  <div
+    className={`oscilloscope-frame ${heightClass} w-full flex items-center justify-center text-xs font-mono text-slate-400`}
+    role="status"
+    aria-live="polite"
+  >
+    {label}
+  </div>
+);
+
+const LazySignal3DStage: React.FC<Signal3DStageProps & { heightClass: string; loadingLabel: string }> = ({
+  loadingLabel,
+  ...props
+}) => {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+
+  useEffect(() => {
+    if (nearViewport) return;
+    const el = hostRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setNearViewport(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNearViewport(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '300px 0px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [nearViewport]);
+
+  const placeholder = <Stage3DPlaceholder heightClass={props.heightClass} label={loadingLabel} />;
+  return (
+    <div ref={hostRef}>
+      {nearViewport ? <Suspense fallback={placeholder}>{<Signal3DStage {...props} />}</Suspense> : placeholder}
+    </div>
+  );
+};
 
 export type LiveWaveType =
   | 'sine'
@@ -2391,8 +2444,74 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
     }
   };
 
+  const isFa = lang === 'fa';
+
+  // Keyboard access for the spectrogram probe: arrows move it (Shift = larger
+  // steps), Enter / Space plays the tone (and pins it in multi-click mode).
+  const handleSpecKeyDown = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+    const { key } = e;
+    const isArrow =
+      key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
+    if (!isArrow && key !== 'Enter' && key !== ' ') return;
+    e.preventDefault();
+    const canvas = e.currentTarget;
+    const probeAt = (nx: number, ny: number): SelectedPoint => {
+      const rect = canvas.getBoundingClientRect();
+      const padL = 62;
+      const padR = 54;
+      const padT = 16;
+      const padB = 30;
+      const pw = Math.max(80, canvas.width - padL - padR);
+      const ph = Math.max(80, canvas.height - padT - padB);
+      const c = getSpectrogramCoordsFromClient(
+        canvas,
+        rect.left + padL + nx * pw,
+        rect.top + padT + (1 - ny) * ph
+      );
+      return {
+        time: c.time,
+        frequency: c.frequency,
+        magnitudeDb: c.magnitudeDb,
+        normX: c.normX,
+        normY: c.normY,
+      };
+    };
+
+    if (isArrow) {
+      const step = e.shiftKey ? 0.1 : 0.02;
+      let nx = selectedPoint?.normX ?? 0.5;
+      let ny = selectedPoint ? freqToNormYLog(selectedPoint.frequency, maxFreqDisplay) : 0.5;
+      if (key === 'ArrowLeft') nx -= step;
+      if (key === 'ArrowRight') nx += step;
+      if (key === 'ArrowUp') ny += step;
+      if (key === 'ArrowDown') ny -= step;
+      setSelectedPoint(probeAt(Math.max(0, Math.min(1, nx)), Math.max(0, Math.min(1, ny))));
+      return;
+    }
+
+    const pt = selectedPoint ?? probeAt(0.5, 0.5);
+    if (!selectedPoint) setSelectedPoint(pt);
+    playFrequencyTone(pt.frequency, 600);
+    if (interactMode === 'multi-click') addPinnedPoint(pt);
+  };
+
+  const spectrogramAriaLabel = isFa
+    ? `طیف‌نگار لگاریتمی (۱۰ هرتز تا ${Math.round(maxFreqDisplay / 1000)} کیلوهرتز). با کلیدهای جهت پروب را جابه‌جا کنید و با Enter تُن آن را پخش کنید.`
+    : `Log-frequency spectrogram (10 Hz to ${Math.round(maxFreqDisplay / 1000)} kHz). Use the arrow keys to move the probe (Shift for larger steps) and Enter to play its tone.`;
+
   return (
     <div className="neu-card p-4 sm:p-6 flex flex-col gap-5">
+      {!embedded && (
+        <PageHeader
+          icon={<AudioLines className="w-5 h-5" />}
+          title={isFa ? 'صوت و طیف‌نگار' : 'Audio & Spectrogram'}
+          subtitle={
+            isFa
+              ? 'پخش یا ضبط صدا، افزودن نویز، اندازه‌گیری SNR و مشاهده طیف‌نگار زنده.'
+              : 'Play or record sound, add noise, measure SNR and watch the live spectrogram.'
+          }
+        />
+      )}
       {/* Row 1: Minimal Transport, Mic, Upload, Preset Dropdown & Volume */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -2406,7 +2525,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               }}
               className="btn-primary-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
+              <Play className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
               <span>{lang === 'fa' ? 'پخش' : 'Play'}</span>
             </button>
           ) : (
@@ -2415,7 +2534,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               onClick={handlePause}
               className="btn-tool-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
             >
-              <Pause className="w-3.5 h-3.5" />
+              <Pause className="w-3.5 h-3.5" aria-hidden="true" />
               <span>{lang === 'fa' ? 'مکث' : 'Pause'}</span>
             </button>
           )}
@@ -2425,7 +2544,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             onClick={handleStop}
             className="neu-btn px-3 py-2 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer"
           >
-            <Square className="w-3.5 h-3.5" />
+            <Square className="w-3.5 h-3.5" aria-hidden="true" />
             <span>{lang === 'fa' ? 'توقف' : 'Stop'}</span>
           </button>
 
@@ -2435,6 +2554,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               if (isMicActive) stopMicrophone();
               else startMicrophone();
             }}
+            aria-pressed={isMicActive}
             className={`px-3.5 py-2 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer ${
               isMicActive
                 ? 'bg-rose-500/20 border border-rose-500 text-rose-500'
@@ -2443,19 +2563,19 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
           >
             {isMicActive ? (
               <>
-                <MicOff className="w-3.5 h-3.5 animate-pulse" />
+                <MicOff className="w-3.5 h-3.5 animate-pulse" aria-hidden="true" />
                 <span>{lang === 'fa' ? 'توقف میکروفون' : 'Stop Mic'}</span>
               </>
             ) : (
               <>
-                <Mic className="w-3.5 h-3.5 text-rose-500" />
+                <Mic className="w-3.5 h-3.5 text-rose-500" aria-hidden="true" />
                 <span>{lang === 'fa' ? 'میکروفون' : 'Live Mic'}</span>
               </>
             )}
           </button>
 
-          <label className="neu-btn px-3.5 py-2 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer">
-            <Upload className="w-3.5 h-3.5 text-sky-500" />
+          <label className="neu-btn px-3.5 py-2 rounded-full text-xs font-medium flex items-center gap-1.5 cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-sky-500">
+            <Upload className="w-3.5 h-3.5 text-sky-500" aria-hidden="true" />
             <span>
               {uploadedFileName
                 ? uploadedFileName.slice(0, 16)
@@ -2467,7 +2587,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               type="file"
               accept="audio/*,.wav,.mp3,.ogg,.m4a"
               onChange={handleFileUpload}
-              className="hidden"
+              className="sr-only"
             />
           </label>
 
@@ -2485,7 +2605,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 : 'Load synthesized Vocal + Music track to test Choosable SNR & Voice Clarity'
             }
           >
-            <AudioLines className="w-3.5 h-3.5 text-[#7FD141]" />
+            <AudioLines className="w-3.5 h-3.5 text-[#7FD141]" aria-hidden="true" />
             <span>{lang === 'fa' ? 'دموی خواننده + موزیک' : 'Vocal + Music Demo'}</span>
           </button>
         </div>
@@ -2500,8 +2620,8 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 e.target.value = '';
               }
             }}
-            className="neu-inset px-3 py-1.5 rounded-full text-xs font-medium bg-transparent cursor-pointer"
-            aria-label="Quick Signal Presets"
+            className="neu-inset px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer"
+            aria-label={isFa ? 'پیش‌تنظیم سریع سیگنال' : 'Quick signal presets'}
           >
             <option value="" disabled>
               {lang === 'fa' ? 'پیش‌تنظیم سریع...' : 'Quick Preset...'}
@@ -2521,12 +2641,14 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               type="button"
               onClick={() => setIsMuted((m) => !m)}
               className="btn-circle-glass cursor-pointer"
-              title={isMuted ? 'Unmute' : 'Mute'}
+              aria-pressed={isMuted}
+              aria-label={isFa ? 'بی‌صدا' : 'Mute'}
+              title={isMuted ? (isFa ? 'وصل صدا' : 'Unmute') : isFa ? 'بی‌صدا' : 'Mute'}
             >
               {isMuted ? (
-                <VolumeX className="w-3.5 h-3.5 text-rose-500" />
+                <VolumeX className="w-3.5 h-3.5 text-rose-500" aria-hidden="true" />
               ) : (
-                <Volume2 className="w-3.5 h-3.5 text-sky-500" />
+                <Volume2 className="w-3.5 h-3.5 text-sky-500" aria-hidden="true" />
               )}
             </button>
             <input
@@ -2539,8 +2661,9 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 setIsMuted(false);
                 setVolume(Number(e.target.value));
               }}
-              aria-label="Volume"
-              className="sci-slider w-16"
+              aria-label={isFa ? 'بلندی صدا' : 'Volume'}
+              aria-valuetext={`${Math.round((isMuted ? 0 : volume) * 100)}%`}
+              className="sci-slider w-24 sm:w-28"
             />
           </div>
 
@@ -2549,8 +2672,9 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             onClick={() => setShowGuide(true)}
             className="neu-btn px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 text-sky-600 dark:text-sky-400 hover:text-sky-500 cursor-pointer"
             title={lang === 'fa' ? 'راهنمای ساده و سریع' : 'Friendly Beginner Guide'}
+            aria-label={isFa ? 'راهنما' : 'Guide'}
           >
-            <HelpCircle className="w-3.5 h-3.5" />
+            <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">{lang === 'fa' ? 'راهنما' : 'Guide'}</span>
           </button>
 
@@ -2561,8 +2685,11 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               showAdvanced ? 'border-sky-500 text-sky-500' : ''
             }`}
             title={lang === 'fa' ? 'تنظیمات' : 'Settings'}
+            aria-label={isFa ? 'تنظیمات پیشرفته صدا' : 'Advanced audio settings'}
+            aria-expanded={showAdvanced}
           >
             <Settings2
+              aria-hidden="true"
               className={`w-3.5 h-3.5 transition-transform duration-200 ${
                 showAdvanced ? 'rotate-90' : ''
               }`}
@@ -2575,20 +2702,22 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       {isMicActive && (
         <div className="neu-inset px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs font-mono border border-rose-500/30">
           <div className="flex items-center gap-2 text-rose-500 font-bold">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            <span aria-hidden="true" className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
             <span>{lang === 'fa' ? 'طیف زنده میکروفون' : 'Live Microphone Input'}</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>
-              Peak: <strong className="text-sky-500">{micPeakFreq} Hz</strong>
+              {isFa ? 'قله: ' : 'Peak: '}
+              <strong className="text-sky-500">{micPeakFreq} Hz</strong>
             </span>
             <span>
-              Level: <strong className="text-emerald-500">{micRmsDb.toFixed(1)} dB</strong>
+              {isFa ? 'سطح: ' : 'Level: '}
+              <strong className="text-emerald-500">{micRmsDb.toFixed(1)} dB</strong>
             </span>
             <button
               type="button"
               onClick={stopMicrophone}
-              className="neu-btn px-2.5 py-0.5 rounded-full text-[11px] cursor-pointer"
+              className="neu-btn px-2.5 py-0.5 rounded-full text-caption cursor-pointer"
             >
               {lang === 'fa' ? 'تثبیت (Freeze)' : 'Freeze'}
             </button>
@@ -2597,22 +2726,23 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       )}
 
       {micError && (
-        <div className="neu-inset px-3.5 py-2 text-xs font-mono text-rose-500 border border-rose-500/30">
+        <StatusMessage kind="error" title={isFa ? 'خطای میکروفون' : 'Microphone error'}>
           {micError}
-        </div>
+        </StatusMessage>
       )}
 
       {/* Row 2: Minimal 3-Column Generator Strip */}
       {sourceMode === 'generator' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center pt-3 border-t border-slate-300/30 dark:border-slate-800/60">
           <div>
-            <label className="block text-[11px] font-mono text-slate-500 mb-1">
+            <label htmlFor="audio-wave-type" className="block text-caption font-mono text-slate-500 mb-1">
               {lang === 'fa' ? 'شکل‌موج' : 'Waveform'}
             </label>
             <select
+              id="audio-wave-type"
               value={waveType}
               onChange={(e) => setWaveType(e.target.value as LiveWaveType)}
-              className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
+              className="neu-inset w-full px-3 py-1.5 rounded-control text-xs font-medium cursor-pointer"
             >
               {WAVE_OPTIONS.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -2623,10 +2753,15 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
           </div>
 
           <div>
-            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
-              <span className="text-slate-500">{lang === 'fa' ? 'فرکانس' : 'Frequency'}</span>
+            <div className="flex items-center justify-between text-caption font-mono mb-1">
+              <label htmlFor="audio-freq-exact" className="text-slate-500">
+                {lang === 'fa' ? 'فرکانس' : 'Frequency'}
+              </label>
               <div className="flex items-center gap-1">
                 <input
+                  id="audio-freq-exact"
+                  inputMode="numeric"
+                  dir="ltr"
                   type="number"
                   min={10}
                   max={20000}
@@ -2640,7 +2775,8 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                     }
                     setFrequency(Math.max(10, Math.min(20000, raw)));
                   }}
-                  className={`neu-inset w-18 px-1.5 py-0.5 rounded text-right font-bold text-sky-500 bg-transparent ${
+                  aria-invalid={freqInvalid || undefined}
+                  className={`neu-inset w-20 px-1.5 py-0.5 rounded-chip text-end font-bold text-sky-500 ${
                     freqInvalid ? 'input-invalid' : ''
                   }`}
                 />
@@ -2657,16 +2793,22 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 const norm = Number(e.target.value) / 1000;
                 setFrequency(Math.round(normYToFreqLog(norm, 20000)));
               }}
+              aria-label={isFa ? 'فرکانس (مقیاس لگاریتمی)' : 'Frequency (log scale)'}
+              aria-valuetext={`${Math.round(frequency)} Hz`}
               className="sci-slider"
             />
           </div>
 
           <div>
-            <div className="flex justify-between text-[11px] font-mono mb-1">
-              <span className="text-slate-500">{lang === 'fa' ? 'دامنه' : 'Amplitude'}</span>
+            <div className="flex justify-between text-caption font-mono mb-1">
+              <label htmlFor="audio-amplitude" className="text-slate-500">
+                {lang === 'fa' ? 'دامنه' : 'Amplitude'}
+              </label>
               <span className="font-bold text-emerald-500">{amplitude.toFixed(2)}</span>
             </div>
             <input
+              id="audio-amplitude"
+              aria-valuetext={amplitude.toFixed(2)}
               type="range"
               min={0.05}
               max={1.0}
@@ -2684,25 +2826,26 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       )}
 
       {/* Compact SNR & Human Voice Clarity Bar + Collapsible Detail Drawer */}
-      <div className="neu-inset px-3.5 py-2.5 rounded-xl flex flex-col gap-3 border border-sky-500/20">
+      <div className="neu-inset px-3.5 py-2.5 rounded-control flex flex-col gap-3 border border-sky-500/20">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setShowSnrDrawer((v) => !v)}
-            className="flex items-center gap-2 text-start cursor-pointer"
+            aria-expanded={showSnrDrawer}
+            className="flex flex-wrap items-center gap-2 text-start cursor-pointer"
           >
-            <AudioLines className="w-4 h-4 text-sky-500 shrink-0" />
+            <AudioLines className="w-4 h-4 text-sky-500 shrink-0" aria-hidden="true" />
             <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
               {lang === 'fa'
                 ? 'تنظیم SNR (dB) و شفاف‌سازی صدای انسان در موسیقی'
                 : 'SNR (dB) & Voice Clarity Mixer'}
             </span>
             {sourceMode === 'uploaded' && uploadedFileName && (
-              <span className="text-[11px] font-mono text-emerald-500 font-semibold">
+              <span className="text-caption font-mono text-emerald-500 font-semibold">
                 ({uploadedFileName})
               </span>
             )}
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 text-[11px] font-mono text-sky-500">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 text-caption font-mono text-sky-500">
               {showSnrDrawer ? (
                 <>
                   <ChevronUp className="w-3 h-3" />
@@ -2718,11 +2861,16 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
           </button>
 
           {/* Quick Choosable SNR Buttons */}
-          <div className="flex flex-wrap items-center gap-1 font-mono text-[11px]">
+          <div
+            role="group"
+            aria-label={isFa ? 'انتخاب سریع SNR' : 'Quick SNR choice'}
+            className="flex flex-wrap items-center gap-1 font-mono text-caption"
+          >
             <button
               type="button"
+              aria-pressed={!snrEnabled}
               onClick={() => setSnrEnabled(false)}
-              className={`px-2.5 py-1 rounded-lg cursor-pointer transition-colors ${
+              className={`px-2.5 py-1 rounded-chip cursor-pointer transition-colors ${
                 !snrEnabled
                   ? 'bg-emerald-500 text-slate-950 font-bold'
                   : 'neu-btn text-slate-600 dark:text-slate-300'
@@ -2734,11 +2882,12 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               <button
                 key={dbVal}
                 type="button"
+                aria-pressed={snrEnabled && targetSnrDb === dbVal}
                 onClick={() => {
                   setSnrEnabled(true);
                   setTargetSnrDb(dbVal);
                 }}
-                className={`px-2 py-1 rounded-lg cursor-pointer transition-colors ${
+                className={`px-2 py-1 rounded-chip cursor-pointer transition-colors ${
                   snrEnabled && targetSnrDb === dbVal
                     ? 'bg-sky-500 text-slate-950 font-bold'
                     : 'neu-btn text-slate-600 dark:text-slate-300'
@@ -2755,15 +2904,16 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
               {/* Column 1: Vocal Formant Clarity / Isolation Filter */}
               <div>
-                <label className="block text-[11px] font-mono text-slate-500 mb-1">
+                <label htmlFor="audio-vocal-clarity" className="block text-caption font-mono text-slate-500 mb-1">
                   {lang === 'fa'
                     ? 'تقویت و جداسازی صدای انسان (۳۰۰ تا ۳۴۰۰ هرتز)'
                     : 'Voice Isolation & Formant Clarity'}
                 </label>
                 <select
+                  id="audio-vocal-clarity"
                   value={vocalClarityMode}
                   onChange={(e) => setVocalClarityMode(e.target.value as any)}
-                  className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
+                  className="neu-inset w-full px-3 py-1.5 rounded-control text-xs font-medium cursor-pointer"
                 >
                   <option value="off">
                     {lang === 'fa'
@@ -2790,18 +2940,19 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
               {/* Column 2: SNR Signal / Noise Mixing Mode */}
               <div>
-                <label className="block text-[11px] font-mono text-slate-500 mb-1">
+                <label htmlFor="audio-snr-mode" className="block text-caption font-mono text-slate-500 mb-1">
                   {lang === 'fa'
                     ? 'حالت ترکیب SNR (صدای انسان روی موسیقی یا نویز کالیبره)'
                     : 'SNR Target Channel (Voice-in-Music vs. Noise)'}
                 </label>
                 <select
+                  id="audio-snr-mode"
                   value={snrMode}
                   onChange={(e) => {
                     setSnrMode(e.target.value as any);
                     setSnrEnabled(true);
                   }}
-                  className="neu-inset w-full px-3 py-1.5 rounded-xl text-xs font-medium bg-transparent cursor-pointer"
+                  className="neu-inset w-full px-3 py-1.5 rounded-control text-xs font-medium cursor-pointer"
                 >
                   <option value="voice-in-music">
                     {lang === 'fa'
@@ -2833,10 +2984,10 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
               {/* Column 3: Continuous SNR (dB) Slider (-20 dB to +30 dB) */}
               <div dir="ltr">
-                <div className="flex items-center justify-between text-[11px] font-mono mb-1">
-                  <span className="text-slate-500">
+                <div className="flex items-center justify-between text-caption font-mono mb-1">
+                  <label htmlFor="audio-snr-db" className="text-slate-500">
                     {lang === 'fa' ? 'مقدار دقیق SNR:' : 'Selected SNR Level:'}
-                  </span>
+                  </label>
                   <span
                     className={`font-bold ${
                       !snrEnabled
@@ -2848,7 +2999,9 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                   >
                     {snrEnabled
                       ? `${targetSnrDb > 0 ? '+' : ''}${targetSnrDb} dB`
-                      : 'Clean (∞ dB)'}
+                      : isFa
+                        ? 'پاک (∞ dB)'
+                        : 'Clean (∞ dB)'}
                   </span>
                 </div>
                 <input
@@ -2856,7 +3009,9 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                   min={-20}
                   max={30}
                   step={1}
+                  id="audio-snr-db"
                   value={targetSnrDb}
+                  aria-valuetext={`${targetSnrDb} dB`}
                   onChange={(e) => {
                     setSnrEnabled(true);
                     setTargetSnrDb(Number(e.target.value));
@@ -2869,16 +3024,17 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
             {/* Optional Voice Fundamental Pitch Slider when Voice-in-Music SNR mode is active */}
             {snrEnabled && snrMode === 'voice-in-music' && (
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-300/30 dark:border-slate-800/60 text-xs font-mono">
-                <span className="text-slate-500">
+                <label htmlFor="audio-voice-f0" className="text-slate-500">
                   {lang === 'fa'
                     ? 'فرکانس پایه حنجره صدای گفتار (F0):'
                     : 'Injected Human Voice Fundamental Pitch (F0):'}
-                </span>
-                <div className="flex items-center gap-2">
+                </label>
+                <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px] justify-end">
                   <button
                     type="button"
+                    aria-pressed={voicePitchHz === 120}
                     onClick={() => setVoicePitchHz(120)}
-                    className={`px-2.5 py-0.5 rounded-lg cursor-pointer ${
+                    className={`px-2.5 py-0.5 rounded-chip cursor-pointer ${
                       voicePitchHz === 120 ? 'bg-sky-500 text-slate-950 font-bold' : 'neu-btn'
                     }`}
                   >
@@ -2886,8 +3042,9 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                   </button>
                   <button
                     type="button"
+                    aria-pressed={voicePitchHz === 215}
                     onClick={() => setVoicePitchHz(215)}
-                    className={`px-2.5 py-0.5 rounded-lg cursor-pointer ${
+                    className={`px-2.5 py-0.5 rounded-chip cursor-pointer ${
                       voicePitchHz === 215 ? 'bg-sky-500 text-slate-950 font-bold' : 'neu-btn'
                     }`}
                   >
@@ -2898,11 +3055,13 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                     min={85}
                     max={260}
                     step={5}
+                    id="audio-voice-f0"
                     value={voicePitchHz}
+                    aria-valuetext={`${voicePitchHz} Hz`}
                     onChange={(e) => setVoicePitchHz(Number(e.target.value))}
-                    className="sci-slider w-28"
+                    className="sci-slider flex-1 min-w-24 max-w-56"
                   />
-                  <span className="text-sky-500 font-bold w-14 text-right">{voicePitchHz} Hz</span>
+                  <span className="text-sky-500 font-bold w-14 text-end">{voicePitchHz} Hz</span>
                 </div>
               </div>
             )}
@@ -2941,7 +3100,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 }
                 className="neu-btn px-2.5 py-1 rounded-full text-xs flex items-center gap-1 cursor-pointer"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-3 h-3" aria-hidden="true" />
                 <span>{lang === 'fa' ? 'افزودن' : 'Add'}</span>
               </button>
             </div>
@@ -2956,6 +3115,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                   <div className="flex items-center justify-between gap-1.5">
                     <input
                       type="checkbox"
+                      aria-label={isFa ? `فعال بودن لایه ${idx + 1}` : `Enable layer ${idx + 1}`}
                       checked={lyr.enabled}
                       onChange={(e) =>
                         setMixLayers((prev) =>
@@ -2974,7 +3134,8 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                           )
                         )
                       }
-                      className="neu-inset px-2 py-0.5 rounded text-xs font-mono bg-transparent flex-1"
+                      aria-label={isFa ? `نوع موج لایه ${idx + 1}` : `Layer ${idx + 1} waveform`}
+                      className="neu-inset px-2 py-0.5 rounded-chip text-xs font-mono flex-1"
                     >
                       <option value="sine">Sine</option>
                       <option value="square">Square</option>
@@ -2988,19 +3149,22 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                         type="button"
                         onClick={() => setMixLayers((prev) => prev.filter((_, i) => i !== idx))}
                         className="text-rose-500 cursor-pointer"
+                        aria-label={isFa ? `حذف لایه ${idx + 1}` : `Remove layer ${idx + 1}`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
                   {lyr.type !== 'white-noise' && lyr.type !== 'pink-noise' && (
-                    <div className="flex items-center gap-2 text-[11px] font-mono">
+                    <div className="flex items-center gap-2 text-caption font-mono">
                       <span className="w-14 text-sky-500 font-bold">{lyr.frequency}Hz</span>
                       <input
                         type="range"
                         min={0}
                         max={1000}
                         value={Math.round(freqToNormYLog(lyr.frequency, 20000) * 1000)}
+                        aria-label={isFa ? `فرکانس لایه ${idx + 1}` : `Layer ${idx + 1} frequency`}
+                        aria-valuetext={`${lyr.frequency} Hz`}
                         onChange={(e) => {
                           const f = Math.round(
                             normYToFreqLog(Number(e.target.value) / 1000, 20000)
@@ -3034,7 +3198,8 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               <select
                 value={sampleRate}
                 onChange={(e) => setSampleRate(Number(e.target.value))}
-                className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
+                aria-label={isFa ? 'نرخ نمونه‌برداری' : 'Sample rate'}
+                className="neu-inset px-2.5 py-1 rounded-full"
               >
                 <option value={22050}>22.05 kHz</option>
                 <option value={44100}>44.1 kHz</option>
@@ -3043,7 +3208,8 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               <select
                 value={fftSize}
                 onChange={(e) => setFftSize(Number(e.target.value))}
-                className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
+                aria-label={isFa ? 'اندازه FFT' : 'FFT size'}
+                className="neu-inset px-2.5 py-1 rounded-full"
               >
                 <option value={2048}>FFT 2048</option>
                 <option value={4096}>FFT 4096</option>
@@ -3052,17 +3218,19 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               <button
                 type="button"
                 onClick={() => setIsLooping((l) => !l)}
+                aria-pressed={isLooping}
                 className={`neu-btn px-2.5 py-1 rounded-full flex items-center gap-1 cursor-pointer ${
                   isLooping ? 'btn-tool-pill' : ''
                 }`}
               >
-                <Repeat className="w-3 h-3" />
-                <span>Loop</span>
+                <Repeat className="w-3 h-3" aria-hidden="true" />
+                <span>{isFa ? 'تکرار' : 'Loop'}</span>
               </button>
               <select
                 value={playbackRate}
                 onChange={(e) => setPlaybackRate(Number(e.target.value))}
-                className="neu-inset px-2.5 py-1 rounded-full bg-transparent"
+                aria-label={isFa ? 'سرعت پخش' : 'Playback speed'}
+                className="neu-inset px-2.5 py-1 rounded-full"
               >
                 <option value={0.5}>0.5x</option>
                 <option value={1.0}>1.0x</option>
@@ -3085,7 +3253,11 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
       {/* Row 3: View Mode Tabs + Interaction Mode Selector */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-300/30 dark:border-slate-800/60">
-        <div className="neu-inset p-1 rounded-full flex flex-wrap items-center gap-1">
+        <div
+          role="group"
+          aria-label={isFa ? 'نمای نمایش' : 'Visualization view'}
+          className="neu-inset p-1 rounded-full flex flex-wrap items-center gap-1"
+        >
           {(
             [
               { id: '3d', label: '3D Visualizer', fa: 'نمایش سه‌بعدی (3D)' },
@@ -3100,6 +3272,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               <button
                 key={t.id}
                 type="button"
+                aria-pressed={active}
                 onClick={() => setVizTab(t.id)}
                 className={`relative px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
                   active
@@ -3121,26 +3294,32 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         </div>
 
         {vizTab !== '3d' && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div
+            role="group"
+            aria-label={isFa ? 'حالت تعامل با طیف‌نگار' : 'Spectrogram interaction mode'}
+            className="flex flex-wrap items-center gap-1.5"
+          >
             <button
               type="button"
+              aria-pressed={interactMode === 'click-tone'}
               onClick={() => setInteractMode('click-tone')}
               className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
                 interactMode === 'click-tone' ? 'btn-tool-pill' : 'neu-btn'
               }`}
             >
-              <MousePointerClick className="w-3.5 h-3.5" />
+              <MousePointerClick className="w-3.5 h-3.5" aria-hidden="true" />
               <span>{lang === 'fa' ? 'تک‌کلیک' : 'Single Click'}</span>
             </button>
 
             <button
               type="button"
+              aria-pressed={interactMode === 'multi-click'}
               onClick={() => setInteractMode('multi-click')}
               className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
                 interactMode === 'multi-click' ? 'btn-tool-pill' : 'neu-btn'
               }`}
             >
-              <Pin className="w-3.5 h-3.5" />
+              <Pin className="w-3.5 h-3.5" aria-hidden="true" />
               <span>
                 {lang === 'fa'
                   ? `چند سیگنال (${pinnedPoints.length})`
@@ -3150,12 +3329,13 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
             <button
               type="button"
+              aria-pressed={interactMode === 'box-select'}
               onClick={() => setInteractMode('box-select')}
               className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer ${
                 interactMode === 'box-select' ? 'btn-tool-pill' : 'neu-btn'
               }`}
             >
-              <BoxSelect className="w-3.5 h-3.5" />
+              <BoxSelect className="w-3.5 h-3.5" aria-hidden="true" />
               <span>{lang === 'fa' ? 'بازه فرکانس' : 'Range Mode'}</span>
             </button>
 
@@ -3181,7 +3361,8 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
 
       {/* Interactive 3D React Three Fiber Stage (Signal Helix, Harmonics, 3D FFT Pillars & 3D Waterfall) */}
       {vizTab === '3d' && (
-        <Signal3DStage
+        <LazySignal3DStage
+          loadingLabel={isFa ? 'در حال بارگذاری نمای سه‌بعدی…' : 'Loading 3D view…'}
           liveWaveformRef={liveWaveSliceRef}
           liveSpectrumDbRef={liveSpecRowRef}
           specMatrixRef={specMatrixRef}
@@ -3215,9 +3396,9 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
       {(vizTab === 'combined' || vizTab === 'spectrogram') && (
         <div className="flex flex-col gap-2">
           {/* Friendly Interaction Tip Banner */}
-          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
+          <div className="flex items-center justify-between gap-2 text-caption text-slate-500 dark:text-slate-400 px-1">
             <span className="flex items-center gap-1.5">
-              <MousePointerClick className="w-3.5 h-3.5 text-sky-500" />
+              <MousePointerClick className="w-3.5 h-3.5 text-sky-500 shrink-0" aria-hidden="true" />
               {interactMode === 'click-tone' && (
                 <span>
                   {lang === 'fa'
@@ -3240,7 +3421,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 </span>
               )}
             </span>
-            <span className="hidden sm:inline font-mono text-[10px] text-slate-400">
+            <span className="hidden sm:inline font-mono text-2xs text-slate-400">
               Y-Axis: Logarithmic (10 Hz – 20 kHz)
             </span>
           </div>
@@ -3248,6 +3429,11 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
           <div dir="ltr" className="relative oscilloscope-frame p-1.5 overflow-hidden select-none">
             <canvas
               ref={spectrogramCanvasRef}
+              tabIndex={0}
+              role="img"
+              aria-label={spectrogramAriaLabel}
+              aria-describedby="audio-spec-probe"
+              onKeyDown={handleSpecKeyDown}
               onMouseDown={handleSpecMouseDown}
               onMouseMove={handleSpecMouseMove}
               onMouseUp={handleSpecMouseUp}
@@ -3303,13 +3489,20 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                   stopDragTone();
                 }
               }}
-              className="block w-full rounded-xl cursor-crosshair touch-none"
+              className="block w-full rounded-xl cursor-crosshair touch-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
             />
+            <span id="audio-spec-probe" role="status" aria-live="polite" className="sr-only">
+              {selectedPoint
+                ? isFa
+                  ? `پروب: ${Math.round(selectedPoint.frequency)} هرتز، ${selectedPoint.time.toFixed(2)} ثانیه، ${selectedPoint.magnitudeDb.toFixed(1)} دسی‌بل`
+                  : `Probe: ${Math.round(selectedPoint.frequency)} Hz at ${selectedPoint.time.toFixed(2)} s, ${selectedPoint.magnitudeDb.toFixed(1)} dB`
+                : ''}
+            </span>
 
             <div
               ref={tooltipRef}
               style={{ display: 'none' }}
-              className="pointer-events-none absolute z-20 px-2.5 py-1 rounded-lg bg-slate-950/90 border border-sky-400/40 text-[11px] font-mono text-slate-100 shadow-lg"
+              className="pointer-events-none absolute z-20 px-2.5 py-1 rounded-lg bg-slate-950/90 border border-sky-400/40 text-caption font-mono text-slate-100 shadow-lg"
             />
           </div>
 
@@ -3334,7 +3527,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                         onClick={() => playFrequencyTone(selectedPoint.frequency, 600)}
                         className="btn-primary-pill px-3 py-1 text-xs flex items-center gap-1 cursor-pointer"
                       >
-                        <Volume2 className="w-3 h-3" />
+                        <Volume2 className="w-3 h-3" aria-hidden="true" />
                         <span>{lang === 'fa' ? 'پخش' : 'Play Tone'}</span>
                       </button>
                       <button
@@ -3345,7 +3538,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                         }}
                         className="neu-btn px-2.5 py-1 rounded-full text-xs flex items-center gap-1 cursor-pointer"
                       >
-                        <Plus className="w-3 h-3 text-[#7FD141]" />
+                        <Plus className="w-3 h-3 text-[#7FD141]" aria-hidden="true" />
                         <span>{lang === 'fa' ? 'افزودن به چندسیگنال' : 'Pin'}</span>
                       </button>
                     </>
@@ -3353,7 +3546,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                 </div>
 
                 <div className="flex items-center gap-2 min-w-[180px] flex-1 max-w-xs">
-                  <span className="text-[11px] text-slate-400 tabular-nums shrink-0">
+                  <span className="text-caption text-slate-400 tabular-nums shrink-0">
                     {currentTime.toFixed(1)}s
                   </span>
                   <input
@@ -3363,7 +3556,8 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                     step={0.02}
                     value={currentTime}
                     onChange={(e) => handleSeek(Number(e.target.value))}
-                    aria-label="Time Scrubber"
+                    aria-label={isFa ? 'جابه‌جایی زمان' : 'Time scrubber'}
+                    aria-valuetext={`${currentTime.toFixed(1)} s`}
                     className="sci-slider flex-1"
                   />
                 </div>
@@ -3374,7 +3568,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
               <>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {pinnedPoints.length === 0 ? (
-                    <span className="text-slate-400 text-[11px]">
+                    <span className="text-slate-400 text-caption">
                       {lang === 'fa'
                         ? 'روی طیف‌نگار کلیک کنید تا چند فرکانس اضافه شود'
                         : 'Click points on the spectrogram to pin frequencies'}
@@ -3383,7 +3577,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                     pinnedPoints.map((pt, idx) => (
                       <div
                         key={pt.id}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border ${
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption border ${
                           activeSeqPinId === pt.id
                             ? 'bg-amber-500/20 border-amber-400 text-amber-300'
                             : pt.enabled
@@ -3393,6 +3587,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                       >
                         <input
                           type="checkbox"
+                          aria-label={isFa ? `فعال بودن پین ${idx + 1}` : `Enable pin ${idx + 1}`}
                           checked={pt.enabled}
                           onChange={(e) =>
                             setPinnedPoints((prev) =>
@@ -3415,6 +3610,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                             setPinnedPoints((prev) => prev.filter((item) => item.id !== pt.id))
                           }
                           className="text-slate-400 hover:text-rose-500 cursor-pointer"
+                          aria-label={isFa ? `حذف پین ${idx + 1}` : `Remove pin ${idx + 1}`}
                         >
                           ×
                         </button>
@@ -3430,7 +3626,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                     disabled={pinnedPoints.filter((p) => p.enabled).length === 0}
                     className="btn-primary-pill px-3 py-1 text-xs flex items-center gap-1 cursor-pointer disabled:opacity-40"
                   >
-                    <Play className="w-3 h-3 fill-current" />
+                    <Play className="w-3 h-3 fill-current" aria-hidden="true" />
                     <span>
                       {isPlayingMulti
                         ? lang === 'fa'
@@ -3457,9 +3653,10 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                         setPinnedPoints([]);
                       }}
                       className="neu-btn p-1 rounded-full text-rose-500 cursor-pointer"
-                      title="Clear"
+                      title={isFa ? 'پاک کردن همه' : 'Clear all'}
+                      aria-label={isFa ? 'پاک کردن همه پین‌ها' : 'Clear all pins'}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -3477,27 +3674,30 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                     min={10}
                     max={19900}
                     value={rangeStartFreq}
+                    aria-label={isFa ? 'فرکانس شروع بازه (Hz)' : 'Range start frequency (Hz)'}
                     onChange={(e) =>
                       setRangeStartFreq(Math.max(10, Math.min(19900, Number(e.target.value))))
                     }
-                    className="neu-inset w-18 px-1.5 py-0.5 rounded text-right font-bold text-sky-500 bg-transparent"
+                    className="neu-inset w-20 px-1.5 py-0.5 rounded-chip text-end font-bold text-sky-500"
                   />
-                  <span className="text-slate-400">→</span>
+                  <span aria-hidden="true" className="text-slate-400 rtl:rotate-180">→</span>
                   <input
                     type="number"
                     min={20}
                     max={20000}
                     value={rangeEndFreq}
+                    aria-label={isFa ? 'فرکانس پایان بازه (Hz)' : 'Range end frequency (Hz)'}
                     onChange={(e) =>
                       setRangeEndFreq(Math.max(20, Math.min(20000, Number(e.target.value))))
                     }
-                    className="neu-inset w-18 px-1.5 py-0.5 rounded text-right font-bold text-emerald-500 bg-transparent"
+                    className="neu-inset w-20 px-1.5 py-0.5 rounded-chip text-end font-bold text-emerald-500"
                   />
                   <span className="text-slate-400">Hz</span>
                   <select
                     value={rangeToneCount}
                     onChange={(e) => setRangeToneCount(Number(e.target.value))}
-                    className="neu-inset px-2 py-0.5 rounded text-[11px] bg-transparent"
+                    aria-label={isFa ? 'تعداد تُن‌ها' : 'Number of tones'}
+                    className="neu-inset px-2 py-0.5 rounded-chip text-caption"
                   >
                     <option value={4}>4 Tones</option>
                     <option value={8}>8 Tones</option>
@@ -3511,7 +3711,7 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
                     onClick={() => playFrequencyRangeSignal('harmonic-bank')}
                     className="btn-primary-pill px-3 py-1 text-xs flex items-center gap-1 cursor-pointer"
                   >
-                    <Sparkles className="w-3 h-3" />
+                    <Sparkles className="w-3 h-3" aria-hidden="true" />
                     <span>{lang === 'fa' ? 'پخش چندتُنی بازه' : 'Play Range Bank'}</span>
                   </button>
                   <button
@@ -3547,13 +3747,31 @@ export const AudioSpectrogramPage: React.FC<{ embedded?: boolean }> = ({ embedde
         >
           {(vizTab === 'combined' || vizTab === 'waveform') && (
             <div className="oscilloscope-frame p-1 overflow-hidden">
-              <canvas ref={waveformCanvasRef} className="block w-full rounded-xl" />
+              <canvas
+                ref={waveformCanvasRef}
+                role="img"
+                aria-label={
+                  isFa
+                    ? `شکل‌موج زمانی سیگنال صوتی، ${currentTime.toFixed(1)} از ${totalDuration.toFixed(1)} ثانیه`
+                    : `Time-domain audio waveform, ${currentTime.toFixed(1)} of ${totalDuration.toFixed(1)} s`
+                }
+                className="block w-full rounded-xl"
+              />
             </div>
           )}
 
           {(vizTab === 'combined' || vizTab === 'spectrum') && (
             <div className="oscilloscope-frame p-1 overflow-hidden">
-              <canvas ref={spectrumCanvasRef} className="block w-full rounded-xl" />
+              <canvas
+                ref={spectrumCanvasRef}
+                role="img"
+                aria-label={
+                  isFa
+                    ? `طیف فوریه لگاریتمی سیگنال صوتی تا ${Math.round(maxFreqDisplay)} هرتز`
+                    : `Logarithmic FFT magnitude spectrum of the audio, up to ${Math.round(maxFreqDisplay)} Hz`
+                }
+                className="block w-full rounded-xl"
+              />
             </div>
           )}
         </div>

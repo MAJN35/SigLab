@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Brain, Play, Square, Zap } from 'lucide-react';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { Brain, Play, RotateCcw, Square, Zap } from 'lucide-react';
 import { LAB_IMAGES } from '../assets/labImages';
 import { InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
+import { PageHeader, ParamSlider, StatusMessage } from '../components/ui';
 import {
   MLTrainingEpochLog,
   MLTrainingResult,
@@ -11,6 +12,7 @@ import {
 import { useLab } from '../store/LabContext';
 import { MLArchitectureType, MLTaskType } from '../types';
 import { calculateSNR } from '../utils/math';
+import { getSeriesColor, getSeriesDash, PLOT_SURFACE_BG } from '../theme/palette';
 
 const ARCHITECTURES: {
   id: MLArchitectureType;
@@ -85,6 +87,11 @@ export const DeepLearningPage: React.FC = () => {
   const [selectedSampleIdx, setSelectedSampleIdx] = useState<number>(0);
   const stopRef = useRef<boolean>(false);
   const netCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [trainError, setTrainError] = useState<string | null>(null);
+  const isFa = lang === 'fa';
+  const archGroupId = useId();
+  const taskSelectId = useId();
+  const sampleGroupId = useId();
 
   const updateML = (patch: Partial<typeof mlConfig>) => {
     setMlConfig((prev) => ({ ...prev, ...patch }));
@@ -95,6 +102,7 @@ export const DeepLearningPage: React.FC = () => {
     stopRef.current = false;
     setIsTraining(true);
     setLiveEpochs([]);
+    setTrainError(null);
     try {
       const res = await runBrowserMLTraining(
         mlConfig,
@@ -106,13 +114,26 @@ export const DeepLearningPage: React.FC = () => {
       );
       setResult(res);
       setSelectedSampleIdx(0);
+    } catch (err) {
+      console.error('[DeepLearning] training failed', err);
+      setTrainError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsTraining(false);
     }
   };
 
+  // Training is user-initiated only. When the architecture or task changes,
+  // stop any running session and drop results that no longer match the model.
+  const firstRenderRef = useRef(true);
   useEffect(() => {
-    startTraining();
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false;
+      return;
+    }
+    stopRef.current = true;
+    setResult(null);
+    setLiveEpochs([]);
+    setTrainError(null);
   }, [mlConfig.architecture, mlConfig.task]);
 
   const epochNumbers = liveEpochs.map((e) => e.epoch);
@@ -136,7 +157,7 @@ export const DeepLearningPage: React.FC = () => {
     if (!ctx) return;
     ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = '#050912';
+    ctx.fillStyle = PLOT_SURFACE_BG;
     ctx.fillRect(0, 0, width, height);
 
     const numClasses = result?.classNames.length ?? 2;
@@ -247,27 +268,20 @@ export const DeepLearningPage: React.FC = () => {
       <div className="neu-card p-5 flex flex-col gap-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
           <div className="lg:col-span-8 flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-mono font-semibold text-sky-600 dark:text-sky-400 mb-0.5">
-                  {lang === 'fa'
-                    ? 'موتور TensorFlow.js داخل مرورگر · آزمایشگاه شبکه عصبی سمت کاربر'
-                    : 'TensorFlow.js In-Browser Engine · Client-Side Neural Network Laboratory'}
-                </div>
-                <h1 className="text-xl font-bold tracking-tight">
-                  {lang === 'fa'
-                    ? 'آزمایشگاه یادگیری عمیق برای طبقه‌بندی و نویززدایی سیگنال'
-                    : 'Deep Learning Signal Classification & Denoising Laboratory'}
-                </h1>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                  {lang === 'fa'
-                    ? 'آموزش زنده معماری‌های Dense MLP، 1D-CNN، خودرمزگذار حذف نویز (Autoencoder) و RNN مستقیماً در مرورگر همراه با بررسی فعال‌سازی لایه‌ها و کرنل‌های یادگرفته‌شده.'
-                    : 'Train Dense MLP, 1D-CNN, Denoising Autoencoder, and Simple RNN architectures directly in your browser and inspect live synaptic activations.'}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {isTraining ? (
+            <PageHeader
+              icon={<Brain className="w-5 h-5" />}
+              title={
+                isFa
+                  ? 'آزمایشگاه یادگیری عمیق برای طبقه‌بندی و نویززدایی سیگنال'
+                  : 'Deep Learning Signal Classification & Denoising Laboratory'
+              }
+              subtitle={
+                isFa
+                  ? 'آموزش زنده معماری‌های Dense MLP، 1D-CNN، خودرمزگذار حذف نویز (Autoencoder) و RNN مستقیماً در مرورگر (TensorFlow.js) همراه با بررسی فعال‌سازی لایه‌ها و کرنل‌های یادگرفته‌شده.'
+                  : 'Train Dense MLP, 1D-CNN, Denoising Autoencoder, and Simple RNN architectures directly in your browser (TensorFlow.js) and inspect live synaptic activations.'
+              }
+              actions={
+                isTraining ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -275,8 +289,8 @@ export const DeepLearningPage: React.FC = () => {
                     }}
                     className="neu-btn px-4 py-2 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Square className="w-3.5 h-3.5" />
-                    <span>{lang === 'fa' ? 'توقف آموزش' : 'Stop Training'}</span>
+                    <Square className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>{isFa ? 'توقف آموزش' : 'Stop Training'}</span>
                   </button>
                 ) : (
                   <button
@@ -284,23 +298,33 @@ export const DeepLearningPage: React.FC = () => {
                     onClick={startTraining}
                     className="btn-primary-pill px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Play className="w-3.5 h-3.5" />
+                    <Play className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>
-                      {lang === 'fa' ? 'آموزش مدل در مرورگر' : 'Train Model in Browser'}
+                      {result
+                        ? isFa
+                          ? 'آموزش مجدد مدل'
+                          : 'Retrain Model'
+                        : isFa
+                          ? 'آموزش مدل در مرورگر'
+                          : 'Train Model in Browser'}
                     </span>
                   </button>
-                )}
-              </div>
-            </div>
+                )
+              }
+            />
 
             {/* Architecture Selector */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <span id={archGroupId} className="sr-only">
+              {isFa ? 'معماری شبکه عصبی' : 'Neural network architecture'}
+            </span>
+            <div role="group" aria-labelledby={archGroupId} className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {ARCHITECTURES.map((a) => (
                 <button
                   key={a.id}
                   type="button"
+                  aria-pressed={mlConfig.architecture === a.id}
                   onClick={() => updateML({ architecture: a.id })}
-                  className={`neu-btn p-3 rounded-xl text-start flex flex-col gap-0.5 cursor-pointer ${
+                  className={`neu-btn p-3 rounded-control text-start flex flex-col gap-0.5 cursor-pointer ${
                     mlConfig.architecture === a.id
                       ? 'neu-btn-active text-sky-700 dark:text-sky-300'
                       : ''
@@ -309,7 +333,7 @@ export const DeepLearningPage: React.FC = () => {
                   <span className="text-xs font-bold">
                     {lang === 'fa' ? a.faLabel : a.label}
                   </span>
-                  <span className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-1">
+                  <span className="text-caption text-slate-600 dark:text-slate-400 line-clamp-1">
                     {lang === 'fa' ? a.faDesc : a.desc}
                   </span>
                 </button>
@@ -329,7 +353,7 @@ export const DeepLearningPage: React.FC = () => {
                 referrerPolicy="no-referrer"
                 className="w-full h-36 object-cover opacity-90"
               />
-              <div className="p-2 bg-slate-950/85 border-t border-sky-400/20 text-[10px] font-mono text-slate-300 flex justify-between">
+              <div className="p-2 bg-slate-950/85 border-t border-sky-400/20 text-2xs font-mono text-slate-300 flex justify-between">
                 <span>
                   {lang === 'fa'
                     ? 'استخراج ویژگی زمانی با فیلترهای عصبی'
@@ -344,102 +368,121 @@ export const DeepLearningPage: React.FC = () => {
         {/* Task & Hyperparameter Controls */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="sm:col-span-2">
-            <label className="block text-xs font-mono text-slate-600 dark:text-slate-400 mb-1">
-              {lang === 'fa'
-                ? 'وظیفه و مجموعه داده سیگنال مصنوعی'
-                : 'Synthetic Signal Task / Dataset'}
+            <label
+              htmlFor={taskSelectId}
+              className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1"
+            >
+              {isFa ? 'وظیفه و مجموعه داده سیگنال مصنوعی' : 'Synthetic Signal Task / Dataset'}
             </label>
             <select
+              id={taskSelectId}
               value={mlConfig.task}
               onChange={(e) => updateML({ task: e.target.value as MLTaskType })}
-              className="neu-inset w-full px-3 py-2 rounded-lg text-xs font-semibold bg-transparent outline-none"
+              className="neu-inset w-full px-3 py-2 rounded-control text-xs font-semibold"
             >
               {TASKS.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {lang === 'fa' ? t.faLabel : t.label}
+                  {isFa ? t.faLabel : t.label}
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'تعداد دورهای آموزش (Epochs)' : 'Epochs'}</span>
-              <span className="text-sky-600 dark:text-sky-400 font-semibold">
-                {mlConfig.epochs}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={8}
-              max={40}
-              step={2}
-              value={mlConfig.epochs}
-              onChange={(e) => updateML({ epochs: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'تعداد نورون‌ها / فیلترها' : 'Hidden Units / Filters'}</span>
-              <span className="text-sky-600 dark:text-sky-400 font-semibold">
-                {mlConfig.hiddenUnits}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={8}
-              max={48}
-              step={4}
-              value={mlConfig.hiddenUnits}
-              onChange={(e) => updateML({ hiddenUnits: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'سطح نویز مجموعه داده (σ)' : 'Dataset Noise (σ)'}</span>
-              <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                {mlConfig.noiseLevel.toFixed(2)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0.05}
-              max={0.8}
-              step={0.05}
-              value={mlConfig.noiseLevel}
-              onChange={(e) => updateML({ noiseLevel: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
+          <ParamSlider
+            label="Epochs"
+            faLabel="تعداد دورهای آموزش (Epochs)"
+            value={mlConfig.epochs}
+            min={8}
+            max={40}
+            step={2}
+            lang={lang}
+            disabled={isTraining}
+            onChange={(v) => updateML({ epochs: v })}
+          />
+          <ParamSlider
+            label="Hidden Units / Filters"
+            faLabel="تعداد نورون‌ها / فیلترها"
+            value={mlConfig.hiddenUnits}
+            min={8}
+            max={48}
+            step={4}
+            lang={lang}
+            disabled={isTraining}
+            onChange={(v) => updateML({ hiddenUnits: v })}
+          />
+          <ParamSlider
+            label="Dataset Noise (σ)"
+            faLabel="سطح نویز مجموعه داده (σ)"
+            value={mlConfig.noiseLevel}
+            min={0.05}
+            max={0.8}
+            step={0.05}
+            format={(v) => v.toFixed(2)}
+            lang={lang}
+            disabled={isTraining}
+            onChange={(v) => updateML({ noiseLevel: v })}
+          />
         </div>
+
+        {trainError && (
+          <StatusMessage kind="error" title={isFa ? 'آموزش مدل ناموفق بود' : 'Model training failed'}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span>
+                {isFa
+                  ? 'هنگام آموزش شبکه در مرورگر خطایی رخ داد. دوباره تلاش کنید یا تعداد نورون‌ها/دورها را کاهش دهید.'
+                  : 'Something went wrong while training the network in your browser. Try again, or lower the hidden units / epochs.'}
+              </span>
+              <button
+                type="button"
+                onClick={startTraining}
+                className="neu-btn rounded-control px-3 py-1 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                {isFa ? 'تلاش مجدد' : 'Retry'}
+              </button>
+            </div>
+          </StatusMessage>
+        )}
 
         {/* Live Training Progress Bar */}
         <div className="neu-inset p-3.5 flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between text-xs font-mono">
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono"
+          >
             <span>
               {lang === 'fa' ? 'وضعیت موتور آموزش: ' : 'Engine Status: '}
               <strong
                 className={
                   isTraining
                     ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-emerald-600 dark:text-emerald-400'
+                    : trainError
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : result
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-slate-600 dark:text-slate-300'
                 }
               >
                 {isTraining
-                  ? lang === 'fa'
+                  ? isFa
                     ? `▲ در حال آموزش دور ${liveEpochs.length} از ${mlConfig.epochs}...`
                     : `▲ Training Epoch ${liveEpochs.length}/${mlConfig.epochs}...`
-                  : lang === 'fa'
-                  ? '● مدل آموزش دید و آماده استنتاج زنده است'
-                  : '● Model Trained & Ready for Live Inference'}
+                  : trainError
+                    ? isFa
+                      ? '✕ آموزش ناموفق بود'
+                      : '✕ Training failed'
+                    : result
+                      ? isFa
+                        ? '● مدل آموزش دید و آماده استنتاج زنده است'
+                        : '● Model Trained & Ready for Live Inference'
+                      : isFa
+                        ? '○ مدل هنوز آموزش ندیده است — برای شروع «آموزش مدل در مرورگر» را بزنید'
+                        : '○ Not trained yet — press “Train Model in Browser” to start'}
               </strong>
             </span>
             {latestLog && (
-              <div className="flex items-center gap-4 tabular-nums">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 tabular-nums">
                 <span>
                   {lang === 'fa' ? 'خطای آموزش: ' : 'Train Loss: '}
                   <strong>{latestLog.loss.toFixed(4)}</strong>
@@ -455,7 +498,19 @@ export const DeepLearningPage: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="w-full h-2.5 rounded-full bg-slate-300/60 dark:bg-slate-800 overflow-hidden">
+          <div
+            role="progressbar"
+            aria-label={isFa ? 'پیشرفت آموزش' : 'Training progress'}
+            aria-valuemin={0}
+            aria-valuemax={mlConfig.epochs}
+            aria-valuenow={liveEpochs.length}
+            aria-valuetext={
+              isFa
+                ? `دور ${liveEpochs.length} از ${mlConfig.epochs}`
+                : `Epoch ${liveEpochs.length} of ${mlConfig.epochs}`
+            }
+            className="w-full h-2.5 rounded-full bg-slate-300/60 dark:bg-slate-800 overflow-hidden"
+          >
             <div
               className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 transition-all duration-150"
               style={{
@@ -471,14 +526,14 @@ export const DeepLearningPage: React.FC = () => {
         <div className="lg:col-span-7 neu-card p-5 flex flex-col justify-between gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2">
-                <Brain className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+              <h2 className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                <Brain className="w-4 h-4 text-sky-600 dark:text-sky-400" aria-hidden="true" />
                 <span>
                   {lang === 'fa'
                     ? 'توپولوژی تعاملی شبکه عصبی و فعال‌سازی خروجی‌ها'
                     : 'Interactive Neural Network Topology & Output Activations'}
                 </span>
-              </h3>
+              </h2>
               <p className="text-xs text-slate-600 dark:text-slate-400">
                 {lang === 'fa'
                   ? 'نمایش لایه‌های فعال، اتصالات سیناپسی و احتمالات خروجی Softmax برای نمونه انتخاب‌شده'
@@ -494,18 +549,35 @@ export const DeepLearningPage: React.FC = () => {
           </div>
 
           <div className="oscilloscope-frame p-1 overflow-hidden">
-            <canvas ref={netCanvasRef} className="block w-full rounded-xl" />
+            <canvas
+              ref={netCanvasRef}
+              role="img"
+              aria-label={
+                isFa
+                  ? `توپولوژی شبکه ${mlConfig.architecture.toUpperCase()} با ${mlConfig.hiddenUnits} نورون پنهان${
+                      result && activeSample && mlConfig.architecture !== 'autoencoder'
+                        ? `؛ احتمال خروجی‌ها: ${result.classNames.map((c, i) => `${c} ${((activeSample.probabilities[i] ?? 0) * 100).toFixed(0)}٪`).join('، ')}`
+                        : ''
+                    }`
+                  : `${mlConfig.architecture.toUpperCase()} network topology with ${mlConfig.hiddenUnits} hidden units${
+                      result && activeSample && mlConfig.architecture !== 'autoencoder'
+                        ? `; output probabilities: ${result.classNames.map((c, i) => `${c} ${((activeSample.probabilities[i] ?? 0) * 100).toFixed(0)}%`).join(', ')}`
+                        : ''
+                    }`
+              }
+              className="block w-full rounded-xl"
+            />
           </div>
         </div>
 
         {/* Confusion Matrix & Class Confidence Breakdown */}
         <div className="lg:col-span-5 neu-card p-5 flex flex-col justify-between gap-4">
           <div>
-            <h3 className="text-sm font-semibold tracking-tight">
+            <h2 className="text-sm font-semibold tracking-tight">
               {lang === 'fa'
                 ? 'ماتریس درهم‌ریختگی (Confusion Matrix) و احتمال کلاس‌ها'
                 : 'Validation Confusion Matrix & Class Probabilities'}
-            </h3>
+            </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400">
               {lang === 'fa'
                 ? 'سطرها = کلاس واقعی · ستون‌ها = کلاس پیش‌بینی‌شده توسط مدل'
@@ -565,18 +637,20 @@ export const DeepLearningPage: React.FC = () => {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-xs font-mono">
                 <span className="font-semibold flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  <span>
+                  <Zap className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+                  <span id={sampleGroupId}>
                     {lang === 'fa' ? 'بررسی نمونه آزمون:' : 'Inspect Validation Sample:'}
                   </span>
                 </span>
-                <div className="flex gap-1">
+                <div role="group" aria-labelledby={sampleGroupId} className="flex flex-wrap gap-1">
                   {result.samplePredictions.map((_, idx) => (
                     <button
                       key={idx}
                       type="button"
+                      aria-pressed={selectedSampleIdx === idx}
+                      aria-label={isFa ? `نمونه ${idx + 1}` : `Sample ${idx + 1}`}
                       onClick={() => setSelectedSampleIdx(idx)}
-                      className={`neu-btn px-2 py-0.5 rounded text-xs font-mono cursor-pointer ${
+                      className={`neu-btn px-2 py-0.5 rounded-chip text-xs font-mono cursor-pointer ${
                         selectedSampleIdx === idx
                           ? 'neu-btn-active text-sky-600 dark:text-sky-400 font-bold'
                           : ''
@@ -593,14 +667,14 @@ export const DeepLearningPage: React.FC = () => {
                   const prob = (activeSample.probabilities[cIdx] ?? 0) * 100;
                   return (
                     <div key={clsName} className="flex items-center gap-2 text-xs font-mono">
-                      <span className="w-36 truncate">{clsName}</span>
+                      <span className="w-28 sm:w-36 truncate">{clsName}</span>
                       <div className="flex-1 h-2 neu-inset overflow-hidden">
                         <div
                           className="h-full bg-emerald-500"
                           style={{ width: `${Math.max(2, prob)}%` }}
                         />
                       </div>
-                      <span className="w-12 text-right font-semibold tabular-nums">
+                      <span className="w-12 text-end font-semibold tabular-nums">
                         {prob.toFixed(1)}%
                       </span>
                     </div>
@@ -638,16 +712,16 @@ export const DeepLearningPage: React.FC = () => {
               id: 'tr-loss',
               label: lang === 'fa' ? 'خطای آموزش (Train Loss)' : 'Training Loss',
               data: liveEpochs.map((e) => e.loss),
-              color: '#0284c7',
+              color: getSeriesColor(0),
               lineWidth: 2.1,
             },
             {
               id: 'val-loss',
               label: lang === 'fa' ? 'خطای اعتبارسنجی (Val Loss)' : 'Validation Loss',
               data: liveEpochs.map((e) => e.valLoss),
-              color: '#d97706',
+              color: getSeriesColor(1),
               lineWidth: 2,
-              dashed: true,
+              dash: getSeriesDash(1),
             },
           ]}
         />
@@ -668,21 +742,26 @@ export const DeepLearningPage: React.FC = () => {
           yLabel={lang === 'fa' ? 'دقت (0..1)' : 'Accuracy (0..1)'}
           height={240}
           yDomainOverride={[0, 1.05]}
+          ariaLabel={
+            isFa
+              ? `دقت آموزش و اعتبارسنجی در ${liveEpochs.length} دور`
+              : `Training and validation accuracy over ${liveEpochs.length} epochs`
+          }
           series={[
             {
               id: 'tr-acc',
               label: lang === 'fa' ? 'دقت آموزش (Train Accuracy)' : 'Training Accuracy',
               data: liveEpochs.map((e) => e.accuracy),
-              color: '#059669',
+              color: getSeriesColor(2),
               lineWidth: 2.1,
             },
             {
               id: 'val-acc',
               label: lang === 'fa' ? 'دقت اعتبارسنجی (Val Accuracy)' : 'Validation Accuracy',
               data: liveEpochs.map((e) => e.valAccuracy),
-              color: '#7c3aed',
+              color: getSeriesColor(3),
               lineWidth: 2,
-              dashed: true,
+              dash: getSeriesDash(1),
             },
           ]}
         />
@@ -715,16 +794,16 @@ export const DeepLearningPage: React.FC = () => {
                 id: 'ml-samp-noisy',
                 label: lang === 'fa' ? 'سیگنال ورودی آزمون x[n]' : 'Observed Test Input x[n]',
                 data: activeSample.signal,
-                color: '#d97706',
+                color: getSeriesColor(1),
                 lineWidth: 1.5,
               },
               {
                 id: 'ml-samp-clean',
                 label: lang === 'fa' ? 'سیگنال تمیز مرجع' : 'Ground-Truth Clean Signal',
                 data: activeSample.cleanSignal,
-                color: '#0284c7',
+                color: getSeriesColor(0),
                 lineWidth: 1.8,
-                dashed: true,
+                dash: getSeriesDash(1),
               },
               ...(activeSample.reconstructedSignal
                 ? [
@@ -735,8 +814,9 @@ export const DeepLearningPage: React.FC = () => {
                           ? 'سیگنال بازسازی‌شده خودرمزگذار x̂[n]'
                           : 'Autoencoder Reconstructed x̂[n]',
                       data: activeSample.reconstructedSignal,
-                      color: '#059669',
+                      color: getSeriesColor(2),
                       lineWidth: 2.3,
+                      dash: getSeriesDash(2),
                     },
                   ]
                 : []),
@@ -768,7 +848,8 @@ export const DeepLearningPage: React.FC = () => {
                   ? `فیلتر/نورون یادگرفته‌شده #${idx + 1}`
                   : `Learned Filter/Neuron #${idx + 1}`,
               data: feat,
-              color: ['#0284c7', '#059669', '#d97706', '#db2777'][idx % 4],
+              color: getSeriesColor(idx),
+              dash: getSeriesDash(idx),
               lineWidth: 2,
             }))}
           />

@@ -1,17 +1,61 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { RotateCcw, ScatterChart } from 'lucide-react';
 import { InteractivePlot } from '../components/InteractivePlot';
-import { TheoryAccordion } from '../components/MathBlock';
+import { LiveEquation, TheoryAccordion } from '../components/MathBlock';
+import { PageHeader, ParamSlider } from '../components/ui';
+import { useElementSize } from '../hooks/useElementSize';
 import { runPCAExperiment } from '../simulations/pca';
 import { useLab } from '../store/LabContext';
+import { getSeriesColor, PLOT_SURFACE_BG } from '../theme/palette';
+
+/** One colour + one marker shape per cluster so clusters are not colour-only. */
+const CLUSTER_COLORS = [getSeriesColor(0), getSeriesColor(2), getSeriesColor(1)];
+const CLUSTER_SHAPES = ['circle', 'square', 'triangle'] as const;
+const CLUSTER_SHAPE_GLYPHS = ['●', '■', '▲'];
+const CANVAS_HEIGHT = 270;
+
+function drawClusterPoint(ctx: CanvasRenderingContext2D, x: number, y: number, cluster: number, r: number) {
+  const i = ((cluster % 3) + 3) % 3;
+  ctx.fillStyle = CLUSTER_COLORS[i];
+  ctx.beginPath();
+  if (CLUSTER_SHAPES[i] === 'square') {
+    ctx.rect(x - r * 0.9, y - r * 0.9, r * 1.8, r * 1.8);
+  } else if (CLUSTER_SHAPES[i] === 'triangle') {
+    ctx.moveTo(x, y - r * 1.15);
+    ctx.lineTo(x + r, y + r * 0.85);
+    ctx.lineTo(x - r, y + r * 0.85);
+    ctx.closePath();
+  } else {
+    ctx.arc(x, y, r, 0, 2 * Math.PI);
+  }
+  ctx.fill();
+}
+
+/** Size a canvas for the device pixel ratio and return a scaled 2D context. */
+function prepareCanvas(canvas: HTMLCanvasElement, width: number, height: number) {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  const ctx = canvas.getContext('2d');
+  ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
 
 export const PCAPage: React.FC = () => {
-  const { experiment, setExperiment, darkMode, lang } = useLab();
+  const { experiment, setExperiment, darkMode, lang, resetExperiment } = useLab();
+  const isFa = lang === 'fa';
   const pcaCfg = experiment.analysis.pca;
   const [rotYaw, setRotYaw] = useState(34);
   const [rotPitch, setRotPitch] = useState(22);
 
   const canvas2DRef = useRef<HTMLCanvasElement | null>(null);
   const canvas3DRef = useRef<HTMLCanvasElement | null>(null);
+  const box2DRef = useRef<HTMLDivElement | null>(null);
+  const box3DRef = useRef<HTMLDivElement | null>(null);
+  const size2D = useElementSize(box2DRef);
+  const size3D = useElementSize(box3DRef);
 
   const updatePCA = (patch: Partial<typeof pcaCfg>) => {
     setExperiment((prev) => ({
@@ -32,14 +76,12 @@ export const PCAPage: React.FC = () => {
   useEffect(() => {
     const canvas = canvas2DRef.current;
     if (!canvas) return;
-    const width = canvas.parentElement?.clientWidth || 460;
-    const height = 270;
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
+    const width = size2D.width || 460;
+    const height = CANVAS_HEIGHT;
+    const ctx = prepareCanvas(canvas, width, height);
     if (!ctx) return;
 
-    ctx.fillStyle = '#050912';
+    ctx.fillStyle = PLOT_SURFACE_BG;
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
@@ -54,14 +96,8 @@ export const PCAPage: React.FC = () => {
     ctx.lineTo(cx, height - 20);
     ctx.stroke();
 
-    const colors = ['#22d3ee', '#10b981', '#f59e0b'];
     for (const pt of res.projected2D) {
-      const px = cx + pt.pc1 * scale;
-      const py = cy - pt.pc2 * scale;
-      ctx.fillStyle = colors[pt.cluster % 3];
-      ctx.beginPath();
-      ctx.arc(px, py, 3.2, 0, 2 * Math.PI);
-      ctx.fill();
+      drawClusterPoint(ctx, cx + pt.pc1 * scale, cy - pt.pc2 * scale, pt.cluster, 3.2);
     }
 
     // Draw orthogonal Principal Component direction vectors
@@ -82,20 +118,18 @@ export const PCAPage: React.FC = () => {
     ctx.font = '11px "IBM Plex Mono", monospace';
     ctx.fillText(`PC1 (${res.explainedVarianceRatio[0]?.toFixed(1)}%)`, width - 115, cy - 8);
     ctx.fillText(`PC2 (${res.explainedVarianceRatio[1]?.toFixed(1)}%)`, cx + 8, 28);
-  }, [darkMode, res]);
+  }, [darkMode, res, size2D.width]);
 
   // Render Interactive 3D PC1-PC2-PC3 Subspace Projection
   useEffect(() => {
     const canvas = canvas3DRef.current;
     if (!canvas) return;
-    const width = canvas.parentElement?.clientWidth || 460;
-    const height = 270;
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
+    const width = size3D.width || 460;
+    const height = CANVAS_HEIGHT;
+    const ctx = prepareCanvas(canvas, width, height);
     if (!ctx) return;
 
-    ctx.fillStyle = '#050912';
+    ctx.fillStyle = PLOT_SURFACE_BG;
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
@@ -132,116 +166,115 @@ export const PCAPage: React.FC = () => {
       ctx.fillText(ax.label, p1.px + 4, p1.py);
     }
 
-    const colors = ['#22d3ee', '#10b981', '#f59e0b'];
     for (const pt of res.projected3D) {
       const { px, py } = project3D(pt.pc1, pt.pc2, pt.pc3);
-      ctx.fillStyle = colors[pt.cluster % 3];
-      ctx.beginPath();
-      ctx.arc(px, py, 3, 0, 2 * Math.PI);
-      ctx.fill();
+      drawClusterPoint(ctx, px, py, pt.cluster, 3);
     }
-  }, [darkMode, res, rotYaw, rotPitch]);
+  }, [darkMode, res, rotYaw, rotPitch, size3D.width]);
+
+  const retainedPct = res.cumulativeVarianceRatio[pcaCfg.numComponents - 1] ?? 100;
+  const clusterCount = new Set(res.projected2D.map((p) => p.cluster % 3)).size;
+  const clusterLegend = (
+    <ul className="flex flex-wrap gap-x-3 gap-y-1 text-caption font-mono text-slate-500 dark:text-slate-400">
+      {CLUSTER_COLORS.map((c, i) => (
+        <li key={i} className="flex items-center gap-1">
+          <span aria-hidden="true" style={{ color: c }}>
+            {CLUSTER_SHAPE_GLYPHS[i]}
+          </span>
+          {isFa ? `خوشه ${i + 1}` : `Cluster ${i + 1}`}
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className="flex flex-col gap-6">
       <div className="neu-card p-5 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {lang === 'fa'
-                ? 'تحلیل مؤلفه‌های اصلی (PCA) و بازسازی زیرفضای متعامد'
-                : 'Principal Component Analysis (PCA) & Subspace Reconstruction'}
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {lang === 'fa'
-                ? 'تجزیه مقادیر ویژه ماتریس کوواریانس چندکاناله، بررسی نسبت واریانس تبیین‌شده و ارزیابی خطای بازسازی با رتبه کاهش‌یافته k.'
-                : 'Perform orthogonal eigendecomposition of multi-channel covariance matrices, inspect Explained Variance ratios, and evaluate rank-k reconstruction error.'}
-            </p>
-          </div>
-          <div className="text-xs font-mono">
-            {lang === 'fa'
-              ? `واریانس حفظ‌شده (${pcaCfg.numComponents}/${pcaCfg.numDimensions} مؤلفه): `
-              : `Retained Variance (${pcaCfg.numComponents}/${pcaCfg.numDimensions} PCs): `}
-            <strong className="text-emerald-500">
-              {(res.cumulativeVarianceRatio[pcaCfg.numComponents - 1] ?? 100).toFixed(1)}%
-            </strong>{' '}
-            · {lang === 'fa' ? 'خطای بازسازی RMSE: ' : 'Reconstruction RMSE: '}
-            <strong className="text-sky-500">{res.reconstructionRmse.toFixed(4)}</strong>
-          </div>
-        </div>
+        <PageHeader
+          icon={<ScatterChart className="w-5 h-5" />}
+          title={
+            isFa
+              ? 'تحلیل مؤلفه‌های اصلی (PCA) و بازسازی زیرفضای متعامد'
+              : 'Principal Component Analysis (PCA) & Subspace Reconstruction'
+          }
+          subtitle={
+            isFa
+              ? 'تجزیه مقادیر ویژه ماتریس کوواریانس چندکاناله، بررسی نسبت واریانس تبیین‌شده و ارزیابی خطای بازسازی با رتبه کاهش‌یافته k.'
+              : 'Perform orthogonal eigendecomposition of multi-channel covariance matrices, inspect Explained Variance ratios, and evaluate rank-k reconstruction error.'
+          }
+          stats={[
+            {
+              label: isFa
+                ? `واریانس حفظ‌شده (${pcaCfg.numComponents}/${pcaCfg.numDimensions})`
+                : `Retained Variance (${pcaCfg.numComponents}/${pcaCfg.numDimensions} PCs)`,
+              value: <span role="status" aria-live="polite">{retainedPct.toFixed(1)}%</span>,
+            },
+            {
+              label: isFa ? 'خطای بازسازی RMSE' : 'Reconstruction RMSE',
+              value: res.reconstructionRmse.toFixed(4),
+            },
+          ]}
+          actions={
+            <button
+              type="button"
+              onClick={resetExperiment}
+              className="neu-btn rounded-control px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              {isFa ? 'بازنشانی پیش‌فرض‌ها' : 'Reset to defaults'}
+            </button>
+          }
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'ابعاد حسگرها (D)' : 'Sensor Dimensions (D)'}</span>
-              <span className="text-sky-500 font-semibold">{pcaCfg.numDimensions}D</span>
-            </div>
-            <input
-              type="range"
-              min={3}
-              max={8}
-              step={1}
-              value={pcaCfg.numDimensions}
-              onChange={(e) => {
-                const d = Number(e.target.value);
-                updatePCA({
-                  numDimensions: d,
-                  numComponents: Math.min(pcaCfg.numComponents, d),
-                });
-              }}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'مؤلفه‌های نگه‌داشته‌شده (k)' : 'Retained Components (k)'}</span>
-              <span className="text-emerald-500 font-semibold">{pcaCfg.numComponents} PCs</span>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={pcaCfg.numDimensions}
-              step={1}
-              value={pcaCfg.numComponents}
-              onChange={(e) => updatePCA({ numComponents: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'نویز مشاهده (σ)' : 'Observation Noise (σ)'}</span>
-              <span className="text-amber-500 font-semibold">{pcaCfg.noiseLevel.toFixed(2)}</span>
-            </div>
-            <input
-              type="range"
-              min={0.02}
-              max={1.2}
-              step={0.02}
-              value={pcaCfg.noiseLevel}
-              onChange={(e) => updatePCA({ noiseLevel: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'همبستگی پنهان کانال‌ها' : 'Latent Correlation'}</span>
-              <span className="text-sky-500 font-semibold">
-                {(pcaCfg.correlationStrength * 100).toFixed(0)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0.1}
-              max={0.98}
-              step={0.02}
-              value={pcaCfg.correlationStrength}
-              onChange={(e) => updatePCA({ correlationStrength: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
+          <ParamSlider
+            label="Sensor Dimensions (D)"
+            faLabel="ابعاد حسگرها (D)"
+            value={pcaCfg.numDimensions}
+            min={3}
+            max={8}
+            step={1}
+            unit="D"
+            lang={lang}
+            onChange={(d) =>
+              updatePCA({
+                numDimensions: d,
+                numComponents: Math.min(pcaCfg.numComponents, d),
+              })
+            }
+          />
+          <ParamSlider
+            label="Retained Components (k)"
+            faLabel="مؤلفه‌های نگه‌داشته‌شده (k)"
+            value={pcaCfg.numComponents}
+            min={1}
+            max={pcaCfg.numDimensions}
+            step={1}
+            unit="PCs"
+            lang={lang}
+            onChange={(v) => updatePCA({ numComponents: v })}
+          />
+          <ParamSlider
+            label="Observation Noise (σ)"
+            faLabel="نویز مشاهده (σ)"
+            value={pcaCfg.noiseLevel}
+            min={0.02}
+            max={1.2}
+            step={0.02}
+            lang={lang}
+            onChange={(v) => updatePCA({ noiseLevel: v })}
+          />
+          <ParamSlider
+            label="Latent Correlation"
+            faLabel="همبستگی پنهان کانال‌ها"
+            value={pcaCfg.correlationStrength}
+            min={0.1}
+            max={0.98}
+            step={0.02}
+            format={(v) => `${(v * 100).toFixed(0)}%`}
+            lang={lang}
+            onChange={(v) => updatePCA({ correlationStrength: v })}
+          />
         </div>
       </div>
 
@@ -250,11 +283,11 @@ export const PCAPage: React.FC = () => {
         {/* Explained Variance Spectrum */}
         <div className="neu-card p-5 flex flex-col justify-between gap-4">
           <div>
-            <h3 className="text-sm font-semibold tracking-tight">
+            <h2 className="text-sm font-semibold tracking-tight">
               {lang === 'fa'
                 ? 'طیف مقادیر ویژه و واریانس تبیین‌شده'
                 : 'Eigenvalue Spectrum & Explained Variance'}
-            </h3>
+            </h2>
             <p className="text-xs text-slate-500">
               {lang === 'fa'
                 ? 'درصد واریانس تک‌تک مقادیر ویژه λ_i و واریانس تجمعی k مؤلفه اول'
@@ -289,7 +322,7 @@ export const PCAPage: React.FC = () => {
             })}
           </div>
 
-          <div className="neu-inset p-3 text-xs font-mono flex justify-between">
+          <div role="status" aria-live="polite" className="neu-inset p-3 text-xs font-mono flex justify-between gap-2">
             <span>{lang === 'fa' ? 'خطای زیرفضا (RMSE):' : 'Subspace Error (RMSE):'}</span>
             <strong className="text-emerald-500">{res.reconstructionRmse.toFixed(4)}</strong>
           </div>
@@ -298,11 +331,11 @@ export const PCAPage: React.FC = () => {
         {/* 2D Projection Canvas */}
         <div className="neu-card p-4 flex flex-col gap-3">
           <div>
-            <h3 className="text-sm font-semibold tracking-tight">
+            <h2 className="text-sm font-semibold tracking-tight">
               {lang === 'fa'
                 ? 'تصویر دوبعدی زیرفضای اصلی (PC1 در برابر PC2)'
                 : '2D Principal Subspace Projection (PC1 vs. PC2)'}
-            </h3>
+            </h2>
             <p className="text-xs text-slate-500">
               {lang === 'fa'
                 ? 'محورهای متعامد بیشینه‌ساز واریانس به همراه توزیع خوشه‌ها'
@@ -310,38 +343,77 @@ export const PCAPage: React.FC = () => {
             </p>
           </div>
           <div className="oscilloscope-frame p-1 overflow-hidden">
-            <canvas ref={canvas2DRef} className="block w-full rounded-xl" />
+            <div ref={box2DRef} className="w-full" dir="ltr">
+              <canvas
+                ref={canvas2DRef}
+                role="img"
+                aria-label={
+                  isFa
+                    ? `نمودار پراکندگی PC1 در برابر PC2: ${res.projected2D.length} نقطه در ${clusterCount} خوشه؛ PC1 ${res.explainedVarianceRatio[0]?.toFixed(1)}٪ و PC2 ${res.explainedVarianceRatio[1]?.toFixed(1)}٪ واریانس`
+                    : `Scatter of PC1 vs PC2: ${res.projected2D.length} points in ${clusterCount} clusters; PC1 explains ${res.explainedVarianceRatio[0]?.toFixed(1)}% and PC2 ${res.explainedVarianceRatio[1]?.toFixed(1)}% of variance`
+                }
+                className="block w-full rounded-xl"
+                style={{ height: CANVAS_HEIGHT }}
+              />
+            </div>
           </div>
+          {clusterLegend}
         </div>
 
         {/* 3D Projection Canvas */}
         <div className="neu-card p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold tracking-tight">
+              <h2 className="text-sm font-semibold tracking-tight">
                 {lang === 'fa'
                   ? 'منیفولد سه‌بعدی مؤلفه‌های اصلی (PC1 · PC2 · PC3)'
                   : '3D Principal Manifold (PC1 · PC2 · PC3)'}
-              </h3>
+              </h2>
               <p className="text-xs text-slate-500">
                 {lang === 'fa' ? 'چرخش زاویه دید دوربین سه‌بعدی' : 'Rotate 3D camera yaw & pitch'}
               </p>
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-mono">
-              <span>{lang === 'fa' ? 'چرخش' : 'Yaw'}</span>
-              <input
-                type="range"
-                min={-180}
-                max={180}
-                value={rotYaw}
-                onChange={(e) => setRotYaw(Number(e.target.value))}
-                className="w-16 sci-slider"
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+            <ParamSlider
+              label="Camera yaw"
+              faLabel="چرخش افقی دوربین"
+              value={rotYaw}
+              min={-180}
+              max={180}
+              step={1}
+              unit="°"
+              lang={lang}
+              onChange={setRotYaw}
+            />
+            <ParamSlider
+              label="Camera pitch"
+              faLabel="چرخش عمودی دوربین"
+              value={rotPitch}
+              min={-90}
+              max={90}
+              step={1}
+              unit="°"
+              lang={lang}
+              onChange={setRotPitch}
+            />
+          </div>
+          <div className="oscilloscope-frame p-1 overflow-hidden">
+            <div ref={box3DRef} className="w-full" dir="ltr">
+              <canvas
+                ref={canvas3DRef}
+                role="img"
+                aria-label={
+                  isFa
+                    ? `تصویر سه‌بعدی PC1، PC2 و PC3 با ${res.projected3D.length} نقطه در ${clusterCount} خوشه؛ چرخش ${rotYaw}° و شیب ${rotPitch}°`
+                    : `3D projection onto PC1, PC2 and PC3: ${res.projected3D.length} points in ${clusterCount} clusters; yaw ${rotYaw}°, pitch ${rotPitch}°`
+                }
+                className="block w-full rounded-xl"
+                style={{ height: CANVAS_HEIGHT }}
               />
             </div>
           </div>
-          <div className="oscilloscope-frame p-1 overflow-hidden">
-            <canvas ref={canvas3DRef} className="block w-full rounded-xl" />
-          </div>
+          {clusterLegend}
         </div>
       </div>
 
@@ -366,7 +438,7 @@ export const PCAPage: React.FC = () => {
             id: 'pca-orig',
             label: lang === 'fa' ? 'کانال حسگر اصلی x₁[n]' : 'Original Sensor Channel x₁[n]',
             data: res.timeSeriesOriginal,
-            color: '#0ea5e9',
+            color: getSeriesColor(0),
             lineWidth: 1.8,
           },
           {
@@ -376,11 +448,25 @@ export const PCAPage: React.FC = () => {
                 ? `سیگنال بازسازی‌شده PCA با رتبه ${pcaCfg.numComponents}`
                 : `Rank-${pcaCfg.numComponents} PCA Reconstructed x̂₁[n]`,
             data: res.timeSeriesReconstructed,
-            color: '#10b981',
+            color: getSeriesColor(1),
+            dash: [7, 4],
             lineWidth: 2.2,
           },
         ]}
       />
+
+      <div className="neu-card px-4 py-3 overflow-x-auto">
+        <LiveEquation
+          tex={'\\frac{\\sum_{i=1}^{{{k}}} \\lambda_i}{\\sum_{i=1}^{{{D}}} \\lambda_i} = {{pct}}\\%, \\quad \\text{RMSE} = {{rmse}}'}
+          values={{ k: pcaCfg.numComponents, D: pcaCfg.numDimensions, pct: Number(retainedPct.toFixed(1)), rmse: res.reconstructionRmse }}
+          precision={4}
+          caption={
+            isFa
+              ? 'سهم واریانس حفظ‌شده با k مؤلفه اول و خطای بازسازی حاصل'
+              : 'Variance retained by the top k components and the resulting reconstruction error'
+          }
+        />
+      </div>
 
       <TheoryAccordion
         items={[

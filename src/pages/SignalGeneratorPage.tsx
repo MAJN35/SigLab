@@ -1,7 +1,9 @@
-import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import React, { useId } from 'react';
+import { Plus, RotateCcw, Trash2, Activity } from 'lucide-react';
 import { InteractivePlot } from '../components/InteractivePlot';
 import { MathFormula, TheoryAccordion } from '../components/MathBlock';
+import { PageHeader, ParamSlider } from '../components/ui';
+import { getSeriesColor, getSeriesDash } from '../theme/palette';
 import { getSignalLatexExpression } from '../simulations/signals';
 import { useLab } from '../store/LabContext';
 import { SignalComponent, SignalWaveType } from '../types';
@@ -19,8 +21,18 @@ const WAVE_TYPES: { id: SignalWaveType; label: string; faLabel: string }[] = [
 ];
 
 export const SignalGeneratorPage: React.FC = () => {
-  const { experiment, setExperiment, computed, lang } = useLab();
+  const { experiment, setExperiment, computed, lang, nyquist, isAliasing, resetExperiment } = useLab();
+  const isFa = lang === 'fa';
   const sig = experiment.signal;
+  const waveGroupId = useId();
+  const aliasShade = isFa ? 'بالای نایکوئیست' : 'above Nyquist';
+  const aliasWarning = (
+    <>
+      {isFa
+        ? `بالاتر از نایکوئیست (fs/2 = ${nyquist.toFixed(1)} Hz): الیاسینگ رخ می‌دهد؛ بخش تئوری پایین را ببینید.`
+        : `Above Nyquist (fs/2 = ${nyquist.toFixed(1)} Hz): aliasing will occur, see theory below.`}
+    </>
+  );
   const latexExpr = getSignalLatexExpression(sig);
 
   const updateSignal = (patch: Partial<typeof sig>) => {
@@ -64,33 +76,46 @@ export const SignalGeneratorPage: React.FC = () => {
     <div className="flex flex-col gap-6">
       {/* Header & Waveform Type Selector */}
       <div className="neu-card p-5 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {lang === 'fa'
-                ? 'تولیدکننده دقیق سیگنال و توابع پایه (Signal & Function Generator)'
-                : 'Precision Signal & Function Generator'}
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {lang === 'fa'
-                ? 'تولید شکل‌موج‌های استاندارد متناوب، سیگنال‌های چرپ (Chirp) با جاروب فرکانسی و سیگنال‌های ترکیبی چندهارمونیکی همراه با نمایش زنده رابطه ریاضی.'
-                : 'Synthesize canonical waveforms, frequency-swept chirps, and multi-harmonic composite signals with live mathematical notation.'}
-            </p>
-          </div>
-          <div className="text-xs font-mono text-slate-500">
-            {lang === 'fa' ? 'تعداد کل نمونه‌ها:' : 'Total Samples:'}{' '}
-            <strong className="text-sky-500">{numSamples}</strong> · Δt ={' '}
-            {(1000 / sig.samplingRate).toFixed(2)} ms
-          </div>
-        </div>
+        <PageHeader
+          icon={<Activity className="w-5 h-5" />}
+          title={
+            isFa
+              ? 'تولیدکننده دقیق سیگنال و توابع پایه (Signal & Function Generator)'
+              : 'Precision Signal & Function Generator'
+          }
+          subtitle={
+            isFa
+              ? 'تولید شکل‌موج‌های استاندارد متناوب، سیگنال‌های چرپ (Chirp) با جاروب فرکانسی و سیگنال‌های ترکیبی چندهارمونیکی همراه با نمایش زنده رابطه ریاضی.'
+              : 'Synthesize canonical waveforms, frequency-swept chirps, and multi-harmonic composite signals with live mathematical notation.'
+          }
+          stats={[
+            { label: isFa ? 'تعداد کل نمونه‌ها' : 'Total Samples', value: numSamples },
+            { label: 'Δt', value: `${(1000 / sig.samplingRate).toFixed(2)} ms` },
+            { label: isFa ? 'نایکوئیست' : 'Nyquist', value: `${nyquist.toFixed(1)} Hz` },
+          ]}
+          actions={
+            <button
+              type="button"
+              onClick={resetExperiment}
+              className="neu-btn rounded-full px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              {isFa ? 'بازنشانی به پیش‌فرض' : 'Reset to defaults'}
+            </button>
+          }
+        />
 
         {/* Waveform Mode Buttons */}
-        <div className="flex flex-wrap gap-2">
+        <span id={waveGroupId} className="sr-only">
+          {isFa ? 'نوع شکل‌موج' : 'Waveform type'}
+        </span>
+        <div className="flex flex-wrap gap-2" role="group" aria-labelledby={waveGroupId}>
           {WAVE_TYPES.map((w) => (
             <button
               key={w.id}
               type="button"
               onClick={() => updateSignal({ type: w.id })}
+              aria-pressed={sig.type === w.id}
               className={`neu-btn px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
                 sig.type === w.id ? 'btn-tool-pill' : ''
               }`}
@@ -122,149 +147,102 @@ export const SignalGeneratorPage: React.FC = () => {
                 : 'Global Sampling & Timebase Parameters'}
             </h2>
 
-            <div>
-              <div className="flex justify-between text-xs font-mono mb-1">
-                <span>{lang === 'fa' ? 'نرخ نمونه‌برداری (fs)' : 'Sampling Rate (fs)'}</span>
-                <span className="text-sky-500 font-semibold">{sig.samplingRate} Hz</span>
-              </div>
-              <input
-                type="range"
-                min={32}
-                max={1024}
-                step={16}
-                value={sig.samplingRate}
-                onChange={(e) => updateSignal({ samplingRate: Number(e.target.value) })}
-                className="sci-slider"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs font-mono mb-1">
-                <span>{lang === 'fa' ? 'مدت زمان سیگنال (T)' : 'Duration (T)'}</span>
-                <span className="text-sky-500 font-semibold">{sig.duration.toFixed(2)} s</span>
-              </div>
-              <input
-                type="range"
-                min={0.25}
-                max={5.0}
-                step={0.25}
-                value={sig.duration}
-                onChange={(e) => updateSignal({ duration: Number(e.target.value) })}
-                className="sci-slider"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs font-mono mb-1">
-                <span>{lang === 'fa' ? 'مؤلفه مستقیم (DC Offset)' : 'DC Offset (V_DC)'}</span>
-                <span className="text-sky-500 font-semibold">{sig.dcOffset.toFixed(2)} V</span>
-              </div>
-              <input
-                type="range"
-                min={-3}
-                max={3}
-                step={0.1}
-                value={sig.dcOffset}
-                onChange={(e) => updateSignal({ dcOffset: Number(e.target.value) })}
-                className="sci-slider"
-              />
-            </div>
+            <ParamSlider
+              label="Sampling Rate (fs)"
+              faLabel="نرخ نمونه‌برداری (fs)"
+              value={sig.samplingRate}
+              min={32}
+              max={1024}
+              step={16}
+              unit="Hz"
+              onChange={(v) => updateSignal({ samplingRate: v })}
+            />
+            <ParamSlider
+              label="Duration (T)"
+              faLabel="مدت زمان سیگنال (T)"
+              value={sig.duration}
+              min={0.25}
+              max={5.0}
+              step={0.25}
+              unit="s"
+              onChange={(v) => updateSignal({ duration: v })}
+            />
+            <ParamSlider
+              label="DC Offset (V_DC)"
+              faLabel="مؤلفه مستقیم (DC Offset)"
+              value={sig.dcOffset}
+              min={-3}
+              max={3}
+              step={0.1}
+              unit="V"
+              onChange={(v) => updateSignal({ dcOffset: v })}
+            />
 
             {sig.type !== 'composite' && (
               <>
                 <hr className="border-slate-200/60 dark:border-slate-800" />
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono">
-                  {lang === 'fa' ? 'پارامترهای شکل‌موج اصلی' : 'Primary Waveform Parameters'}
+                  {isFa ? 'پارامترهای شکل‌موج اصلی' : 'Primary Waveform Parameters'}
                 </h3>
 
-                <div>
-                  <div className="flex justify-between text-xs font-mono mb-1">
-                    <span>{lang === 'fa' ? 'دامنه (A)' : 'Amplitude (A)'}</span>
-                    <span className="text-sky-500 font-semibold">{sig.amplitude.toFixed(2)} V</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0.1}
-                    max={5.0}
-                    step={0.05}
-                    value={sig.amplitude}
-                    onChange={(e) => updateSignal({ amplitude: Number(e.target.value) })}
-                    className="sci-slider"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-mono mb-1">
-                    <span>{lang === 'fa' ? 'فرکانس پایه (f0)' : 'Frequency (f0)'}</span>
-                    <span className="text-sky-500 font-semibold">{sig.frequency.toFixed(1)} Hz</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0.5}
-                    max={120}
-                    step={0.5}
-                    value={sig.frequency}
-                    onChange={(e) => updateSignal({ frequency: Number(e.target.value) })}
-                    className="sci-slider"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-mono mb-1">
-                    <span>{lang === 'fa' ? 'اختلاف فاز اولیه (φ)' : 'Phase Shift (φ)'}</span>
-                    <span className="text-sky-500 font-semibold">{sig.phase.toFixed(0)}°</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={-180}
-                    max={180}
-                    step={5}
-                    value={sig.phase}
-                    onChange={(e) => updateSignal({ phase: Number(e.target.value) })}
-                    className="sci-slider"
-                  />
-                </div>
+                <ParamSlider
+                  label="Amplitude (A)"
+                  faLabel="دامنه (A)"
+                  value={sig.amplitude}
+                  min={0.1}
+                  max={5.0}
+                  step={0.05}
+                  unit="V"
+                  onChange={(v) => updateSignal({ amplitude: v })}
+                />
+                <ParamSlider
+                  label="Frequency (f0)"
+                  faLabel="فرکانس پایه (f0)"
+                  value={sig.frequency}
+                  min={0.5}
+                  max={120}
+                  step={0.5}
+                  unit="Hz"
+                  onChange={(v) => updateSignal({ frequency: v })}
+                  warning={isAliasing ? aliasWarning : undefined}
+                />
+                <ParamSlider
+                  label="Phase Shift (φ)"
+                  faLabel="اختلاف فاز اولیه (φ)"
+                  value={sig.phase}
+                  min={-180}
+                  max={180}
+                  step={5}
+                  unit="°"
+                  onChange={(v) => updateSignal({ phase: v })}
+                />
 
                 {sig.type === 'chirp' && (
-                  <div>
-                    <div className="flex justify-between text-xs font-mono mb-1">
-                      <span>
-                        {lang === 'fa' ? 'فرکانس پایانی جاروب (f1)' : 'Target End Frequency (f1)'}
-                      </span>
-                      <span className="text-sky-500 font-semibold">
-                        {sig.frequencyEnd.toFixed(1)} Hz
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={2}
-                      max={150}
-                      step={1}
-                      value={sig.frequencyEnd}
-                      onChange={(e) => updateSignal({ frequencyEnd: Number(e.target.value) })}
-                      className="sci-slider"
-                    />
-                  </div>
+                  <ParamSlider
+                    label="Target End Frequency (f1)"
+                    faLabel="فرکانس پایانی جاروب (f1)"
+                    value={sig.frequencyEnd}
+                    min={2}
+                    max={150}
+                    step={1}
+                    unit="Hz"
+                    onChange={(v) => updateSignal({ frequencyEnd: v })}
+                    warning={isAliasing && sig.frequencyEnd > nyquist ? aliasWarning : undefined}
+                  />
                 )}
 
                 {sig.type === 'pulse' && (
-                  <div>
-                    <div className="flex justify-between text-xs font-mono mb-1">
-                      <span>{lang === 'fa' ? 'چرخه کار پالس (Duty Cycle)' : 'Pulse Duty Cycle'}</span>
-                      <span className="text-sky-500 font-semibold">
-                        {(sig.dutyCycle * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0.05}
-                      max={0.95}
-                      step={0.05}
-                      value={sig.dutyCycle}
-                      onChange={(e) => updateSignal({ dutyCycle: Number(e.target.value) })}
-                      className="sci-slider"
-                    />
-                  </div>
+                  <ParamSlider
+                    label="Pulse Duty Cycle"
+                    faLabel="چرخه کار پالس (Duty Cycle)"
+                    value={sig.dutyCycle}
+                    min={0.05}
+                    max={0.95}
+                    step={0.05}
+                    format={(v) => (v * 100).toFixed(0)}
+                    unit="%"
+                    onChange={(v) => updateSignal({ dutyCycle: v })}
+                  />
                 )}
               </>
             )}
@@ -272,7 +250,7 @@ export const SignalGeneratorPage: React.FC = () => {
 
           {/* Composite Multi-Component Builder */}
           <div className="neu-card p-5 flex flex-col gap-3.5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold tracking-tight">
                   {lang === 'fa'
@@ -290,7 +268,7 @@ export const SignalGeneratorPage: React.FC = () => {
                 onClick={addComponent}
                 className="btn-primary-pill px-3.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{lang === 'fa' ? 'افزودن مؤلفه' : 'Add Component'}</span>
               </button>
             </div>
@@ -301,6 +279,7 @@ export const SignalGeneratorPage: React.FC = () => {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <input
+                        id={`${comp.id}-enabled`}
                         type="checkbox"
                         checked={comp.enabled}
                         onChange={(e) => {
@@ -309,13 +288,14 @@ export const SignalGeneratorPage: React.FC = () => {
                         }}
                         className="rounded accent-sky-500 cursor-pointer"
                       />
-                      <span className="text-xs font-semibold font-mono">
+                      <label htmlFor={`${comp.id}-enabled`} className="text-xs font-semibold font-mono cursor-pointer">
                         {lang === 'fa' ? `مؤلفه #${idx + 1}` : `Component #${idx + 1}`}
-                      </span>
+                      </label>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <select
+                        aria-label={isFa ? `نوع موج مؤلفه ${idx + 1}` : `Component ${idx + 1} waveform`}
                         value={comp.type}
                         onChange={(e) => {
                           updateSignal({ type: 'composite' });
@@ -323,7 +303,7 @@ export const SignalGeneratorPage: React.FC = () => {
                             type: e.target.value as Exclude<SignalWaveType, 'composite'>,
                           });
                         }}
-                        className="neu-btn px-2.5 py-1 rounded-full text-xs font-mono bg-transparent"
+                        className="neu-btn px-2.5 py-1 rounded-full text-xs font-mono"
                       >
                         <option value="sine">{lang === 'fa' ? 'سینوسی' : 'Sine'}</option>
                         <option value="cosine">{lang === 'fa' ? 'کسینوسی' : 'Cosine'}</option>
@@ -337,15 +317,17 @@ export const SignalGeneratorPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => removeComponent(comp.id)}
+                          aria-label={isFa ? `حذف مؤلفه ${idx + 1}` : `Remove component ${idx + 1}`}
+                          title={isFa ? `حذف مؤلفه ${idx + 1}` : `Remove component ${idx + 1}`}
                           className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                       )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-[11px] font-mono">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-2 text-caption font-mono">
                     <label className="flex flex-col gap-1">
                       <span className="text-slate-500">
                         {lang === 'fa' ? 'دامنه:' : 'Amp:'} {comp.amplitude.toFixed(2)}V
@@ -356,6 +338,7 @@ export const SignalGeneratorPage: React.FC = () => {
                         max={4}
                         step={0.1}
                         value={comp.amplitude}
+                        aria-valuetext={`${comp.amplitude.toFixed(2)} V`}
                         onChange={(e) => {
                           updateSignal({ type: 'composite' });
                           updateComponent(comp.id, { amplitude: Number(e.target.value) });
@@ -373,6 +356,7 @@ export const SignalGeneratorPage: React.FC = () => {
                         max={100}
                         step={0.5}
                         value={comp.frequency}
+                        aria-valuetext={`${comp.frequency.toFixed(1)} Hz`}
                         onChange={(e) => {
                           updateSignal({ type: 'composite' });
                           updateComponent(comp.id, { frequency: Number(e.target.value) });
@@ -390,6 +374,7 @@ export const SignalGeneratorPage: React.FC = () => {
                         max={180}
                         step={15}
                         value={comp.phase}
+                        aria-valuetext={`${comp.phase}°`}
                         onChange={(e) => {
                           updateSignal({ type: 'composite' });
                           updateComponent(comp.id, { phase: Number(e.target.value) });
@@ -398,6 +383,18 @@ export const SignalGeneratorPage: React.FC = () => {
                       />
                     </label>
                   </div>
+                  {comp.enabled && comp.frequency > nyquist && (
+                    <p
+                      className="rounded-chip border px-2 py-1 text-caption leading-snug"
+                      style={{
+                        color: 'var(--warning-text)',
+                        background: 'var(--warning-soft)',
+                        borderColor: 'color-mix(in srgb, var(--warning) 35%, transparent)',
+                      }}
+                    >
+                      {aliasWarning}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -414,22 +411,26 @@ export const SignalGeneratorPage: React.FC = () => {
                 : `Sampling Rate fs = ${sig.samplingRate} Hz · Nyquist Limit = ${(sig.samplingRate / 2).toFixed(1)} Hz`
             }
             xData={computed.time}
-            xLabel="Time (s)"
-            yLabel="Amplitude (V)"
+            xLabel={isFa ? 'زمان (s)' : 'Time (s)'}
+            yLabel={isFa ? 'دامنه (V)' : 'Amplitude (V)'}
+            xUnit="s"
+            yUnit="V"
             height={300}
             series={[
               {
                 id: 'clean-gen',
                 label: lang === 'fa' ? 'سیگنال تمیز سنتزشده' : 'Synthesized Clean Signal',
                 data: computed.cleanSignal,
-                color: '#0ea5e9',
+                color: getSeriesColor(0),
+                dash: getSeriesDash(0),
                 lineWidth: 2.2,
               },
               {
                 id: 'noisy-gen',
                 label: lang === 'fa' ? 'همراه با نویز کانال' : 'With Channel Noise',
                 data: computed.noisySignal,
-                color: '#f59e0b',
+                color: getSeriesColor(1),
+                dash: getSeriesDash(1),
                 lineWidth: 1.2,
                 visible: false,
               },
@@ -448,9 +449,12 @@ export const SignalGeneratorPage: React.FC = () => {
                 : 'Observe harmonic structure (e.g., odd harmonics 1/k in Square & Triangle waves, wideband sweep in Chirp)'
             }
             xData={computed.spectrum.frequencies}
-            xLabel="Frequency (Hz)"
-            yLabel="Magnitude"
+            xLabel={isFa ? 'فرکانس (Hz)' : 'Frequency (Hz)'}
+            yLabel={isFa ? 'اندازه' : 'Magnitude'}
+            xUnit="Hz"
             height={260}
+            markers={[{ x: nyquist, label: `fs/2 = ${nyquist.toFixed(1)} Hz` }]}
+            shadeRegions={[{ x0: nyquist, x1: Infinity, label: aliasShade }]}
             peaks={computed.peaks.map((p) => ({
               x: p.frequency,
               y: p.magnitude,
@@ -461,7 +465,7 @@ export const SignalGeneratorPage: React.FC = () => {
                 id: 'gen-fft',
                 label: lang === 'fa' ? 'اندازه طیف |X(f)|' : 'Spectral Magnitude',
                 data: computed.spectrum.magnitude,
-                color: '#10b981',
+                color: getSeriesColor(0),
                 lineWidth: 2,
               },
             ]}

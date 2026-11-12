@@ -1,6 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
+import { RotateCcw, Waves } from 'lucide-react';
 import { InteractiveHeatmap, InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
+import { PageHeader, ParamSlider } from '../components/ui';
+import { getSeriesColor, getSeriesDash } from '../theme/palette';
 import { computeWaveletAnalysis } from '../simulations/wavelets';
 import { useLab } from '../store/LabContext';
 import { WaveletFamily } from '../types';
@@ -34,7 +37,9 @@ const WAVELET_FAMILIES: { id: WaveletFamily; label: string; faLabel: string; des
 ];
 
 export const WaveletPage: React.FC = () => {
-  const { experiment, setExperiment, computed, lang } = useLab();
+  const { experiment, setExperiment, computed, lang, resetExperiment } = useLab();
+  const isFa = lang === 'fa';
+  const familyGroupId = useId();
   const wavCfg = experiment.analysis.wavelet;
 
   const updateWavelet = (patch: Partial<typeof wavCfg>) => {
@@ -71,93 +76,83 @@ export const WaveletPage: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       <div className="neu-card p-5 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {lang === 'fa'
-                ? 'آزمایشگاه تحلیل چندتفکیکی موجک (Wavelet) و اسکالوگرام'
-                : 'Multi-Resolution Wavelet & Scalogram Laboratory'}
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {lang === 'fa'
-                ? 'تجزیه بانک فیلتر تبدیل موجک گسسته (DWT)، حذف نویز با آستانه‌گذاری نرم دونوهو (Donoho) و تحلیل زمان-مقیاس با تبدیل موجک پیوسته (CWT).'
-                : 'Perform Discrete Wavelet Transform (DWT) filter-bank decomposition, Donoho soft-threshold wavelet denoising, and Continuous Wavelet Transform (CWT) time-scale analysis.'}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {WAVELET_FAMILIES.map((wf) => (
-              <button
-                key={wf.id}
-                type="button"
-                onClick={() => updateWavelet({ family: wf.id })}
-                className={`neu-btn px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-                  wavCfg.family === wf.id ? 'neu-btn-active text-sky-500' : ''
-                }`}
-              >
-                {lang === 'fa' ? wf.faLabel : wf.label}
-              </button>
-            ))}
-          </div>
+        <PageHeader
+          icon={<Waves className="w-5 h-5" />}
+          title={
+            isFa
+              ? 'آزمایشگاه تحلیل چندتفکیکی موجک (Wavelet) و اسکالوگرام'
+              : 'Multi-Resolution Wavelet & Scalogram Laboratory'
+          }
+          subtitle={
+            isFa
+              ? 'تجزیه بانک فیلتر تبدیل موجک گسسته (DWT)، حذف نویز با آستانه‌گذاری نرم دونوهو (Donoho) و تحلیل زمان-مقیاس با تبدیل موجک پیوسته (CWT).'
+              : 'Perform Discrete Wavelet Transform (DWT) filter-bank decomposition, Donoho soft-threshold wavelet denoising, and Continuous Wavelet Transform (CWT) time-scale analysis.'
+          }
+          stats={[
+            { label: isFa ? 'SNR ورودی' : 'Input SNR', value: `${computed.empiricalSnrDb.toFixed(2)} dB` },
+            { label: isFa ? 'SNR پس از نویززدایی' : 'Denoised SNR', value: `${denoisedSnr.toFixed(2)} dB` },
+          ]}
+          actions={
+            <button
+              type="button"
+              onClick={resetExperiment}
+              className="neu-btn rounded-full px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              {isFa ? 'بازنشانی به پیش‌فرض' : 'Reset to defaults'}
+            </button>
+          }
+        />
+
+        <span id={familyGroupId} className="sr-only">
+          {isFa ? 'خانواده موجک' : 'Wavelet family'}
+        </span>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={familyGroupId}>
+          {WAVELET_FAMILIES.map((wf) => (
+            <button
+              key={wf.id}
+              type="button"
+              aria-pressed={wavCfg.family === wf.id}
+              title={wf.desc}
+              onClick={() => updateWavelet({ family: wf.id })}
+              className={`neu-btn px-3 py-1.5 rounded-control text-xs font-semibold cursor-pointer ${
+                wavCfg.family === wf.id ? 'neu-btn-active text-sky-600 dark:text-sky-400' : ''
+              }`}
+            >
+              {isFa ? wf.faLabel : wf.label}
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'تعداد سطوح تجزیه (J)' : 'Decomposition Levels (J)'}</span>
-              <span className="text-sky-500 font-semibold">
-                {lang === 'fa' ? `سطح ${wavCfg.levels}` : `Level ${wavCfg.levels}`}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={6}
-              step={1}
-              value={wavCfg.levels}
-              onChange={(e) => updateWavelet({ levels: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>
-                {lang === 'fa' ? 'آستانه حذف نویز نرم (λ)' : 'Soft Denoising Threshold (λ)'}
-              </span>
-              <span className="text-emerald-500 font-semibold">
-                {wavCfg.denoiseThreshold.toFixed(2)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={1.5}
-              step={0.05}
-              value={wavCfg.denoiseThreshold}
-              onChange={(e) => updateWavelet({ denoiseThreshold: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>
-                {lang === 'fa' ? 'تعداد مقیاس‌های اسکالوگرام CWT' : 'CWT Scalogram Dyadic Scales'}
-              </span>
-              <span className="text-sky-500 font-semibold">
-                {lang === 'fa' ? `${wavCfg.numScales} مقیاس` : `${wavCfg.numScales} scales`}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={12}
-              max={40}
-              step={4}
-              value={wavCfg.numScales}
-              onChange={(e) => updateWavelet({ numScales: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
+          <ParamSlider
+            label="Decomposition Levels (J)"
+            faLabel="تعداد سطوح تجزیه (J)"
+            value={wavCfg.levels}
+            min={1}
+            max={6}
+            step={1}
+            onChange={(v) => updateWavelet({ levels: v })}
+          />
+          <ParamSlider
+            label="Soft Denoising Threshold (λ)"
+            faLabel="آستانه حذف نویز نرم (λ)"
+            value={wavCfg.denoiseThreshold}
+            min={0}
+            max={1.5}
+            step={0.05}
+            onChange={(v) => updateWavelet({ denoiseThreshold: v })}
+          />
+          <ParamSlider
+            label="CWT Scalogram Dyadic Scales"
+            faLabel="تعداد مقیاس‌های اسکالوگرام CWT"
+            value={wavCfg.numScales}
+            min={12}
+            max={40}
+            step={4}
+            unit={isFa ? 'مقیاس' : 'scales'}
+            onChange={(v) => updateWavelet({ numScales: v })}
+          />
         </div>
       </div>
 
@@ -179,6 +174,12 @@ export const WaveletPage: React.FC = () => {
           matrix={wavResult.scalogram}
           xLabel={lang === 'fa' ? 'زمان (ثانیه)' : 'Time (s)'}
           yLabel={lang === 'fa' ? 'مقیاس موجک (a)' : 'Wavelet Scale (a)'}
+          xProbeLabel={isFa ? 'زمان' : 'Time'}
+          xProbeUnit=" s"
+          yProbeLabel={isFa ? 'مقیاس' : 'Scale'}
+          yProbeUnit=""
+          valueProbeLabel={isFa ? 'انرژی نرمال‌شده |W(a,b)|' : 'Norm |W(a,b)|'}
+          ariaLabel={isFa ? 'اسکالوگرام زمان-مقیاس CWT' : 'CWT time-scale scalogram'}
           height={275}
         />
 
@@ -196,20 +197,24 @@ export const WaveletPage: React.FC = () => {
           xData={computed.time.slice(0, wavResult.denoisedSignal.length)}
           xLabel={lang === 'fa' ? 'زمان (ثانیه)' : 'Time (s)'}
           yLabel={lang === 'fa' ? 'دامنه (V)' : 'Amplitude (V)'}
+          xUnit="s"
+          yUnit="V"
           height={275}
           series={[
             {
               id: 'wav-clean',
               label: lang === 'fa' ? 'سیگنال تمیز اصلی' : 'Original Clean',
               data: computed.cleanSignal.slice(0, wavResult.denoisedSignal.length),
-              color: '#0ea5e9',
+              color: getSeriesColor(0),
+              dash: getSeriesDash(1),
               lineWidth: 2,
             },
             {
               id: 'wav-noisy',
               label: lang === 'fa' ? 'ورودی نویزی' : 'Noisy Input',
               data: computed.noisySignal.slice(0, wavResult.denoisedSignal.length),
-              color: '#f59e0b',
+              color: getSeriesColor(1),
+              dash: getSeriesDash(2),
               lineWidth: 1.15,
             },
             {
@@ -219,7 +224,7 @@ export const WaveletPage: React.FC = () => {
                   ? `سیگنال نویززدایی‌شده موجک (λ=${wavCfg.denoiseThreshold})`
                   : `Wavelet Denoised (λ=${wavCfg.denoiseThreshold})`,
               data: wavResult.denoisedSignal,
-              color: '#10b981',
+              color: getSeriesColor(2),
               lineWidth: 2.2,
             },
           ]}
@@ -248,7 +253,7 @@ export const WaveletPage: React.FC = () => {
               id: 'ca-coeff',
               label: lang === 'fa' ? `ضرایب تقریب cA_${wavCfg.levels}` : `Approximation cA_${wavCfg.levels}`,
               data: wavResult.approximation,
-              color: '#38bdf8',
+              color: getSeriesColor(0),
               lineWidth: 2,
             },
           ]}
@@ -274,14 +279,15 @@ export const WaveletPage: React.FC = () => {
               id: 'cd1',
               label: lang === 'fa' ? 'جزئیات سطح ۱ (cD₁)' : 'Level 1 Detail (cD₁)',
               data: wavResult.details[0] ?? [],
-              color: '#f59e0b',
+              color: getSeriesColor(1),
               lineWidth: 1.5,
             },
             {
               id: 'cd2',
               label: lang === 'fa' ? 'جزئیات سطح ۲ (cD₂)' : 'Level 2 Detail (cD₂)',
               data: wavResult.details[1] ?? [],
-              color: '#ec4899',
+              color: getSeriesColor(3),
+              dash: getSeriesDash(1),
               lineWidth: 1.8,
             },
           ]}

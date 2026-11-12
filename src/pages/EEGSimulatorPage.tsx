@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import React, { useId, useMemo } from 'react';
+import { AlertTriangle, RotateCcw, Waves } from 'lucide-react';
 import { LAB_IMAGES } from '../assets/labImages';
 import { InteractivePlot } from '../components/InteractivePlot';
 import { TheoryAccordion } from '../components/MathBlock';
+import { PageHeader, ParamSlider } from '../components/ui';
+import { getSeriesColor, getSeriesDash } from '../theme/palette';
 import { EEG_PRESETS, simulateSyntheticEEG } from '../simulations/eeg';
 import { computeFFTSpectrum } from '../simulations/fft';
 import { useLab } from '../store/LabContext';
@@ -17,8 +19,10 @@ const PRESET_FA_LABELS: Record<string, string> = {
 };
 
 export const EEGSimulatorPage: React.FC = () => {
-  const { experiment, setExperiment, lang } = useLab();
+  const { experiment, setExperiment, lang, resetExperiment } = useLab();
+  const isFa = lang === 'fa';
   const eegCfg = experiment.eeg;
+  const presetGroupId = useId();
 
   const updateEEG = (patch: Partial<typeof eegCfg>) => {
     setExperiment((prev) => ({
@@ -72,45 +76,76 @@ export const EEGSimulatorPage: React.FC = () => {
     maxF: number;
     color: string;
   }[] = [
-    { key: 'delta', name: 'Delta (δ)', faName: 'باند دلتا (δ)', range: '0.5–4 Hz', minF: 0.5, maxF: 4.0, color: '#6366f1' },
-    { key: 'theta', name: 'Theta (θ)', faName: 'باند تتا (θ)', range: '4–8 Hz', minF: 4.0, maxF: 8.0, color: '#0ea5e9' },
-    { key: 'alpha', name: 'Alpha (α)', faName: 'باند آلفا (α)', range: '8–13 Hz', minF: 8.0, maxF: 13.0, color: '#10b981' },
-    { key: 'beta', name: 'Beta (β)', faName: 'باند بتا (β)', range: '13–30 Hz', minF: 13.0, maxF: 30.0, color: '#f59e0b' },
-    { key: 'gamma', name: 'Gamma (γ)', faName: 'باند گاما (γ)', range: '30–80 Hz', minF: 30.0, maxF: 75.0, color: '#ec4899' },
+    { key: 'delta', name: 'Delta (δ)', faName: 'باند دلتا (δ)', range: '0.5–4 Hz', minF: 0.5, maxF: 4.0, color: getSeriesColor(0) },
+    { key: 'theta', name: 'Theta (θ)', faName: 'باند تتا (θ)', range: '4–8 Hz', minF: 4.0, maxF: 8.0, color: getSeriesColor(1) },
+    { key: 'alpha', name: 'Alpha (α)', faName: 'باند آلفا (α)', range: '8–13 Hz', minF: 8.0, maxF: 13.0, color: getSeriesColor(2) },
+    { key: 'beta', name: 'Beta (β)', faName: 'باند بتا (β)', range: '13–30 Hz', minF: 13.0, maxF: 30.0, color: getSeriesColor(3) },
+    { key: 'gamma', name: 'Gamma (γ)', faName: 'باند گاما (γ)', range: '30–80 Hz', minF: 30.0, maxF: 75.0, color: getSeriesColor(4) },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       {/* Mandatory Non-Clinical Synthetic Banner + Cortical Map Visual */}
-      <div className="neu-card p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-center border-l-4 border-l-amber-500">
+      <div className="neu-card p-5 flex flex-col gap-4 border-s-4 border-s-amber-500">
+        <PageHeader
+          icon={<Waves className="w-5 h-5" />}
+          title={isFa ? 'شبیه‌ساز نوار مغز (EEG)' : 'EEG Simulator'}
+          subtitle={
+            isFa
+              ? 'تولید ریتم‌های مغزی و آرتیفکت‌ها و پاکسازی آن‌ها با فیلترهای پیش‌پردازش.'
+              : 'Generate brain rhythms and artifacts, then clean them with preprocessing filters.'
+          }
+          stats={[
+            { label: 'fs', value: `${eegCfg.samplingRate} Hz` },
+            {
+              label: isFa ? 'باند عبور' : 'Passband',
+              value: `${eegCfg.preprocessHighpass}–${eegCfg.preprocessLowpass} Hz`,
+            },
+          ]}
+          actions={
+            <button
+              type="button"
+              onClick={resetExperiment}
+              className="neu-btn rounded-control px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              {isFa ? 'بازنشانی پیش‌فرض‌ها' : 'Reset to defaults'}
+            </button>
+          }
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
         <div className="lg:col-span-8 flex flex-col gap-3">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
             <div>
-              <div className="text-sm font-bold tracking-tight">
-                {lang === 'fa'
+              <p className="text-sm font-bold tracking-tight">
+                {isFa
                   ? 'سیگنال EEG مصنوعی — غیربالینی (Synthetic EEG — Not clinical data)'
                   : 'Synthetic EEG — Not clinical data'}
-              </div>
-              <div className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
-                {lang === 'fa'
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                {isFa
                   ? 'تمامی امواج مغزی و آرتیفکت‌ها به صورت ریاضی برای آموزش پردازش سیگنال و ارزیابی الگوریتم‌ها سنتز شده‌اند و هیچ کاربرد تشخیصی یا پزشکی ندارند.'
                   : 'All waveforms and artifacts are mathematically synthesized for signal-processing education and algorithm testing. Not intended for clinical diagnosis.'}
-              </div>
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
+          <span id={presetGroupId} className="text-xs font-medium text-slate-600 dark:text-slate-300">
+            {isFa ? 'پیش‌تنظیم حالت مغزی' : 'Brain-state preset'}
+          </span>
+          <div role="group" aria-labelledby={presetGroupId} className="flex flex-wrap gap-1.5">
             {Object.entries(EEG_PRESETS).map(([key, p]) => (
               <button
                 key={key}
                 type="button"
+                aria-pressed={eegCfg.preset === key}
                 onClick={() => applyPreset(key)}
                 className={`neu-btn px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer ${
                   eegCfg.preset === key ? 'btn-tool-pill' : ''
                 }`}
               >
-                {lang === 'fa' ? PRESET_FA_LABELS[key] || p.label : p.label}
+                {isFa ? PRESET_FA_LABELS[key] || p.label : p.label}
               </button>
             ))}
           </div>
@@ -120,19 +155,20 @@ export const EEGSimulatorPage: React.FC = () => {
           <div className="oscilloscope-frame overflow-hidden">
             <img
               src={LAB_IMAGES.eegCortical}
-              alt={lang === 'fa' ? 'نقشه قشر مغز و الکترودهای EEG' : 'Cortical EEG Electrode Montage'}
+              alt={isFa ? 'نقشه قشر مغز و الکترودهای EEG' : 'Cortical EEG Electrode Montage'}
               referrerPolicy="no-referrer"
               className="w-full h-32 object-cover opacity-90"
             />
-            <div className="p-2 bg-slate-950/85 border-t border-sky-400/20 text-[10px] font-mono text-slate-300 flex justify-between">
+            <div className="p-2 bg-slate-950/85 border-t border-sky-400/20 text-2xs font-mono text-slate-300 flex justify-between gap-2">
               <span>
-                {lang === 'fa'
+                {isFa
                   ? 'مدل نوسانگرهای ریتمیک قشر مغز (۱۰-۲۰)'
                   : '10-20 Cortical Rhythm Oscillator Model'}
               </span>
               <span className="text-emerald-400">fs={eegCfg.samplingRate}Hz</span>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
@@ -164,9 +200,13 @@ export const EEGSimulatorPage: React.FC = () => {
             <React.Fragment key={item.step}>
               <div className="neu-inset px-3.5 py-2 text-center">
                 <div className="font-semibold text-sky-500">{item.step}</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">{item.sub}</div>
+                <div className="text-2xs text-slate-500 mt-0.5">{item.sub}</div>
               </div>
-              {i < arr.length - 1 && <span className="text-slate-400 font-bold">→</span>}
+              {i < arr.length - 1 && (
+                <span aria-hidden="true" className="text-slate-400 font-bold rtl:rotate-180">
+                  →
+                </span>
+              )}
             </React.Fragment>
           ))}
         </div>
@@ -192,49 +232,39 @@ export const EEGSimulatorPage: React.FC = () => {
             {BAND_META.map((b) => {
               const val = eegCfg.bands[b.key];
               return (
-                <div key={b.key} className="neu-inset p-3 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                  <div className="sm:col-span-4">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: b.color }}
-                      />
-                      <span className="text-xs font-bold">
-                        {lang === 'fa' ? b.faName : b.name}
-                      </span>
-                    </div>
-                    <div className="text-[11px] font-mono text-slate-500 mt-0.5">{b.range}</div>
+                <div key={b.key} className="neu-inset p-3 flex flex-col gap-2">
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="w-2.5 h-2.5 rounded-full shrink-0 self-center"
+                      style={{ backgroundColor: b.color }}
+                    />
+                    <span className="text-xs font-bold">{isFa ? b.faName : b.name}</span>
+                    <span className="text-caption font-mono text-slate-500">{b.range}</span>
                   </div>
-
-                  <div className="sm:col-span-4">
-                    <div className="flex justify-between text-[11px] font-mono mb-1">
-                      <span>{lang === 'fa' ? 'دامنه' : 'Amplitude'}</span>
-                      <span className="font-semibold">{val.amp.toFixed(0)} μV</span>
-                    </div>
-                    <input
-                      type="range"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <ParamSlider
+                      label={`${b.name} amplitude`}
+                      faLabel={`دامنه ${b.faName}`}
+                      value={val.amp}
                       min={0}
                       max={80}
                       step={1}
-                      value={val.amp}
-                      onChange={(e) => updateBand(b.key, 'amp', Number(e.target.value))}
-                      className="sci-slider"
+                      unit="μV"
+                      lang={lang}
+                      onChange={(v) => updateBand(b.key, 'amp', v)}
                     />
-                  </div>
-
-                  <div className="sm:col-span-4">
-                    <div className="flex justify-between text-[11px] font-mono mb-1">
-                      <span>{lang === 'fa' ? 'فرکانس مرکزی' : 'Center Freq'}</span>
-                      <span className="font-semibold">{val.freq.toFixed(1)} Hz</span>
-                    </div>
-                    <input
-                      type="range"
+                    <ParamSlider
+                      label={`${b.name} center freq`}
+                      faLabel={`فرکانس مرکزی ${b.faName}`}
+                      value={val.freq}
                       min={b.minF}
                       max={b.maxF}
                       step={0.5}
-                      value={val.freq}
-                      onChange={(e) => updateBand(b.key, 'freq', Number(e.target.value))}
-                      className="sci-slider"
+                      unit="Hz"
+                      format={(v) => v.toFixed(1)}
+                      lang={lang}
+                      onChange={(v) => updateBand(b.key, 'freq', v)}
                     />
                   </div>
                 </div>
@@ -270,17 +300,17 @@ export const EEGSimulatorPage: React.FC = () => {
                   className="accent-sky-500"
                 />
               </label>
-              <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>{lang === 'fa' ? 'دامنه جهش' : 'Peak Deflection'}</span>
-                <span>{eegCfg.artifacts.eyeBlinkAmp} μV</span>
-              </div>
-              <input
-                type="range"
+              <ParamSlider
+                label="Peak Deflection"
+                faLabel="دامنه جهش"
+                value={eegCfg.artifacts.eyeBlinkAmp}
                 min={20}
                 max={160}
-                value={eegCfg.artifacts.eyeBlinkAmp}
-                onChange={(e) => updateArtifact({ eyeBlinkAmp: Number(e.target.value) })}
-                className="sci-slider"
+                step={1}
+                unit="μV"
+                lang={lang}
+                disabled={!eegCfg.artifacts.eyeBlink}
+                onChange={(v) => updateArtifact({ eyeBlinkAmp: v })}
               />
             </div>
 
@@ -295,17 +325,17 @@ export const EEGSimulatorPage: React.FC = () => {
                   className="accent-sky-500"
                 />
               </label>
-              <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>{lang === 'fa' ? 'دامنه نویز عضله' : 'Burst Amplitude'}</span>
-                <span>{eegCfg.artifacts.muscleAmp} μV</span>
-              </div>
-              <input
-                type="range"
+              <ParamSlider
+                label="Burst Amplitude"
+                faLabel="دامنه نویز عضله"
+                value={eegCfg.artifacts.muscleAmp}
                 min={5}
                 max={80}
-                value={eegCfg.artifacts.muscleAmp}
-                onChange={(e) => updateArtifact({ muscleAmp: Number(e.target.value) })}
-                className="sci-slider"
+                step={1}
+                unit="μV"
+                lang={lang}
+                disabled={!eegCfg.artifacts.muscleArtifact}
+                onChange={(v) => updateArtifact({ muscleAmp: v })}
               />
             </div>
 
@@ -320,17 +350,17 @@ export const EEGSimulatorPage: React.FC = () => {
                   className="accent-sky-500"
                 />
               </label>
-              <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>{lang === 'fa' ? 'دامنه نوسان پایه' : 'Drift Sway'}</span>
-                <span>{eegCfg.artifacts.driftAmp} μV</span>
-              </div>
-              <input
-                type="range"
+              <ParamSlider
+                label="Drift Sway"
+                faLabel="دامنه نوسان پایه"
+                value={eegCfg.artifacts.driftAmp}
                 min={10}
                 max={100}
-                value={eegCfg.artifacts.driftAmp}
-                onChange={(e) => updateArtifact({ driftAmp: Number(e.target.value) })}
-                className="sci-slider"
+                step={1}
+                unit="μV"
+                lang={lang}
+                disabled={!eegCfg.artifacts.baselineDrift}
+                onChange={(v) => updateArtifact({ driftAmp: v })}
               />
             </div>
 
@@ -349,17 +379,17 @@ export const EEGSimulatorPage: React.FC = () => {
                   className="accent-sky-500"
                 />
               </label>
-              <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>{lang === 'fa' ? 'دامنه تداخل برق' : 'Mains Interference'}</span>
-                <span>{eegCfg.artifacts.powerlineAmp} μV</span>
-              </div>
-              <input
-                type="range"
+              <ParamSlider
+                label="Mains Interference"
+                faLabel="دامنه تداخل برق"
+                value={eegCfg.artifacts.powerlineAmp}
                 min={5}
                 max={60}
-                value={eegCfg.artifacts.powerlineAmp}
-                onChange={(e) => updateArtifact({ powerlineAmp: Number(e.target.value) })}
-                className="sci-slider"
+                step={1}
+                unit="μV"
+                lang={lang}
+                disabled={!eegCfg.artifacts.powerline}
+                onChange={(v) => updateArtifact({ powerlineAmp: v })}
               />
             </div>
 
@@ -374,17 +404,17 @@ export const EEGSimulatorPage: React.FC = () => {
                   className="accent-sky-500"
                 />
               </label>
-              <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>{lang === 'fa' ? 'دامنه حرکت' : 'Sway Magnitude'}</span>
-                <span>{eegCfg.artifacts.movementAmp} μV</span>
-              </div>
-              <input
-                type="range"
+              <ParamSlider
+                label="Sway Magnitude"
+                faLabel="دامنه حرکت"
+                value={eegCfg.artifacts.movementAmp}
                 min={15}
                 max={120}
-                value={eegCfg.artifacts.movementAmp}
-                onChange={(e) => updateArtifact({ movementAmp: Number(e.target.value) })}
-                className="sci-slider"
+                step={1}
+                unit="μV"
+                lang={lang}
+                disabled={!eegCfg.artifacts.movement}
+                onChange={(v) => updateArtifact({ movementAmp: v })}
               />
             </div>
 
@@ -399,54 +429,45 @@ export const EEGSimulatorPage: React.FC = () => {
                   className="accent-sky-500"
                 />
               </label>
-              <div className="flex justify-between text-[11px] font-mono text-slate-500">
-                <span>{lang === 'fa' ? 'نویز تماس الکترود' : 'Impedance Noise'}</span>
-                <span>{eegCfg.artifacts.electrodeAmp} μV</span>
-              </div>
-              <input
-                type="range"
+              <ParamSlider
+                label="Impedance Noise"
+                faLabel="نویز تماس الکترود"
+                value={eegCfg.artifacts.electrodeAmp}
                 min={5}
                 max={65}
-                value={eegCfg.artifacts.electrodeAmp}
-                onChange={(e) => updateArtifact({ electrodeAmp: Number(e.target.value) })}
-                className="sci-slider"
+                step={1}
+                unit="μV"
+                lang={lang}
+                disabled={!eegCfg.artifacts.electrodeNoise}
+                onChange={(v) => updateArtifact({ electrodeAmp: v })}
               />
             </div>
           </div>
 
           {/* Preprocessing Filter Controls */}
-          <div className="neu-inset p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-            <div>
-              <div className="flex justify-between text-[11px] font-mono mb-1">
-                <span>{lang === 'fa' ? 'فرکانس قطع بالاگذر' : 'High-Pass Cutoff'}</span>
-                <span className="text-emerald-500">{eegCfg.preprocessHighpass} Hz</span>
-              </div>
-              <input
-                type="range"
-                min={0.2}
-                max={4.0}
-                step={0.2}
-                value={eegCfg.preprocessHighpass}
-                onChange={(e) => updateEEG({ preprocessHighpass: Number(e.target.value) })}
-                className="sci-slider"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[11px] font-mono mb-1">
-                <span>{lang === 'fa' ? 'فرکانس قطع پایین‌گذر' : 'Low-Pass Cutoff'}</span>
-                <span className="text-emerald-500">{eegCfg.preprocessLowpass} Hz</span>
-              </div>
-              <input
-                type="range"
-                min={15}
-                max={75}
-                step={1}
-                value={eegCfg.preprocessLowpass}
-                onChange={(e) => updateEEG({ preprocessLowpass: Number(e.target.value) })}
-                className="sci-slider"
-              />
-            </div>
+          <div className="neu-inset p-3.5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-center">
+            <ParamSlider
+              label="High-Pass Cutoff"
+              faLabel="فرکانس قطع بالاگذر"
+              value={eegCfg.preprocessHighpass}
+              min={0.2}
+              max={4.0}
+              step={0.2}
+              unit="Hz"
+              lang={lang}
+              onChange={(v) => updateEEG({ preprocessHighpass: v })}
+            />
+            <ParamSlider
+              label="Low-Pass Cutoff"
+              faLabel="فرکانس قطع پایین‌گذر"
+              value={eegCfg.preprocessLowpass}
+              min={15}
+              max={75}
+              step={1}
+              unit="Hz"
+              lang={lang}
+              onChange={(v) => updateEEG({ preprocessLowpass: v })}
+            />
 
             <label className="flex items-center justify-between text-xs font-mono cursor-pointer px-2">
               <span>{lang === 'fa' ? 'فیلتر Notch برق شهر' : '50Hz Notch Filter'}</span>
@@ -474,38 +495,43 @@ export const EEGSimulatorPage: React.FC = () => {
             : 'Toggle visibility to compare raw contaminated EEG against preprocessed cortical recovery'
         }
         xData={sim.time}
-        xLabel="Time (s)"
-        yLabel="Potential (μV)"
+        xLabel={isFa ? 'زمان (s)' : 'Time (s)'}
+        xUnit="s"
+        yLabel={isFa ? 'پتانسیل (μV)' : 'Potential (μV)'}
+        yUnit="μV"
         height={300}
         series={[
           {
             id: 'eeg-clean',
             label: lang === 'fa' ? 'EEG قشری تمیز' : 'Clean Cortical EEG',
             data: sim.cleanEEG,
-            color: '#0ea5e9',
+            color: getSeriesColor(0),
+            dash: getSeriesDash(0),
             lineWidth: 1.9,
           },
           {
             id: 'eeg-art',
             label: lang === 'fa' ? 'فقط سیگنال آرتیفکت' : 'Artifact Signal Only',
             data: sim.artifactSignal,
-            color: '#f43f5e',
+            color: getSeriesColor(4),
             lineWidth: 1.4,
-            dashed: true,
+            dash: getSeriesDash(2),
             visible: false,
           },
           {
             id: 'eeg-noisy',
             label: lang === 'fa' ? 'EEG آلوده به آرتیفکت' : 'Contaminated Noisy EEG',
             data: sim.noisyEEG,
-            color: '#f59e0b',
+            color: getSeriesColor(1),
+            dash: getSeriesDash(1),
             lineWidth: 1.3,
           },
           {
             id: 'eeg-rec',
             label: lang === 'fa' ? 'EEG بازیابی‌شده پس از پیش‌پردازش' : 'Preprocessed Recovered EEG',
             data: sim.recoveredEEG,
-            color: '#10b981',
+            color: getSeriesColor(2),
+            dash: getSeriesDash(3),
             lineWidth: 2.2,
           },
         ]}
@@ -524,15 +550,18 @@ export const EEGSimulatorPage: React.FC = () => {
               : 'Underlying rhythmic generators prior to summation'
           }
           xData={sim.time}
-          xLabel="Time (s)"
-          yLabel="Amplitude (μV)"
+          xLabel={isFa ? 'زمان (s)' : 'Time (s)'}
+          xUnit="s"
+          yLabel={isFa ? 'دامنه (μV)' : 'Amplitude (μV)'}
+          yUnit="μV"
           height={250}
+          autoDash
           series={[
-            { id: 'b-delta', label: 'Delta (0.5–4Hz)', data: sim.bandContributions.delta, color: '#6366f1' },
-            { id: 'b-theta', label: 'Theta (4–8Hz)', data: sim.bandContributions.theta, color: '#0ea5e9', visible: false },
-            { id: 'b-alpha', label: 'Alpha (8–13Hz)', data: sim.bandContributions.alpha, color: '#10b981' },
-            { id: 'b-beta', label: 'Beta (13–30Hz)', data: sim.bandContributions.beta, color: '#f59e0b' },
-            { id: 'b-gamma', label: 'Gamma (30–80Hz)', data: sim.bandContributions.gamma, color: '#ec4899', visible: false },
+            { id: 'b-delta', label: 'Delta (0.5–4Hz)', data: sim.bandContributions.delta, color: BAND_META[0].color },
+            { id: 'b-theta', label: 'Theta (4–8Hz)', data: sim.bandContributions.theta, color: BAND_META[1].color, visible: false },
+            { id: 'b-alpha', label: 'Alpha (8–13Hz)', data: sim.bandContributions.alpha, color: BAND_META[2].color },
+            { id: 'b-beta', label: 'Beta (13–30Hz)', data: sim.bandContributions.beta, color: BAND_META[3].color },
+            { id: 'b-gamma', label: 'Gamma (30–80Hz)', data: sim.bandContributions.gamma, color: BAND_META[4].color, visible: false },
           ]}
         />
 
@@ -548,15 +577,17 @@ export const EEGSimulatorPage: React.FC = () => {
               : 'Inspect spectral energy peaks across Delta (0.5–4), Theta (4–8), Alpha (8–13), and Beta (13–30) bands'
           }
           xData={eegSpectrum.frequencies.slice(0, 160)}
-          xLabel="Frequency (Hz)"
-          yLabel="Magnitude (μV)"
+          xLabel={isFa ? 'فرکانس (Hz)' : 'Frequency (Hz)'}
+          xUnit="Hz"
+          yLabel={isFa ? 'اندازه (μV)' : 'Magnitude (μV)'}
+          yUnit="μV"
           height={250}
           series={[
             {
               id: 'eeg-spec',
               label: lang === 'fa' ? 'طیف EEG بازیابی‌شده' : 'Recovered EEG Spectrum',
               data: eegSpectrum.magnitude.slice(0, 160),
-              color: '#10b981',
+              color: getSeriesColor(2),
               lineWidth: 2,
             },
           ]}

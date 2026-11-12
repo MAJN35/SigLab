@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, BookOpen, Brain, Cpu, Filter, Radio, Waves } from 'lucide-react';
 import { LAB_IMAGES } from '../assets/labImages';
 import { MathFormula } from '../components/MathBlock';
+import { PageHeader } from '../components/ui';
 import { useLab } from '../store/LabContext';
 
 export const DocumentationPage: React.FC = () => {
@@ -194,22 +195,29 @@ export const DocumentationPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="neu-card p-6 flex flex-col gap-3">
-        <div className="text-xs font-mono font-semibold text-sky-600 dark:text-sky-400">
-          {lang === 'fa'
-            ? 'مرجع علمی و راهنمای مهندسی آزمایشگاه · محمدعلی جوادی‌نسب'
-            : 'Academic Reference Manual · by Mohammadali Javadinasab'}
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {lang === 'fa'
-            ? 'مرجع جامع آزمایشگاه پردازش سیگنال، مخابرات، سیگنال‌های مغزی (EEG) و یادگیری ماشین'
-            : 'Signal Processing, Telecommunications, EEG & Machine Learning Laboratory Reference'}
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-w-4xl">
-          {lang === 'fa'
-            ? 'مجموعه کامل فرمول‌بندی‌های ریاضی، تئوری پردازش سیگنال دیجیتال و مشخصات ماژول‌های آزمایشگاهی برای آموزش دانشگاهی، آزمودن الگوریتم‌ها و تجسم مهندسی تعاملی.'
-            : 'Comprehensive mathematical formulations, digital signal processing theory, and laboratory module specifications for academic education, algorithm experimentation, and interactive engineering visualization.'}
-        </p>
+      <div className="neu-card p-5 flex flex-col gap-4">
+        <PageHeader
+          icon={<BookOpen className="w-5 h-5" />}
+          title={
+            lang === 'fa'
+              ? 'مرجع جامع آزمایشگاه پردازش سیگنال، مخابرات، سیگنال‌های مغزی (EEG) و یادگیری ماشین'
+              : 'Signal Processing, Telecommunications, EEG & Machine Learning Laboratory Reference'
+          }
+          subtitle={
+            <>
+              <span className="block max-w-4xl">
+                {lang === 'fa'
+                  ? 'مجموعه کامل فرمول‌بندی‌های ریاضی، تئوری پردازش سیگنال دیجیتال و مشخصات ماژول‌های آزمایشگاهی برای آموزش دانشگاهی، آزمودن الگوریتم‌ها و تجسم مهندسی تعاملی.'
+                  : 'Comprehensive mathematical formulations, digital signal processing theory, and laboratory module specifications for academic education, algorithm experimentation, and interactive engineering visualization.'}
+              </span>
+              <span className="mt-1 block font-mono font-semibold text-sky-600 dark:text-sky-400">
+                {lang === 'fa'
+                  ? 'مرجع علمی و راهنمای مهندسی آزمایشگاه · محمدعلی جوادی‌نسب'
+                  : 'Academic Reference Manual · by Mohammadali Javadinasab'}
+              </span>
+            </>
+          }
+        />
       </div>
 
       {/* Visual Architecture & Concept Diagrams */}
@@ -232,7 +240,7 @@ export const DocumentationPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-xs font-bold text-sky-600 dark:text-sky-400">{vg.title}</h3>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                <p className="text-caption text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
                   {vg.caption}
                 </p>
               </div>
@@ -244,7 +252,7 @@ export const DocumentationPage: React.FC = () => {
       {/* Mathematical Compendium */}
       <div className="neu-card p-6 flex flex-col gap-4">
         <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+          <BookOpen className="w-4 h-4 text-sky-600 dark:text-sky-400" aria-hidden="true" />
           <h2 className="text-base font-bold tracking-tight">
             {lang === 'fa'
               ? 'فرمول‌بندی‌های ریاضی هسته آزمایشگاه (مرجع LaTeX)'
@@ -280,7 +288,7 @@ export const DocumentationPage: React.FC = () => {
             return (
               <div key={mod.title} className="neu-inset p-4 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <Icon className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                  <Icon className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" aria-hidden="true" />
                   <h3 className="text-xs font-bold">{mod.title}</h3>
                 </div>
                 <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">

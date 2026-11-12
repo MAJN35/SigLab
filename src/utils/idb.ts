@@ -5,6 +5,25 @@ const DB_VERSION = 1;
 const STORE_EXPERIMENTS = 'experiments';
 const STORE_SAMPLES = 'samples';
 
+/** localStorage fallback helpers — never throw (private mode, quota, corrupted JSON). */
+function readFallback<T>(key: string): T[] {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFallback(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
@@ -39,8 +58,7 @@ export async function getAllExperiments(): Promise<Experiment[]> {
       req.onerror = () => reject(req.error);
     });
   } catch {
-    const raw = localStorage.getItem('signallab_experiments_fallback');
-    return raw ? JSON.parse(raw) : [];
+    return readFallback('signallab_experiments_fallback');
   }
 }
 
@@ -59,7 +77,7 @@ export async function saveExperimentToDB(experiment: Experiment): Promise<void> 
     const idx = list.findIndex((e) => e.id === experiment.id);
     if (idx >= 0) list[idx] = experiment;
     else list.push(experiment);
-    localStorage.setItem('signallab_experiments_fallback', JSON.stringify(list));
+    writeFallback('signallab_experiments_fallback', list);
   }
 }
 
@@ -76,7 +94,7 @@ export async function deleteExperimentFromDB(id: string): Promise<void> {
   } catch {
     const list = await getAllExperiments();
     const filtered = list.filter((e) => e.id !== id);
-    localStorage.setItem('signallab_experiments_fallback', JSON.stringify(filtered));
+    writeFallback('signallab_experiments_fallback', filtered);
   }
 }
 
@@ -91,8 +109,7 @@ export async function getAllSamples(): Promise<CustomSample[]> {
       req.onerror = () => reject(req.error);
     });
   } catch {
-    const raw = localStorage.getItem('signallab_samples_fallback');
-    return raw ? JSON.parse(raw) : [];
+    return readFallback('signallab_samples_fallback');
   }
 }
 
@@ -111,7 +128,7 @@ export async function saveSampleToDB(sample: CustomSample): Promise<void> {
     const idx = list.findIndex((s) => s.id === sample.id);
     if (idx >= 0) list[idx] = sample;
     else list.push(sample);
-    localStorage.setItem('signallab_samples_fallback', JSON.stringify(list));
+    writeFallback('signallab_samples_fallback', list);
   }
 }
 
@@ -128,6 +145,6 @@ export async function deleteSampleFromDB(id: string): Promise<void> {
   } catch {
     const list = await getAllSamples();
     const filtered = list.filter((s) => s.id !== id);
-    localStorage.setItem('signallab_samples_fallback', JSON.stringify(filtered));
+    writeFallback('signallab_samples_fallback', filtered);
   }
 }

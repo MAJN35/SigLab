@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Play, RefreshCw } from 'lucide-react';
-import { InteractivePlot } from '../components/InteractivePlot';
-import { TheoryAccordion } from '../components/MathBlock';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Play, RadioTower, RefreshCw, RotateCcw } from 'lucide-react';
+import { InteractivePlot, PlotSeries } from '../components/InteractivePlot';
+import { LiveEquation, TheoryAccordion } from '../components/MathBlock';
+import { PageHeader, ParamSlider } from '../components/ui';
+import { useElementSize } from '../hooks/useElementSize';
 import { simulateDigitalModulation } from '../simulations/modulation';
 import { useLab } from '../store/LabContext';
+import { getSeriesColor, PLOT_SURFACE_BG } from '../theme/palette';
 import { DigitalModType } from '../types';
 import { BERSimulationCurve, BERSimulationRequest, runMonteCarloBER } from '../workers/berWorker';
 
@@ -17,21 +20,25 @@ const DIGITAL_SCHEMES: { id: DigitalModType; label: string; faLabel: string; ord
   { id: '64-QAM', label: '64-QAM (M=64)', faLabel: 'مدولاسیون دامنه متعامد (64-QAM)', order: 64 },
 ];
 
-const SCHEME_COLORS: Record<DigitalModType, string> = {
-  ASK: '#94a3b8',
-  FSK: '#ec4899',
-  BPSK: '#0ea5e9',
-  QPSK: '#10b981',
-  '8-PSK': '#a855f7',
-  '16-QAM': '#f59e0b',
-  '64-QAM': '#f43f5e',
-};
+/** Stable palette color per scheme (index in DIGITAL_SCHEMES). */
+const SCHEME_COLORS = Object.fromEntries(
+  DIGITAL_SCHEMES.map((s, i) => [s.id, getSeriesColor(i)])
+) as Record<DigitalModType, string>;
+
+const BER_SNR_MIN = -2;
+const BER_SNR_MAX = 20;
+const BER_SNR_STEP = 2;
 
 export const ModulationBERPage: React.FC = () => {
-  const { experiment, setExperiment, darkMode, lang } = useLab();
+  const { experiment, setExperiment, lang, resetExperiment } = useLab();
+  const isFa = lang === 'fa';
   const digCfg = experiment.modulation.digital;
   const constellationCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const berCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const constellationBoxRef = useRef<HTMLDivElement | null>(null);
+  const constellationSize = useElementSize(constellationBoxRef);
+  const schemeGroupId = useId();
+  const compareGroupId = useId();
+  const bitsSelectId = useId();
 
   const [selectedBerSchemes, setSelectedBerSchemes] = useState<DigitalModType[]>([
     'BPSK',
@@ -58,58 +65,110 @@ export const ModulationBERPage: React.FC = () => {
     [digCfg, experiment.randomSeed]
   );
 
-  const triggerBerSweep = () => {
-    setIsRunningBer(true);
-    const req: BERSimulationRequest = {
-      schemes: selectedBerSchemes.length > 0 ? selectedBerSchemes : ['BPSK'],
-      snrMin: -2,
-      snrMax: 20,
-      snrStep: 2,
-      bitsPerPoint: simBitsPerPoint,
-      seed: experiment.randomSeed,
-    };
+  // ---- Single long-lived BER worker -------------------------------------
+  // The worker answers requests strictly in FIFO order but does not echo an
+  // id, so we keep a queue of in-flight request ids and pop one per reply.
+  // Only the reply matching the latest request id is applied.
+  const workerRef = useRef<Worker | null>(null);
+  const workerBrokenRef = useRef(false);
+  const latestReqIdRef = useRef(0);
+  const inFlightRef = useRef<number[]>([]);
+  const lastReqRef = useRef<BERSimulationRequest | null>(null);
 
+  const applyFallback = useCallback((req: BERSimulationRequest, id: number) => {
+    const fallback = runMonteCarloBER(req);
+    if (id === latestReqIdRef.current) {
+      setBerCurves(fallback);
+      setIsRunningBer(false);
+    }
+  }, []);
+
+  const getWorker = useCallback((): Worker | null => {
+    if (workerBrokenRef.current) return null;
+    if (workerRef.current) return workerRef.current;
     try {
       const worker = new Worker(new URL('../workers/berWorker.ts', import.meta.url), {
         type: 'module',
       });
-      worker.onmessage = (e) => {
-        if (e.data?.curves) {
-          setBerCurves(e.data.curves);
-        }
+      worker.onmessage = (e: MessageEvent<{ curves?: BERSimulationCurve[] }>) => {
+        const id = inFlightRef.current.shift();
+        if (id !== latestReqIdRef.current) return; // stale reply
+        if (e.data?.curves) setBerCurves(e.data.curves);
         setIsRunningBer(false);
-        worker.terminate();
       };
       worker.onerror = () => {
-        const fallback = runMonteCarloBER(req);
-        setBerCurves(fallback);
-        setIsRunningBer(false);
         worker.terminate();
+        workerRef.current = null;
+        workerBrokenRef.current = true;
+        inFlightRef.current = [];
+        if (lastReqRef.current) applyFallback(lastReqRef.current, latestReqIdRef.current);
       };
-      worker.postMessage(req);
+      workerRef.current = worker;
+      return worker;
     } catch {
-      const fallback = runMonteCarloBER(req);
-      setBerCurves(fallback);
-      setIsRunningBer(false);
+      workerBrokenRef.current = true;
+      return null;
     }
-  };
+  }, [applyFallback]);
+
+  const triggerBerSweep = useCallback(() => {
+    const id = ++latestReqIdRef.current;
+    setIsRunningBer(true);
+    const req: BERSimulationRequest = {
+      schemes: selectedBerSchemes.length > 0 ? selectedBerSchemes : ['BPSK'],
+      snrMin: BER_SNR_MIN,
+      snrMax: BER_SNR_MAX,
+      snrStep: BER_SNR_STEP,
+      bitsPerPoint: simBitsPerPoint,
+      seed: experiment.randomSeed,
+    };
+    lastReqRef.current = req;
+
+    const worker = getWorker();
+    if (!worker) {
+      applyFallback(req, id);
+      return;
+    }
+    inFlightRef.current.push(id);
+    worker.postMessage(req);
+  }, [selectedBerSchemes, simBitsPerPoint, experiment.randomSeed, getWorker, applyFallback]);
 
   useEffect(() => {
     triggerBerSweep();
-  }, [selectedBerSchemes, simBitsPerPoint, experiment.randomSeed]);
+  }, [triggerBerSweep]);
 
-  // Draw IQ Constellation Diagram Canvas
+  useEffect(
+    () => () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+      inFlightRef.current = [];
+    },
+    []
+  );
+
+  // ---- IQ constellation canvas (DPR-aware, resizes with its container) ----
+  const constellationWidth = constellationSize.width || 440;
+  const constellationHeight = Math.round(Math.min(340, Math.max(240, constellationWidth * 0.72)));
+  const symbolErrorCount = useMemo(
+    () => digResult.rxSymbols.reduce((n, rx) => n + (rx.isError ? 1 : 0), 0),
+    [digResult]
+  );
+
   useEffect(() => {
     const canvas = constellationCanvasRef.current;
     if (!canvas) return;
-    const width = canvas.parentElement?.clientWidth || 440;
-    const height = 310;
-    canvas.width = width;
-    canvas.height = height;
+    const width = constellationWidth;
+    const height = constellationHeight;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    ctx.fillStyle = '#050912';
+    ctx.fillStyle = PLOT_SURFACE_BG;
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
@@ -132,10 +191,23 @@ export const ModulationBERPage: React.FC = () => {
     for (const rx of digResult.rxSymbols) {
       const px = cx + rx.I * radius;
       const py = cy - rx.Q * radius;
-      ctx.fillStyle = rx.isError ? 'rgba(244, 63, 94, 0.9)' : 'rgba(34, 211, 238, 0.78)';
-      ctx.beginPath();
-      ctx.arc(px, py, rx.isError ? 3.2 : 2.3, 0, 2 * Math.PI);
-      ctx.fill();
+      if (rx.isError) {
+        // Errors: larger rose "x" so they differ by shape, not only colour.
+        const r = 3.4;
+        ctx.strokeStyle = 'rgba(244, 63, 94, 0.95)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(px - r, py - r);
+        ctx.lineTo(px + r, py + r);
+        ctx.moveTo(px + r, py - r);
+        ctx.lineTo(px - r, py + r);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.78)';
+        ctx.beginPath();
+        ctx.arc(px, py, 2.3, 0, 2 * Math.PI);
+        ctx.fill();
+      }
     }
 
     for (const pt of digResult.idealConstellation) {
@@ -161,105 +233,57 @@ export const ModulationBERPage: React.FC = () => {
     ctx.fillText('In-Phase (I)', width - 16, cy - 8);
     ctx.textAlign = 'left';
     ctx.fillText('Quadrature (Q)', cx + 8, 24);
-  }, [darkMode, digResult]);
+  }, [digResult, constellationWidth, constellationHeight]);
 
-  // Draw Logarithmic BER vs Eb/N0 Waterfall Plot
-  useEffect(() => {
-    const canvas = berCanvasRef.current;
-    if (!canvas) return;
-    const width = canvas.parentElement?.clientWidth || 560;
-    const height = 310;
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const constellationAria = isFa
+    ? `نمودار صورت فلکی IQ برای ${digCfg.type}: ${digResult.idealConstellation.length} نقطه مرجع، ${digResult.rxSymbols.length} سمبل دریافتی، ${symbolErrorCount} خطای تصمیم‌گیری در Eb/N0 = ${digCfg.snrDb} dB`
+    : `IQ constellation for ${digCfg.type}: ${digResult.idealConstellation.length} reference points, ${digResult.rxSymbols.length} received symbols, ${symbolErrorCount} decision errors at Eb/N0 = ${digCfg.snrDb} dB`;
 
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#050912';
-    ctx.fillRect(0, 0, width, height);
-
-    const padL = 62;
-    const padR = 20;
-    const padT = 20;
-    const padB = 36;
-    const plotW = Math.max(50, width - padL - padR);
-    const plotH = Math.max(50, height - padT - padB);
-
-    const logMin = -6;
-    const logMax = 0;
-    const snrMin = -2;
-    const snrMax = 20;
-
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px "IBM Plex Mono", monospace';
-
-    for (let exp = logMin; exp <= logMax; exp++) {
-      const ratio = (logMax - exp) / (logMax - logMin);
-      const py = padT + ratio * plotH;
-      ctx.beginPath();
-      ctx.moveTo(padL, py);
-      ctx.lineTo(padL + plotW, py);
-      ctx.stroke();
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`10^${exp}`, padL - 6, py);
-    }
-
-    for (let s = snrMin; s <= snrMax; s += 2) {
-      const ratio = (s - snrMin) / (snrMax - snrMin);
-      const px = padL + ratio * plotW;
-      ctx.beginPath();
-      ctx.moveTo(px, padT);
-      ctx.lineTo(px, padT + plotH);
-      ctx.stroke();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText(`${s}`, px, padT + plotH + 6);
-    }
-
-    ctx.textAlign = 'right';
-    ctx.fillText('Eb/N0 (dB)', padL + plotW, height - 10);
-
-    for (const c of berCurves) {
-      const color = SCHEME_COLORS[c.scheme] || '#0284c7';
-
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.4;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      c.snrDb.forEach((snr, idx) => {
-        const px = padL + ((snr - snrMin) / (snrMax - snrMin)) * plotW;
-        const lv = Math.max(logMin, Math.min(logMax, Math.log10(Math.max(1e-7, c.theoreticalBer[idx]))));
-        const py = padT + ((logMax - lv) / (logMax - logMin)) * plotH;
-        if (idx === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      });
-      ctx.stroke();
-
-      ctx.setLineDash([]);
-      ctx.lineWidth = 2.1;
-      ctx.beginPath();
-      c.snrDb.forEach((snr, idx) => {
-        const px = padL + ((snr - snrMin) / (snrMax - snrMin)) * plotW;
-        const lv = Math.max(logMin, Math.min(logMax, Math.log10(Math.max(1e-7, c.simulatedBer[idx]))));
-        const py = padT + ((logMax - lv) / (logMax - logMin)) * plotH;
-        if (idx === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      });
-      ctx.stroke();
-
-      c.snrDb.forEach((snr, idx) => {
-        const px = padL + ((snr - snrMin) / (snrMax - snrMin)) * plotW;
-        const lv = Math.max(logMin, Math.min(logMax, Math.log10(Math.max(1e-7, c.simulatedBer[idx]))));
-        const py = padT + ((logMax - lv) / (logMax - logMin)) * plotH;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(px, py, 3, 0, 2 * Math.PI);
-        ctx.fill();
-      });
-    }
-  }, [darkMode, berCurves]);
+  // ---- BER waterfall (InteractivePlot, true log y axis) -------------------
+  const berXData = berCurves[0]?.snrDb ?? [];
+  const berSeries = useMemo<PlotSeries[]>(
+    () =>
+      berCurves.flatMap((c) => {
+        const color = SCHEME_COLORS[c.scheme] ?? getSeriesColor(0);
+        return [
+          {
+            id: `${c.scheme}-sim`,
+            label: isFa ? `${c.scheme} شبیه‌سازی` : `${c.scheme} simulated`,
+            data: c.simulatedBer,
+            color,
+            lineWidth: 2.1,
+          },
+          {
+            id: `${c.scheme}-theory`,
+            label: isFa ? `${c.scheme} تئوری` : `${c.scheme} theory`,
+            data: c.theoreticalBer,
+            color,
+            lineWidth: 1.4,
+            dash: [4, 4],
+          },
+        ];
+      }),
+    [berCurves, isFa]
+  );
+  const snrInBerRange = digCfg.snrDb >= BER_SNR_MIN && digCfg.snrDb <= BER_SNR_MAX;
+  const berMarkers = useMemo(
+    () => [
+      {
+        x: digCfg.snrDb,
+        label: `Eb/N0 = ${digCfg.snrDb} dB`,
+        color: '#f59e0b',
+      },
+    ],
+    [digCfg.snrDb]
+  );
+  const berPeaks = useMemo(
+    () =>
+      digResult.ber > 0
+        ? [{ x: digCfg.snrDb, y: digResult.ber, label: `${isFa ? 'اندازه‌گیری' : 'measured'} ${digResult.ber.toExponential(1)}` }]
+        : [],
+    [digCfg.snrDb, digResult.ber, isFa]
+  );
+  const berDomain = useMemo<[number, number]>(() => [1e-6, 1], []);
 
   const toggleSchemeComparison = (scheme: DigitalModType) => {
     setSelectedBerSchemes((prev) =>
@@ -267,114 +291,112 @@ export const ModulationBERPage: React.FC = () => {
     );
   };
 
+  const ebNoLinear = Math.pow(10, digCfg.snrDb / 10);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="neu-card p-5 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {lang === 'fa'
-                ? 'آزمایشگاه مدولاسیون دیجیتال، صورت فلکی IQ و نرخ خطای بیت مونت‌کارلو (BER)'
-                : 'Digital Modulation, IQ Constellation & Monte Carlo BER Laboratory'}
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {lang === 'fa'
-                ? 'شبیه‌سازی نگاشت سمبل‌های ASK، FSK، BPSK، QPSK، 8-PSK، 16-QAM و 64-QAM، خطاهای تصمیم‌گیری و منحنی‌های BER بر حسب SNR.'
-                : 'Simulate ASK, FSK, BPSK, QPSK, 8-PSK, 16-QAM, and 64-QAM symbol mapping, decision errors, and Web-Worker BER vs. SNR curves.'}
-            </p>
-          </div>
-          <div className="text-xs font-mono tabular-nums">
-            {lang === 'fa' ? 'بیت بر سمبل (k): ' : 'Bits/Symbol (k): '}
-            <strong className="text-sky-500">{digResult.bitsPerSymbol}</strong> ·{' '}
-            {lang === 'fa' ? 'خطاهای بیتی: ' : 'Bit Errors: '}
-            <strong className="text-rose-500">
-              {digResult.numErrors} / {digResult.txBits.length}
-            </strong>{' '}
-            · {lang === 'fa' ? 'نرخ خطای بیت تجربی: ' : 'Empirical BER: '}
-            <strong className="text-amber-500">{digResult.ber.toFixed(4)}</strong>
-          </div>
+        <PageHeader
+          icon={<RadioTower className="w-5 h-5" />}
+          title={
+            isFa
+              ? 'آزمایشگاه مدولاسیون دیجیتال، صورت فلکی IQ و نرخ خطای بیت مونت‌کارلو (BER)'
+              : 'Digital Modulation, IQ Constellation & Monte Carlo BER Laboratory'
+          }
+          subtitle={
+            isFa
+              ? 'شبیه‌سازی نگاشت سمبل‌های ASK، FSK، BPSK، QPSK، 8-PSK، 16-QAM و 64-QAM، خطاهای تصمیم‌گیری و منحنی‌های BER بر حسب SNR.'
+              : 'Simulate ASK, FSK, BPSK, QPSK, 8-PSK, 16-QAM, and 64-QAM symbol mapping, decision errors, and Web-Worker BER vs. SNR curves.'
+          }
+          actions={
+            <button
+              type="button"
+              onClick={resetExperiment}
+              className="neu-btn rounded-control px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              {isFa ? 'بازنشانی پیش‌فرض‌ها' : 'Reset to defaults'}
+            </button>
+          }
+        />
+        <div role="status" aria-live="polite" className="text-xs font-mono tabular-nums">
+          {isFa ? 'بیت بر سمبل (k): ' : 'Bits/Symbol (k): '}
+          <strong className="text-sky-500">{digResult.bitsPerSymbol}</strong> ·{' '}
+          {isFa ? 'خطاهای بیتی: ' : 'Bit Errors: '}
+          <strong className="text-rose-500">
+            {digResult.numErrors} / {digResult.txBits.length}
+          </strong>{' '}
+          · {isFa ? 'نرخ خطای بیت تجربی: ' : 'Empirical BER: '}
+          <strong className="text-amber-500">{digResult.ber.toFixed(4)}</strong>
         </div>
 
         {/* Digital Scheme Selector */}
-        <div className="flex flex-wrap gap-1.5">
-          {DIGITAL_SCHEMES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => updateDigital({ type: s.id })}
-              className={`neu-btn px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-                digCfg.type === s.id ? 'neu-btn-active text-sky-500' : ''
-              }`}
-            >
-              {lang === 'fa' ? s.faLabel : s.label}
-            </button>
-          ))}
+        <div className="flex flex-col gap-1.5">
+          <span id={schemeGroupId} className="text-xs font-medium text-slate-600 dark:text-slate-300">
+            {isFa ? 'طرح مدولاسیون' : 'Modulation scheme'}
+          </span>
+          <div role="group" aria-labelledby={schemeGroupId} className="flex flex-wrap gap-1.5">
+            {DIGITAL_SCHEMES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                aria-pressed={digCfg.type === s.id}
+                onClick={() => updateDigital({ type: s.id })}
+                className={`neu-btn px-3 py-1.5 rounded-chip text-xs font-semibold cursor-pointer ${
+                  digCfg.type === s.id ? 'neu-btn-active text-sky-500' : ''
+                }`}
+              >
+                {isFa ? s.faLabel : s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'نسبت Eb/N0 کانال (SNR)' : 'Channel Eb/N0 (SNR)'}</span>
-              <span className="text-amber-500 font-semibold">{digCfg.snrDb} dB</span>
-            </div>
-            <input
-              type="range"
-              min={-2}
-              max={25}
-              step={1}
-              value={digCfg.snrDb}
-              onChange={(e) => updateDigital({ snrDb: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'تعداد بیت‌های ارسالی' : 'Transmitted Bit Block'}</span>
-              <span className="text-sky-500 font-semibold">{digCfg.numBits} bits</span>
-            </div>
-            <input
-              type="range"
-              min={64}
-              max={1024}
-              step={64}
-              value={digCfg.numBits}
-              onChange={(e) => updateDigital({ numBits: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'نرخ سمبل (Rs)' : 'Symbol Rate (Rs)'}</span>
-              <span className="text-sky-500 font-semibold">{digCfg.symbolRate} Bd</span>
-            </div>
-            <input
-              type="range"
-              min={8}
-              max={128}
-              step={8}
-              value={digCfg.symbolRate}
-              onChange={(e) => updateDigital({ symbolRate: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span>{lang === 'fa' ? 'فرکانس حامل باند عبوری (fc)' : 'Passband Carrier (fc)'}</span>
-              <span className="text-sky-500 font-semibold">{digCfg.carrierFreq} Hz</span>
-            </div>
-            <input
-              type="range"
-              min={16}
-              max={160}
-              step={8}
-              value={digCfg.carrierFreq}
-              onChange={(e) => updateDigital({ carrierFreq: Number(e.target.value) })}
-              className="sci-slider"
-            />
-          </div>
+          <ParamSlider
+            label="Channel Eb/N0 (SNR)"
+            faLabel="نسبت Eb/N0 کانال (SNR)"
+            value={digCfg.snrDb}
+            min={-2}
+            max={25}
+            step={1}
+            unit="dB"
+            lang={lang}
+            onChange={(v) => updateDigital({ snrDb: v })}
+          />
+          <ParamSlider
+            label="Transmitted Bit Block"
+            faLabel="تعداد بیت‌های ارسالی"
+            value={digCfg.numBits}
+            min={64}
+            max={1024}
+            step={64}
+            unit="bits"
+            lang={lang}
+            onChange={(v) => updateDigital({ numBits: v })}
+          />
+          <ParamSlider
+            label="Symbol Rate (Rs)"
+            faLabel="نرخ سمبل (Rs)"
+            value={digCfg.symbolRate}
+            min={8}
+            max={128}
+            step={8}
+            unit="Bd"
+            lang={lang}
+            onChange={(v) => updateDigital({ symbolRate: v })}
+          />
+          <ParamSlider
+            label="Passband Carrier (fc)"
+            faLabel="فرکانس حامل باند عبوری (fc)"
+            value={digCfg.carrierFreq}
+            min={16}
+            max={160}
+            step={8}
+            unit="Hz"
+            lang={lang}
+            onChange={(v) => updateDigital({ carrierFreq: v })}
+          />
         </div>
       </div>
 
@@ -383,84 +405,102 @@ export const ModulationBERPage: React.FC = () => {
         <div className="xl:col-span-5 neu-card p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold tracking-tight">
-                {lang === 'fa'
+              <h2 className="text-sm font-semibold tracking-tight">
+                {isFa
                   ? `نمودار صورت فلکی هم‌فاز و متعامد (IQ Constellation) [${digCfg.type}]`
                   : `IQ Constellation Diagram [${digCfg.type}]`}
-              </h3>
+              </h2>
               <p className="text-xs text-slate-500">
-                {lang === 'fa'
-                  ? 'آبی = سمبل صحیح · قرمز = خطای تصمیم‌گیری · دایره‌های سفید = نقاط مرجع ایده‌آل'
-                  : 'Blue = Correct Symbol · Rose = Decision Error · Rings = Ideal Reference'}
+                {isFa
+                  ? 'نقطه آبی = سمبل صحیح · ضربدر قرمز = خطای تصمیم‌گیری · دایره‌های سفید = نقاط مرجع ایده‌آل'
+                  : 'Blue dot = Correct Symbol · Rose × = Decision Error · Rings = Ideal Reference'}
               </p>
             </div>
           </div>
           <div className="oscilloscope-frame p-1 overflow-hidden">
-            <canvas ref={constellationCanvasRef} className="block w-full rounded-xl" />
+            <div ref={constellationBoxRef} className="w-full" dir="ltr">
+              <canvas
+                ref={constellationCanvasRef}
+                role="img"
+                aria-label={constellationAria}
+                className="block w-full rounded-xl"
+                style={{ height: constellationHeight }}
+              />
+            </div>
           </div>
         </div>
 
         <div className="xl:col-span-7 neu-card p-4 flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold tracking-tight">
-                {lang === 'fa'
+              <h2 className="text-sm font-semibold tracking-tight">
+                {isFa
                   ? 'مقایسه آبشاری نرخ خطای بیت (BER) بر حسب Eb/N0'
                   : 'BER vs. Eb/N0 (SNR) Multi-Scheme Waterfall Comparison'}
-              </h3>
+              </h2>
               <p className="text-xs text-slate-500">
-                {lang === 'fa'
-                  ? 'خطوط ممتد = شبیه‌سازی مونت‌کارلو · خطوط نقطه‌چین = رابطه تحلیلی تابع تئوری Erfc'
-                  : 'Solid lines = Web Worker Monte Carlo Simulation · Dashed = Analytical Erfc Theory'}
+                {isFa
+                  ? 'خطوط ممتد = شبیه‌سازی مونت‌کارلو · خطوط نقطه‌چین = رابطه تحلیلی تابع تئوری Erfc · خط کهربایی = Eb/N0 فعلی'
+                  : 'Solid lines = Web Worker Monte Carlo Simulation · Dashed = Analytical Erfc Theory · Amber line = current Eb/N0'}
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor={bitsSelectId} className="sr-only">
+                {isFa ? 'تعداد بیت در هر نقطه SNR' : 'Bits per SNR point'}
+              </label>
               <select
+                id={bitsSelectId}
                 value={simBitsPerPoint}
                 onChange={(e) => setSimBitsPerPoint(Number(e.target.value))}
-                className="neu-inset px-3 py-1.5 rounded-full text-xs font-mono bg-transparent"
+                className="neu-inset px-3 py-1.5 rounded-full text-xs font-mono"
               >
                 <option value={1500}>
-                  {lang === 'fa' ? '۱,۵۰۰ بیت بر نقطه (سریع)' : '1,500 bits/pt (Fast)'}
+                  {isFa ? '۱,۵۰۰ بیت بر نقطه (سریع)' : '1,500 bits/pt (Fast)'}
                 </option>
                 <option value={4000}>
-                  {lang === 'fa' ? '۴,۰۰۰ بیت بر نقطه (متعادل)' : '4,000 bits/pt (Balanced)'}
+                  {isFa ? '۴,۰۰۰ بیت بر نقطه (متعادل)' : '4,000 bits/pt (Balanced)'}
                 </option>
                 <option value={12000}>
-                  {lang === 'fa' ? '۱۲,۰۰۰ بیت بر نقطه (دقت بالا)' : '12,000 bits/pt (High Precision)'}
+                  {isFa ? '۱۲,۰۰۰ بیت بر نقطه (دقت بالا)' : '12,000 bits/pt (High Precision)'}
                 </option>
               </select>
               <button
                 type="button"
                 onClick={triggerBerSweep}
                 disabled={isRunningBer}
+                aria-busy={isRunningBer}
                 className="btn-primary-pill px-3.5 py-1.5 text-xs font-mono flex items-center gap-1.5 cursor-pointer"
               >
                 {isRunningBer ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Play className="w-3.5 h-3.5" />
+                  <Play className="w-3.5 h-3.5" aria-hidden="true" />
                 )}
-                <span>{lang === 'fa' ? 'اجرای مجدد شبیه‌ساز' : 'Re-Run Worker'}</span>
+                <span>{isFa ? 'اجرای مجدد شبیه‌ساز' : 'Re-Run Worker'}</span>
               </button>
             </div>
           </div>
 
           {/* Toggle which modulation schemes to compare on the BER curve */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <span id={compareGroupId} className="sr-only">
+            {isFa ? 'طرح‌های مقایسه‌شده در نمودار BER' : 'Schemes compared on the BER chart'}
+          </span>
+          <div role="group" aria-labelledby={compareGroupId} className="flex flex-wrap items-center gap-1.5">
             {DIGITAL_SCHEMES.map((s) => {
               const active = selectedBerSchemes.includes(s.id);
               return (
                 <button
                   key={s.id}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => toggleSchemeComparison(s.id)}
-                  className={`neu-btn px-2.5 py-1 rounded text-xs font-mono flex items-center gap-1.5 cursor-pointer ${
-                    active ? 'neu-btn-active font-semibold' : 'opacity-45'
+                  className={`neu-btn px-2.5 py-1 rounded-chip text-xs font-mono flex items-center gap-1.5 cursor-pointer ${
+                    active ? 'neu-btn-active font-semibold' : 'opacity-60'
                   }`}
                 >
                   <span
+                    aria-hidden="true"
                     className="w-2.5 h-2.5 rounded-full"
                     style={{ backgroundColor: SCHEME_COLORS[s.id] }}
                   />
@@ -470,9 +510,60 @@ export const ModulationBERPage: React.FC = () => {
             })}
           </div>
 
-          <div className="oscilloscope-frame p-1 overflow-hidden">
-            <canvas ref={berCanvasRef} className="block w-full rounded-xl" />
+          <span role="status" aria-live="polite" className="sr-only">
+            {isRunningBer
+              ? isFa
+                ? 'در حال اجرای شبیه‌سازی BER…'
+                : 'Running BER simulation…'
+              : isFa
+                ? `منحنی‌های BER برای ${berCurves.length} طرح به‌روز شد`
+                : `BER curves updated for ${berCurves.length} schemes`}
+          </span>
+
+          <div aria-busy={isRunningBer} className={isRunningBer ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
+            <InteractivePlot
+              title={isFa ? 'BER بر حسب Eb/N0' : 'BER vs. Eb/N0'}
+              xData={berXData}
+              xLabel="Eb/N0 (dB)"
+              xUnit="dB"
+              yLabel={isFa ? 'نرخ خطای بیت (BER)' : 'Bit Error Rate (BER)'}
+              yLogScale
+              yDomainOverride={berDomain}
+              height={310}
+              series={berSeries}
+              markers={snrInBerRange ? berMarkers : []}
+              peaks={snrInBerRange ? berPeaks : []}
+              peakColor="#f59e0b"
+              ariaLabel={
+                isFa
+                  ? `نمودار لگاریتمی BER بر حسب Eb/N0 از ${BER_SNR_MIN} تا ${BER_SNR_MAX} dB برای ${berCurves.map((c) => c.scheme).join('، ')}؛ BER اندازه‌گیری‌شده در ${digCfg.snrDb} dB برابر ${digResult.ber.toExponential(2)}`
+                  : `Log-scale BER vs Eb/N0 from ${BER_SNR_MIN} to ${BER_SNR_MAX} dB for ${berCurves.map((c) => c.scheme).join(', ')}; measured BER at ${digCfg.snrDb} dB is ${digResult.ber.toExponential(2)}`
+              }
+            />
           </div>
+          {!snrInBerRange && (
+            <p className="text-caption text-slate-500">
+              {isFa
+                ? `Eb/N0 فعلی (${digCfg.snrDb} dB) خارج از بازه منحنی‌ها (${BER_SNR_MIN} تا ${BER_SNR_MAX} dB) است.`
+                : `Current Eb/N0 (${digCfg.snrDb} dB) is outside the swept range (${BER_SNR_MIN}–${BER_SNR_MAX} dB).`}
+            </p>
+          )}
+          <LiveEquation
+            values={{
+              snr: digCfg.snrDb,
+              lin: ebNoLinear,
+              errs: digResult.numErrors,
+              bits: digResult.txBits.length,
+              ber: digResult.ber,
+            }}
+            precision={3}
+            tex={'\\frac{E_b}{N_0} = 10^{{{snr}}/10} = {{lin}}, \\quad \\hat{P}_b = \\frac{{{errs}}}{{{bits}}} = {{ber}}'}
+            caption={
+              isFa
+                ? 'BER اندازه‌گیری‌شده برای بلوک بیت فعلی (نقطه کهربایی روی نمودار)'
+                : 'Measured BER for the current bit block (amber point on the chart)'
+            }
+          />
         </div>
       </div>
 
@@ -494,20 +585,23 @@ export const ModulationBERPage: React.FC = () => {
             xLabel={lang === 'fa' ? 'زمان (ثانیه)' : 'Time (s)'}
             yLabel={lang === 'fa' ? 'دامنه (V)' : 'Amplitude (V)'}
             height={235}
+            xUnit="s"
+            yUnit="V"
             series={[
               {
                 id: 'dig-clean',
                 label: lang === 'fa' ? 'حامل مدوله‌شده ایده‌آل' : 'Ideal Modulated Carrier',
                 data: digResult.waveformClean,
-                color: '#0ea5e9',
+                color: getSeriesColor(0),
                 lineWidth: 2,
               },
               {
                 id: 'dig-noisy',
                 label: lang === 'fa' ? 'حامل دریافتی نویزی' : 'Noisy Received Carrier',
                 data: digResult.waveformNoisy,
-                color: '#f59e0b',
+                color: getSeriesColor(1),
                 lineWidth: 1.2,
+                dash: [5, 3],
               },
             ]}
           />
@@ -516,11 +610,11 @@ export const ModulationBERPage: React.FC = () => {
         {/* Bit Error Stream Comparison Table */}
         <div className="xl:col-span-5 neu-card p-4 flex flex-col justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold tracking-tight">
+            <h2 className="text-sm font-semibold tracking-tight">
               {lang === 'fa'
                 ? 'مقایسه رشته بیت‌های ارسالی و دمدوله‌شده (۴۸ بیت اول)'
                 : 'Transmitted vs. Demodulated Bit Stream Inspector (First 48 Bits)'}
-            </h3>
+            </h2>
             <p className="text-xs text-slate-500">
               {lang === 'fa'
                 ? 'خطاهای تصمیم‌گیری بیتی با رنگ قرمز مشخص شده‌اند'
@@ -565,21 +659,21 @@ export const ModulationBERPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-xs font-mono">
+          <div role="status" aria-live="polite" className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono">
             <div className="neu-inset p-2.5">
-              <div className="text-slate-400 text-[10px]">
+              <div className="text-slate-400 text-caption">
                 {lang === 'fa' ? 'کل بیت‌ها' : 'Total Bits'}
               </div>
               <div className="font-bold text-sm">{digResult.txBits.length}</div>
             </div>
             <div className="neu-inset p-2.5">
-              <div className="text-slate-400 text-[10px]">
+              <div className="text-slate-400 text-caption">
                 {lang === 'fa' ? 'خطاهای بیتی' : 'Bit Errors'}
               </div>
               <div className="font-bold text-sm text-rose-500">{digResult.numErrors}</div>
             </div>
             <div className="neu-inset p-2.5">
-              <div className="text-slate-400 text-[10px]">
+              <div className="text-slate-400 text-caption">
                 {lang === 'fa' ? 'نرخ BER اندازه‌گیری‌شده' : 'Measured BER'}
               </div>
               <div className="font-bold text-sm text-amber-500">
